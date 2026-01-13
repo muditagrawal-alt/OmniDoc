@@ -1,0 +1,20 @@
+# Python
+__pycache__/
+*.pyc
+
+# Virtual environments
+.venv/
+venv/
+
+# Local data / models
+data/
+models/
+
+# Mac junk
+.DS_Store
+
+# Streamlit
+.streamlit/
+
+# Logs
+*.log
