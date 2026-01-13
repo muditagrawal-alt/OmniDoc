@@ -26,9 +26,9 @@ def load_document(file_path: str) -> str:
     else:
         raise ValueError("Unsupported file type. Please upload PDF or DOCX.")
 
-def handle_query(user_query: str, doc_content: str) -> str:
+def handle_query(user_query, document_context):
     task = detect_intent(user_query)
-    return route(task, user_query, doc_content)
+    return route(task, user_query, document_context)
 
 if __name__ == "__main__":
     print("Enter the path of the document you want to summarize/Q&A on:")
