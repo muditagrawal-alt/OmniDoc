@@ -13,3 +13,4 @@ typing-inspection==0.4.2
 typing_extensions==4.15.0
 pymupdf==1.22.5
 python-docx==0.8.12
+streamlit==1.50.0
