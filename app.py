@@ -1,6 +1,6 @@
 import streamlit as st
-from pipeline import handle_query  # your existing function
-from loader import load_document  # if you have a function to load docs
+from pipeline import handle_query  # existing function
+from loader import load_document  # function to load docs
 
 st.set_page_config(page_title="OmniDoc", page_icon="📄")
 
