@@ -1,73 +1,54 @@
+# pipeline.py
 import os
+import fitz
 from docx import Document
-import fitz  # PyMuPDF
-
 from intent import detect_intent
 from router import route
-
-from rag import RAGPipeline   # NEW
-
-
-def load_pdf(file_path: str) -> str:
-    text = ""
-    doc = fitz.open(file_path)
-    for page in doc:
-        text += page.get_text()
-    return text
+from rag import RAGPipeline
 
 
-def load_docx(file_path: str) -> str:
-    doc = Document(file_path)
-    return "\n".join([p.text for p in doc.paragraphs])
+def load_pdf(path):
+    doc = fitz.open(path)
+    return "\n".join(page.get_text() for page in doc)
 
 
-def load_document(file_path: str) -> str:
-    if not os.path.exists(file_path):
-        raise FileNotFoundError(f"No such file: {file_path}")
+def load_docx(path):
+    doc = Document(path)
+    return "\n".join(p.text for p in doc.paragraphs)
 
-    ext = os.path.splitext(file_path)[1].lower()
+
+def load_document(path):
+    if not os.path.exists(path):
+        raise FileNotFoundError(path)
+
+    ext = os.path.splitext(path)[1].lower()
     if ext == ".pdf":
-        return load_pdf(file_path)
+        return load_pdf(path)
     elif ext == ".docx":
-        return load_docx(file_path)
+        return load_docx(path)
     else:
-        raise ValueError("Unsupported file type. Please upload PDF or DOCX.")
+        raise ValueError("Only PDF and DOCX supported")
 
-
-# ---------------- RAG-AWARE QUERY HANDLER ----------------
-
-rag = RAGPipeline()
-
-def handle_query(user_query: str):
-    task = detect_intent(user_query)
-
-    retrieved_chunks = rag.retrieve(user_query, top_k=5)
-    context = "\n\n".join(retrieved_chunks)
-
-    return route(task, user_query, context)
-
-
-# ---------------- CLI ENTRY ----------------
 
 if __name__ == "__main__":
-    print("Enter the path of the document you want to summarize/Q&A on:")
-    file_path = input().strip()
+    file_path = input("Enter document path: ").strip()
+    document = load_document(file_path)
 
-    try:
-        document_text = load_document(file_path)
-        rag.ingest(document_text)   # 🔥 INGEST ONCE
-        print("Document indexed successfully.")
-    except Exception as e:
-        print(f"Error loading document: {e}")
-        exit(1)
+    rag = RAGPipeline()
+    rag.ingest(document)
+
+    print("Document indexed with RAG")
 
     while True:
-        print("\nEnter your query (or 'exit'):", end=" ")
-        q = input().strip()
+        q = input("\nQuery (or exit): ").strip()
         if q.lower() == "exit":
             break
 
-        answer = handle_query(q)
-        print("\n--- RESULT ---")
+        task = detect_intent(q)
+        retrieved_chunks = rag.retrieve(q)
+
+        context = "\n\n".join(retrieved_chunks)
+        answer = route(task, q, context)
+
+        print("\n--- ANSWER ---")
         print(answer)
-        print("--------------")
