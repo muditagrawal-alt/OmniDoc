@@ -1,8 +1,14 @@
-from sentence_transformers import SentenceTransformer
+import ollama
+
+EMBED_MODEL = "nomic-embed-text"
 
 class EmbeddingModel:
-    def __init__(self):
-        self.model = SentenceTransformer("all-MiniLM-L6-v2")
-
-    def embed(self, texts):
-        return self.model.encode(texts, show_progress_bar=False)
+    def embed(self, texts: list[str]) -> list[list[float]]:
+        vectors = []
+        for t in texts:
+            res = ollama.embeddings(
+                model=EMBED_MODEL,
+                prompt=t
+            )
+            vectors.append(res["embedding"])
+        return vectors
