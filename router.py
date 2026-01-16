@@ -1,10 +1,18 @@
-# router.py
 from llm import call_llm
 
 SYSTEMS = {
-    "question_answering": "You answer questions strictly from the provided document context.",
-    "summarization": "You summarize documents clearly and concisely.",
-    "information_extraction": "You extract structured information accurately.",
+    "question_answering": (
+        "Answer ONLY using the provided document context. "
+        "If the answer is not present, say: 'Not found in document.'"
+    ),
+    "summarization": (
+        "Summarize ONLY the provided document context. "
+        "Do not add external knowledge."
+    ),
+    "information_extraction": (
+        "Extract structured information strictly from the provided context. "
+        "If data is missing, leave it blank."
+    ),
 }
 
 def route(task: str, query: str, context: str) -> str:
@@ -12,10 +20,10 @@ def route(task: str, query: str, context: str) -> str:
         raise ValueError(f"Unsupported task: {task}")
 
     prompt = f"""
-DOCUMENT:
+DOCUMENT CONTEXT:
 {context}
 
-TASK:
+USER TASK:
 {query}
 """
 

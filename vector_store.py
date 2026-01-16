@@ -1,4 +1,4 @@
-import faiss
+import faiss #Retrieval Engine
 import numpy as np
 
 class VectorStore:
