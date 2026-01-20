@@ -34,6 +34,11 @@ if __name__ == "__main__":
     file_path = input("Enter document path: ").strip()
     document = load_document(file_path)
 
+if file_path.lower().endswith(".pdf"):
+    from image_loader import extract_images_with_captions
+    image_context = extract_images_with_captions(file_path)
+    document = document + "\n\n" + image_context
+
     rag = RAGPipeline()
     rag.ingest(document)
 
