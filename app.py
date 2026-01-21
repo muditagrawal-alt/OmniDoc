@@ -1,32 +1,71 @@
 import streamlit as st
+import tempfile
+import os
 
 from loader import load_uploaded_document
 from intent import detect_intent
 from router import route
+from image_loader import extract_images_with_captions
 
 st.set_page_config(page_title="OmniDoc", layout="wide")
 
 st.title("📄 OmniDoc")
 st.caption("LLM-powered document Q&A, summarization, and extraction")
 
-# Upload document
+# ---------- UPLOAD ----------
 uploaded_file = st.file_uploader(
     "Upload a document",
     type=["pdf", "docx"]
 )
 
 document_context = None
+image_data = None
 
 if uploaded_file:
     try:
         document_context = load_uploaded_document(uploaded_file)
+
+        if uploaded_file.name.lower().endswith(".pdf"):
+            with st.spinner("Extracting figures from document..."):
+                with tempfile.NamedTemporaryFile(delete=False, suffix=".pdf") as tmp:
+                    tmp.write(uploaded_file.getbuffer())
+                    pdf_path = tmp.name
+
+                image_context, image_data = extract_images_with_captions(pdf_path)
+                document_context += "\n\n" + image_context
+
+                os.remove(pdf_path)
+
         st.success(f"Document loaded ({len(document_context)} characters)")
+
     except Exception as e:
         st.error(str(e))
 
 st.divider()
 
-# User query
+# ---------- IMAGE MATCHING ----------
+def find_relevant_images(query, images):
+    if not images:
+        return []
+
+    q = query.lower()
+
+    trigger_words = [
+        "diagram", "figure", "architecture",
+        "flow", "workflow", "network",
+        "topology", "layout", "structure"
+    ]
+
+    explicit = any(w in q for w in trigger_words)
+
+    matched = []
+    for img in images:
+        if explicit or any(word in img["search_text"] for word in q.split()):
+            matched.append(img)
+
+    return matched
+
+# ---------- QUERY ----------
 query = st.text_input("Ask something about the document")
 
 if st.button("Run") and query:
@@ -34,10 +73,23 @@ if st.button("Run") and query:
         st.warning("Please upload a document first.")
     else:
         with st.spinner("Thinking..."):
-            task = detect_intent(query)
             try:
+                task = detect_intent(query)
                 response = route(task, query, document_context)
+
                 st.subheader(f"Detected task: `{task}`")
                 st.write(response)
+
+                relevant_images = find_relevant_images(query, image_data)
+
+                if relevant_images:
+                    st.markdown("### 📊 Relevant Diagrams")
+                    for img in relevant_images:
+                        st.image(
+                            img["image"],
+                            caption=f"Page {img['page']}: {img['caption']}",
+                            use_container_width=True
+                        )
+
             except Exception as e:
                 st.error(str(e))

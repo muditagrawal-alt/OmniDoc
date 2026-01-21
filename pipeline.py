@@ -34,7 +34,7 @@ if __name__ == "__main__":
     # If it's a PDF, extract image captions and append to the text
     if file_path.lower().endswith(".pdf"):
         from image_loader import extract_images_with_captions
-        image_context = extract_images_with_captions(file_path)
+        image_context, _ = extract_images_with_captions(file_path)
         document = document + "\n\n" + image_context
 
     # Initialize RAG with the combined context
