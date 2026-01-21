@@ -21,3 +21,6 @@ models/
 
 .env
 .env.*
+
+#Images extracted from documents
+extracted_images/
