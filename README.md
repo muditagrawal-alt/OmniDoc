@@ -106,20 +106,3 @@ streamlit run app.py
 	•	No hallucinated answers
 	•	Designed for technical, academic, and enterprise documents
 	•	Extensible to multimodal RAG systems
-
----
-
-## Final blunt truth
-
-- Your **logic and content were solid**
-- Your **Markdown formatting was wrong**
-- GitHub was doing exactly what it should
-
-This version will render **perfectly point-wise** in GitHub view.
-
-If you want next:
-- TL/interview **explanation version**
-- Defense/research-oriented README
-- Architecture diagram (text or visual)
-
-Say the word.
