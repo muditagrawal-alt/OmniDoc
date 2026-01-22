@@ -2,11 +2,16 @@ import fitz
 from PIL import Image
 import io
 from transformers import BlipProcessor, BlipForConditionalGeneration
+import hashlib
 
 MODEL_NAME = "Salesforce/blip-image-captioning-base"
 
 processor = BlipProcessor.from_pretrained(MODEL_NAME)
 model = BlipForConditionalGeneration.from_pretrained(MODEL_NAME)
+
+
+def image_hash(pil_image: Image.Image) -> str:
+    return hashlib.md5(pil_image.tobytes()).hexdigest()
 
 
 def caption_image(image: Image.Image) -> str:
@@ -26,6 +31,8 @@ def extract_images_with_captions(pdf_path: str):
     image_context = []
     images = []
 
+    seen_hashes = set()   # ✅ DEDUP TRACKER
+
     for page_num, page in enumerate(doc):
         for img in page.get_images(full=True):
             xref = img[0]
@@ -33,17 +40,27 @@ def extract_images_with_captions(pdf_path: str):
             image_bytes = base_image["image"]
 
             image = Image.open(io.BytesIO(image_bytes)).convert("RGB")
+
+            # ---------- DEDUP ----------
+            img_hash = image_hash(image)
+            if img_hash in seen_hashes:
+                continue
+            seen_hashes.add(img_hash)
+
+            # ---------- CAPTION ----------
             caption = caption_image(image)
 
+            # ---------- TEXT CONTEXT FOR RAG ----------
             image_context.append(
                 f"[FIGURE page {page_num + 1}]: {caption}"
             )
 
+            # ---------- UI DATA ----------
             images.append({
-    "page": page_num + 1,
-    "image": image,
-    "caption": caption,
-    "search_text": caption.lower()
-})
+                "page": page_num + 1,
+                "image": image,
+                "caption": caption,
+                "search_text": caption.lower()
+            })
 
     return "\n".join(image_context), images

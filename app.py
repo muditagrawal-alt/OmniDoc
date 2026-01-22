@@ -44,26 +44,27 @@ if uploaded_file:
 st.divider()
 
 # ---------- IMAGE MATCHING ----------
-def find_relevant_images(query, images):
+def find_relevant_images(query, images, top_k=2):
     if not images:
         return []
 
-    q = query.lower()
+    query_words = set(query.lower().split())
 
-    trigger_words = [
-        "diagram", "figure", "architecture",
-        "flow", "workflow", "network",
-        "topology", "layout", "structure"
-    ]
+    scored_images = []
 
-    explicit = any(w in q for w in trigger_words)
-
-    matched = []
     for img in images:
-        if explicit or any(word in img["search_text"] for word in q.split()):
-            matched.append(img)
+        caption_words = set(img["caption"].lower().split())
+        overlap = query_words.intersection(caption_words)
 
-    return matched
+        if overlap:
+            score = len(overlap) / len(query_words)
+            scored_images.append((score, img))
+
+    # Sort by relevance score (highest first)
+    scored_images.sort(key=lambda x: x[0], reverse=True)
+
+    # Return only top-k images
+    return [img for _, img in scored_images[:top_k]]
 
 # ---------- QUERY ----------
 query = st.text_input("Ask something about the document")
