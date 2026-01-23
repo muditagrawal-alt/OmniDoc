@@ -1,10 +1,12 @@
 import streamlit as st
 import tempfile
 import os
+
 from loader import load_uploaded_document
 from intent import detect_intent
 from router import route
 from image_loader import extract_images_with_captions
+from chat_ui import render_chat_ui
 
 st.set_page_config(page_title="OmniDoc", layout="wide")
 
@@ -12,14 +14,15 @@ st.title("📄 OmniDoc")
 st.caption("LLM-powered document Q&A, summarization, and extraction")
 
 # ---------- SESSION STATE ----------
-if "messages" not in st.session_state:
-    st.session_state.messages = []
-
 if "document_context" not in st.session_state:
     st.session_state.document_context = None
 
 if "image_data" not in st.session_state:
     st.session_state.image_data = None
+
+# 🔒 Document guard
+if "doc_key" not in st.session_state:
+    st.session_state.doc_key = None
 
 # ---------- UPLOAD ----------
 uploaded_file = st.file_uploader(
@@ -29,6 +32,17 @@ uploaded_file = st.file_uploader(
 
 if uploaded_file:
     try:
+        doc_key = f"{uploaded_file.name}_{uploaded_file.size}"
+
+        # 🔒 Reset conversations ONLY if document changes
+        if st.session_state.doc_key != doc_key:
+            st.session_state.doc_key = doc_key
+
+            # reset conversations safely
+            if "conversations" in st.session_state:
+                st.session_state.conversations = {}
+                st.session_state.active_chat = None
+
         st.session_state.document_context = load_uploaded_document(uploaded_file)
 
         if uploaded_file.name.lower().endswith(".pdf"):
@@ -43,8 +57,9 @@ if uploaded_file:
 
                 os.remove(pdf_path)
 
-        st.success(f"Document loaded ({len(st.session_state.document_context)} characters)")
-        st.session_state.messages = []
+        st.success(
+            f"Document loaded ({len(st.session_state.document_context)} characters)"
+        )
 
     except Exception as e:
         st.error(str(e))
@@ -57,7 +72,6 @@ def find_relevant_images(query, images, top_k=2):
         return []
 
     query_words = set(query.lower().split())
-
     scored_images = []
 
     for img in images:
@@ -71,28 +85,21 @@ def find_relevant_images(query, images, top_k=2):
     scored_images.sort(key=lambda x: x[0], reverse=True)
     return [img for _, img in scored_images[:top_k]]
 
-# ---------- MODERN CHAT INTERFACE ----------
-# Render existing messages
-for msg in st.session_state.messages:
-    with st.chat_message(msg["role"]):
-        st.write(msg["content"])
-        if msg.get("images"):
-            for img in msg["images"]:
-                st.image(
-                    img["image"],
-                    caption=f"Page {img['page']}: {img['caption']}",
-                    use_container_width=True
-                )
-
-# Chat input (replaces old text_input + Run)
-query = st.chat_input("Ask something about the document…")
+# ---------- CHAT UI ----------
+query = render_chat_ui()
 
 if query:
     if not st.session_state.document_context:
         st.warning("Please upload a document first.")
     else:
-        # Save user message
-        st.session_state.messages.append({
+        chat = st.session_state.conversations[st.session_state.active_chat]
+
+        # auto-title chat
+        if chat["title"] == "New conversation":
+            chat["title"] = query[:40]
+
+        # save user message
+        chat["messages"].append({
             "role": "user",
             "content": query
         })
@@ -100,29 +107,32 @@ if query:
         with st.chat_message("assistant"):
             with st.spinner("Thinking..."):
                 try:
-                    # Use your current backend logic
                     task = detect_intent(query)
-                    response = route(task, query, st.session_state.document_context)
+                    response = route(
+                        task,
+                        query,
+                        st.session_state.document_context
+                    )
 
-                    relevant_images = find_relevant_images(query, st.session_state.image_data)
+                    relevant_images = find_relevant_images(
+                        query,
+                        st.session_state.image_data
+                    )
 
-                    # Display text
                     st.write(response)
 
-                    # Display relevant images inline
-                    if relevant_images:
-                        for img in relevant_images:
-                            st.image(
-                                img["image"],
-                                caption=f"Page {img['page']}: {img['caption']}",
-                                use_container_width=True
-                            )
+                    for img in relevant_images:
+                        st.image(
+                            img["image"],
+                            caption=f"Page {img['page']}: {img['caption']}",
+                            use_container_width=True
+                        )
 
-                    # Save assistant message
-                    st.session_state.messages.append({
+                    # save assistant message
+                    chat["messages"].append({
                         "role": "assistant",
                         "content": response,
-                        "images": relevant_images if relevant_images else []
+                        "images": relevant_images
                     })
 
                 except Exception as e:
