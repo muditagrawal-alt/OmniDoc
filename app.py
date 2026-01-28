@@ -137,4 +137,3 @@ if query:
 
                 except Exception as e:
                     st.error(str(e))
-                    lol
