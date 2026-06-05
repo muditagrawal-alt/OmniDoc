@@ -1,9 +1,7 @@
-import subprocess
 import json
-import sys
+import ollama
 
 OLLAMA_MODEL = "mistral:latest"
-
 
 SYSTEM_PROMPT = """
 You are an intent classification engine.
@@ -23,31 +21,30 @@ Rules:
 
 
 def detect_intent(user_prompt: str) -> str:
-    prompt = f"""
-{SYSTEM_PROMPT}
-
-User request:
-\"\"\"{user_prompt}\"\"\"
-"""
-
+    """
+    Detect user intent: QA, summarization, or extraction.
+    Falls back to question_answering if detection fails.
+    """
     try:
-        result = subprocess.run(
-            ["ollama", "run", OLLAMA_MODEL],
-            input=prompt,
-            capture_output=True,
-            text=True,
-            check=True
+        response = ollama.chat(
+            model=OLLAMA_MODEL,
+            messages=[
+                {"role": "system", "content": SYSTEM_PROMPT},
+                {"role": "user", "content": user_prompt}
+            ],
+            stream=False
         )
-
-        raw_output = result.stdout.strip()
-        print(f"RAW LLM OUTPUT: {raw_output}")
-
+        
+        raw_output = response["message"]["content"].strip()
         parsed = json.loads(raw_output)
-        return parsed["task"]
-
+        return parsed.get("task", "question_answering")
+    
+    except json.JSONDecodeError:
+        print("⚠️ Intent detection: Invalid JSON response, defaulting to question_answering")
+        return "question_answering"
     except Exception as e:
-        print(f"Intent detection failed: {e}")
-        sys.exit(1)
+        print(f"⚠️ Intent detection failed: {e}, defaulting to question_answering")
+        return "question_answering"
 
 
 if __name__ == "__main__":
