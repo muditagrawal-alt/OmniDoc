@@ -17,6 +17,7 @@ from chat_ui import render_chat_ui
 from rag import RAGPipeline
 from db_store import OmniDocDB
 from web_search import WebSearcher
+from core.pipeline import AgenticGraphRAGPipeline
 
 # ============================================================================
 # CONFIGURATION & INITIALIZATION
@@ -66,8 +67,15 @@ if "active_chat" not in st.session_state:
     st.session_state.active_chat = None
 if "use_web_search" not in st.session_state:
     st.session_state.use_web_search = True
+if "use_agentic_rag" not in st.session_state:
+    st.session_state.use_agentic_rag = True
 if "show_debug" not in st.session_state:
     st.session_state.show_debug = False
+if "agentic_pipeline" not in st.session_state:
+    try:
+        st.session_state.agentic_pipeline = AgenticGraphRAGPipeline()
+    except Exception:
+        st.session_state.agentic_pipeline = None
 
 
 # ============================================================================
@@ -127,6 +135,12 @@ with st.sidebar:
         "🌐 Enable Web Search",
         value=st.session_state.use_web_search,
         help="Enable real-time web search for queries"
+    )
+    
+    st.session_state.use_agentic_rag = st.checkbox(
+        "🕸️ Agentic Graph RAG (LangGraph + Kùzu)",
+        value=st.session_state.use_agentic_rag,
+        help="Use collaborative multi-agent execution with Kùzu property graph, LanceDB hybrid search, and strict guardrails."
     )
     
     st.session_state.show_debug = st.checkbox(
@@ -250,6 +264,24 @@ if uploaded_file:
                     full_context,
                     document_hash=doc_hash
                 )
+
+                # Ingest into Agentic Graph RAG (Docling + LanceDB + Kùzu)
+                if st.session_state.agentic_pipeline and st.session_state.use_agentic_rag:
+                    with st.spinner("🕸️ Indexing into Knowledge Graph (Kùzu) & LanceDB..."):
+                        with tempfile.NamedTemporaryFile(delete=False, suffix=Path(uploaded_file.name).suffix) as tmp_f:
+                            tmp_f.write(file_bytes)
+                            tmp_file_path = tmp_f.name
+                        try:
+                            st.session_state.agentic_pipeline.ingest_document(
+                                file_path=tmp_file_path,
+                                doc_id=st.session_state.document_id,
+                                doc_hash=doc_hash
+                            )
+                        except Exception as e:
+                            print(f"Agentic graph ingestion warning: {e}")
+                        finally:
+                            if os.path.exists(tmp_file_path):
+                                os.remove(tmp_file_path)
                 
                 if success:
                     st.success(f"✅ Document ready! ({len(file_bytes)} bytes, {len(st.session_state.rag_pipeline.chunks)} chunks)")
@@ -344,71 +376,155 @@ if query:
         
         # Process query
         with st.chat_message("assistant"):
-            with st.spinner("🤔 Thinking..."):
+            with st.spinner("🤔 Agentic Graph RAG reasoning..."):
                 try:
-                    # Detect intent
-                    task = detect_intent(query)
-                    
-                    # Retrieve relevant chunks
-                    retrieved_chunks = []
-                    if st.session_state.rag_pipeline:
-                        retrieved_chunks = st.session_state.rag_pipeline.retrieve(query, top_k=5)
-                    
-                    # Route to handler
-                    response, web_results, context_used = route(
-                        task,
-                        query,
-                        st.session_state.document_context,
-                        retrieved_chunks=retrieved_chunks,
-                        use_web_search=st.session_state.use_web_search
-                    )
-                    
-                    # Find relevant images
-                    relevant_images = []
-                    if st.session_state.image_data:
-                        relevant_images = find_relevant_images_semantic(
-                            query,
-                            st.session_state.image_data,
-                            top_k=2
+                    if st.session_state.use_agentic_rag and st.session_state.agentic_pipeline:
+                        # Extract prior conversation history for multi-turn anaphora resolution
+                        prior_history = chat.get("messages", [])[:-1]
+
+                        # Execute via LangGraph Multi-Agent Core
+                        result = st.session_state.agentic_pipeline.query(
+                            user_query=query,
+                            doc_id=st.session_state.document_id,
+                            session_id=st.session_state.active_chat,
+                            conversation_history=prior_history
                         )
-                    
-                    # Display response
-                    st.write(response)
-                    
-                    # Show images
-                    if relevant_images:
-                        st.subheader("📸 Related Images")
-                        for img in relevant_images:
-                            col1, col2 = st.columns([1, 2])
-                            with col1:
-                                st.image(img["image"], use_container_width=True)
-                            with col2:
-                                st.caption(f"📄 Page {img['page']}: {img['caption']}")
-                    
-                    # Show web results
-                    if web_results:
-                        st.subheader("🌐 Web Sources")
-                        for i, result in enumerate(web_results, 1):
-                            st.markdown(f"**{i}. {result['title']}**")
-                            st.caption(f"[{result['link']}]({result['link']})")
-                    
-                    # Debug info
-                    if st.session_state.show_debug:
-                        with st.expander("🐛 Debug Info"):
-                            st.write(f"**Task:** {task}")
-                            st.write(f"**Retrieved Chunks:** {len(retrieved_chunks)}")
-                            if retrieved_chunks:
-                                st.write(f"**Relevance Scores:** {[f'{s[2]:.3f}' for s in retrieved_chunks]}")
-                            st.write(f"**Web Search:** {'Yes' if web_results else 'No'}")
-                    
-                    # Save assistant message
-                    chat["messages"].append({"role": "assistant", "content": response, "images": relevant_images})
-                    st.session_state.db.add_message(
-                        st.session_state.active_chat,
-                        "assistant",
-                        response,
-                        images=relevant_images
-                    )
+                        
+                        response = result.get("verified_response") or result.get("draft_response", "")
+                        verification = result.get("verification")
+                        intent_contract = result.get("intent")
+                        intent_res = result.get("intent_result")
+                        graph_data = result.get("graph_context", [])
+                        chunks_data = result.get("chunk_context", [])
+                        plan = result.get("plan", [])
+                        math_results = result.get("math_results", [])
+                        visual_artifacts = result.get("visual_artifacts", [])
+                        conflicts = result.get("conflicts", [])
+                        evidence_pkg = result.get("evidence_package")
+                        
+                        # Display main cited response
+                        st.write(response)
+
+                        # Render Interactive Plotly Charts
+                        if visual_artifacts:
+                            for va in visual_artifacts:
+                                spec = va.get("plotly_spec")
+                                if spec:
+                                    try:
+                                        st.plotly_chart(spec, use_container_width=True)
+                                        if va.get("caption"):
+                                            st.caption(f"📊 **{va.get('title', 'Chart')}**: {va.get('caption')}")
+                                    except Exception as p_err:
+                                        st.warning(f"Could not render chart: {p_err}")
+
+                        # Render Exact Mathematical Computations
+                        if math_results:
+                            for mr in math_results:
+                                with st.expander(f"🔢 Mathematical Reasoning: {mr.get('task', 'Computation')}", expanded=True):
+                                    if mr.get("formula"):
+                                        try:
+                                            st.latex(mr.get("formula"))
+                                        except Exception:
+                                            st.code(mr.get("formula"))
+                                    st.markdown(f"**Exact Result:** `{mr.get('exact_result')} {mr.get('units', '')}`")
+                                    if mr.get("code_executed"):
+                                        st.code(mr.get("code_executed"), language="python")
+                                    if mr.get("assumptions"):
+                                        st.caption(f"*Assumptions:* {', '.join(mr.get('assumptions'))}")
+                        
+                        # Groundedness & Faithfulness Badge
+                        if verification:
+                            score_pct = int(verification.faithfulness_score * 100)
+                            if verification.is_grounded:
+                                st.success(f"🛡️ **Groundedness Score:** {score_pct}% • Verified by Output Guardrail")
+                            else:
+                                st.warning(f"⚠️ **Groundedness Score:** {score_pct}% • {verification.feedback}")
+
+                        # Discrepancy & Conflict Audit
+                        if conflicts:
+                            with st.expander(f"⚖️ Conflict Resolution Audit ({len(conflicts)} Discrepancies Analyzed)", expanded=False):
+                                for cf in conflicts:
+                                    st.markdown(f"- **Claim:** {cf.get('conflicting_claim')}")
+                                    st.markdown(f"  - **Status:** `{cf.get('resolution_status')}` • *Rationale:* {cf.get('rationale')}")
+                        
+                        # Knowledge Graph Subgraph Explorer
+                        if graph_data:
+                            for g in graph_data:
+                                edges = g.get("edges", [])
+                                if edges:
+                                    with st.expander(f"🕸️ Knowledge Graph Subgraph ({len(edges)} Relations Traversed)", expanded=False):
+                                        for e in edges:
+                                            st.markdown(f"- **{e.get('source_name', e.get('source'))}** `[{e.get('relation')}]` ➔ **{e.get('target_name', e.get('target'))}**: *{e.get('description', '')}*")
+                        
+                        # Multi-Agent Execution Trace & DAG Handoffs
+                        if plan:
+                            with st.expander("🤖 Multi-Agent Execution Plan & Handoffs", expanded=False):
+                                for i, step in enumerate(plan, 1):
+                                    st.markdown(f"**Step {i}:** `{step}`")
+                                if intent_res:
+                                    st.caption(f"**Primary Intent:** `{intent_res.primary_intent}` | **Capabilities:** `{', '.join(intent_res.detected_requirements)}`")
+                                elif intent_contract:
+                                    st.caption(f"**Intent:** `{intent_contract.primary_intent}` | **Confidence:** `{intent_contract.confidence:.2f}`")
+
+                        chat["messages"].append({
+                            "role": "assistant",
+                            "content": response,
+                            "images": [],
+                            "charts": visual_artifacts,
+                            "math": math_results
+                        })
+                        st.session_state.db.add_message(
+                            st.session_state.active_chat,
+                            "assistant",
+                            response
+                        )
+
+                    else:
+                        # Fallback to legacy single-pass procedural pipeline
+                        task = detect_intent(query)
+                        retrieved_chunks = []
+                        if st.session_state.rag_pipeline:
+                            retrieved_chunks = st.session_state.rag_pipeline.retrieve(query, top_k=5)
+                        
+                        response, web_results, context_used = route(
+                            task,
+                            query,
+                            st.session_state.document_context,
+                            retrieved_chunks=retrieved_chunks,
+                            use_web_search=st.session_state.use_web_search
+                        )
+                        
+                        relevant_images = []
+                        if st.session_state.image_data:
+                            relevant_images = find_relevant_images_semantic(
+                                query,
+                                st.session_state.image_data,
+                                top_k=2
+                            )
+                        
+                        st.write(response)
+                        if relevant_images:
+                            st.subheader("📸 Related Images")
+                            for img in relevant_images:
+                                col1, col2 = st.columns([1, 2])
+                                with col1:
+                                    st.image(img["image"], use_container_width=True)
+                                with col2:
+                                    st.caption(f"📄 Page {img['page']}: {img['caption']}")
+                        
+                        if web_results:
+                            st.subheader("🌐 Web Sources")
+                            for i, res_w in enumerate(web_results, 1):
+                                st.markdown(f"**{i}. {res_w['title']}**")
+                                st.caption(f"[{res_w['link']}]({res_w['link']})")
+
+                        chat["messages"].append({"role": "assistant", "content": response, "images": relevant_images})
+                        st.session_state.db.add_message(
+                            st.session_state.active_chat,
+                            "assistant",
+                            response,
+                            images=relevant_images
+                        )
                     st.session_state.db.add_search_record(
                         st.session_state.active_chat,
                         query,
