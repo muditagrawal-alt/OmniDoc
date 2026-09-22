@@ -1,25 +1,40 @@
-annotated-types==0.7.0
-anyio==4.12.1
-certifi==2026.1.4
-exceptiongroup==1.3.1
-h11==0.16.0
-httpcore==1.0.9
-httpx==0.28.1
-idna==3.11
+# Core Web App & UI
+streamlit>=1.30.0
+
+# Multi-Agent Orchestration & Workflow State
+langgraph>=0.2.0
+langchain-core>=0.3.0
+pydantic>=2.10.0
+
+# Document Ingestion & Layout-Aware Parsing
+docling>=2.69.0
+docling-core>=2.60.0
+PyMuPDF>=1.24.0
+python-docx>=1.1.0
+Pillow>=10.2.0
+
+# Knowledge Graph (Graph RAG)
+kuzu>=0.11.0
+networkx>=3.2.0
+
+# Vector Storage & Hybrid Search
+lancedb>=0.27.0
+tantivy>=0.25.0
+chromadb>=0.4.22
+sentence-transformers>=3.0.0
+
+# Local LLM & AI Pipeline
 ollama>=0.6.1
-pydantic==2.12.5
-pydantic_core==2.41.5
-typing-inspection==0.4.2
-typing_extensions==4.15.0
-pymupdf==1.22.5
-python-docx==0.8.11
-streamlit>=1.28.0
-sentence-transformers>=2.5.1
-faiss-cpu>=1.10.2
-chromadb>=0.4.0
+instructor>=1.17.0
+numpy>=1.26.0
+
+# Multimodal & Vision Pipeline
+transformers>=4.40.0
+torch>=2.2.0
+torchvision>=0.17.0
+
+# Networking & Real-Time Web Search
 requests>=2.31.0
-pillow>=10.0.0
-transformers>=4.35.0
-torch>=2.0.0
-numpy>=1.24.0
-uuid6>=1.0.0
+
+# Persistence (PostgreSQL & SQLite)
+psycopg2-binary>=2.9.9
