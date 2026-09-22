@@ -34,6 +34,26 @@ def render_chat_ui():
         with st.chat_message(msg["role"]):
             st.write(msg["content"])
             
+            # Display interactive charts if present
+            for chart in msg.get("charts", []):
+                spec = chart.get("plotly_spec")
+                if spec:
+                    try:
+                        st.plotly_chart(spec, use_container_width=True)
+                        if chart.get("caption"):
+                            st.caption(f"📊 **{chart.get('title', 'Chart')}**: {chart.get('caption')}")
+                    except Exception as ce:
+                        st.warning(f"Could not render chart: {ce}")
+
+            # Display math computation details if present
+            for m in msg.get("math", []):
+                if m.get("formula"):
+                    try:
+                        st.latex(m.get("formula"))
+                    except Exception:
+                        pass
+                st.caption(f"🔢 **{m.get('task', 'Computation')}:** `{m.get('exact_result')} {m.get('units', '')}`")
+
             # Display images if present
             for img in msg.get("images", []):
                 st.image(
@@ -45,3 +65,4 @@ def render_chat_ui():
     # Chat input
     query = st.chat_input("Ask something about the document…")
     return query
+
