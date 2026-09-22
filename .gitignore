@@ -8,6 +8,8 @@ venv/
 
 # Local data / models
 data/
+.data/
+.cache/
 models/
 
 # Mac junk
