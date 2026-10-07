@@ -1,0 +1,245 @@
+/* Reading typography for answers: serif, generous leading, ~68ch measure. */
+.prose {
+  font-family: var(--font-read);
+  font-size: var(--text-read);
+  line-height: var(--leading-read);
+  color: var(--text);
+  font-optical-sizing: auto;
+  overflow-wrap: anywhere;
+}
+
+.prose > * + * {
+  margin-top: 0.85em;
+}
+
+.prose h2,
+.prose h3,
+.prose h4 {
+  font-family: var(--font-read);
+  font-weight: 620;
+  letter-spacing: -0.012em;
+  line-height: var(--leading-tight);
+}
+
+.prose h2 {
+  margin-top: 1.5em;
+  font-size: 1.32rem;
+}
+
+.prose h3 {
+  margin-top: 1.35em;
+  font-size: 1.12rem;
+}
+
+.prose h4 {
+  margin-top: 1.2em;
+  font-size: 1rem;
+}
+
+.prose > :first-child {
+  margin-top: 0;
+}
+
+.prose strong {
+  font-weight: 640;
+}
+
+.prose ul,
+.prose ol {
+  padding-left: 1.4em;
+}
+
+.prose li + li {
+  margin-top: 0.35em;
+}
+
+.prose li > ul,
+.prose li > ol {
+  margin-top: 0.35em;
+}
+
+.prose li::marker {
+  color: var(--text-3);
+}
+
+.prose blockquote {
+  padding-left: var(--space-4);
+  border-left: 2px solid var(--border-strong);
+  color: var(--text-2);
+  font-style: italic;
+}
+
+.prose hr {
+  border: 0;
+  height: 1px;
+  background: var(--border);
+  margin: 1.6em 0;
+}
+
+.prose a {
+  color: var(--text);
+  text-decoration: underline;
+  text-decoration-color: var(--accent-line);
+}
+
+.inlineCode {
+  padding: 0.1em 0.35em;
+  border-radius: var(--radius-xs);
+  background: var(--surface-2);
+  font-size: 0.84em;
+}
+
+.inlineMath :global(.katex) {
+  font-size: 1em;
+}
+
+.displayMath {
+  margin: 1.1em 0;
+  padding: var(--space-2) 0;
+  overflow-x: auto;
+  overflow-y: hidden;
+}
+
+.mathFallback {
+  font-size: var(--text-sm);
+  color: var(--text-2);
+  white-space: pre-wrap;
+}
+
+.codeBlock {
+  border-radius: var(--radius-lg);
+  background: var(--surface-2);
+  overflow: hidden;
+  font-family: var(--font-mono);
+}
+
+.codeHeader {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 4px 6px 0 14px;
+  color: var(--text-3);
+  font-family: var(--font-ui);
+  font-size: var(--text-xs);
+}
+
+.codeBlock pre {
+  margin: 0;
+  padding: var(--space-2) var(--space-4) var(--space-4);
+  overflow-x: auto;
+  font-size: var(--text-sm);
+  line-height: 1.6;
+}
+
+.tableWrap {
+  overflow-x: auto;
+  border-radius: var(--radius-md);
+  box-shadow: inset 0 0 0 1px var(--border);
+}
+
+.tableWrap table {
+  width: 100%;
+  border-collapse: collapse;
+  font-family: var(--font-ui);
+  font-size: var(--text-sm);
+  line-height: var(--leading-snug);
+  font-variant-numeric: tabular-nums;
+}
+
+.tableWrap th {
+  padding: 9px 12px;
+  background: var(--surface-2);
+  color: var(--text-2);
+  font-weight: 600;
+  white-space: nowrap;
+}
+
+.tableWrap td {
+  padding: 9px 12px;
+  border-top: 1px solid var(--border);
+  vertical-align: top;
+}
+
+/* Citations */
+.citeGroup {
+  display: inline-flex;
+  gap: 2px;
+  margin: 0 1px 0 2px;
+  vertical-align: 0.12em;
+}
+
+.citeWrap {
+  position: relative;
+  display: inline-flex;
+}
+
+.cite {
+  display: inline-grid;
+  place-items: center;
+  min-width: 17px;
+  height: 17px;
+  padding: 0 4px;
+  border-radius: 5px;
+  background: var(--accent-soft);
+  color: var(--accent-ink);
+  font-family: var(--font-ui);
+  font-size: 10.5px;
+  font-weight: 650;
+  font-variant-numeric: tabular-nums;
+  line-height: 1;
+  transition:
+    background-color var(--dur-1) var(--ease-out),
+    color var(--dur-1) var(--ease-out);
+}
+
+.cite:hover,
+.cite:focus-visible {
+  background: var(--accent);
+  color: var(--on-ink);
+}
+
+:global([data-theme='dark']) .cite:hover,
+:global([data-theme='dark']) .cite:focus-visible {
+  color: #151514;
+}
+
+.citeTip {
+  position: absolute;
+  bottom: calc(100% + 8px);
+  left: 50%;
+  z-index: var(--z-popover);
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  width: min(340px, 80vw);
+  padding: var(--space-3) var(--space-4);
+  border-radius: var(--radius-lg);
+  background: var(--surface);
+  box-shadow: var(--shadow-3), inset 0 0 0 1px var(--border);
+  transform: translateX(-50%);
+  font-family: var(--font-ui);
+  font-size: var(--text-sm);
+  line-height: var(--leading-snug);
+  text-align: left;
+  animation: rise-in var(--dur-2) var(--ease-out);
+  pointer-events: none;
+}
+
+.citeTipTitle {
+  font-weight: 600;
+  color: var(--text);
+}
+
+.citeTipMeta {
+  color: var(--text-3);
+  font-weight: 400;
+  font-size: var(--text-xs);
+}
+
+.citeTipSnippet {
+  color: var(--text-2);
+  display: -webkit-box;
+  -webkit-line-clamp: 5;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
