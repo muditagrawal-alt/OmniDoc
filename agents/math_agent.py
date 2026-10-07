@@ -71,24 +71,28 @@ class MathematicsAgent:
                 stream=False
             )
             raw = response["message"]["content"].strip()
-            if raw.startswith("```"):
-                raw = re.sub(r"^```(?:json)?\s*", "", raw)
-                raw = re.sub(r"\s*```$", "", raw)
+            # Robust JSON extraction from LLM response
+            json_match = re.search(r"```(?:json)?\s*(\{.*?\})\s*```", raw, re.DOTALL)
+            if json_match:
+                raw_json = json_match.group(1)
+            else:
+                json_match = re.search(r"(\{.*\})", raw, re.DOTALL)
+                raw_json = json_match.group(1) if json_match else raw
 
-            parsed = json.loads(raw)
+            parsed = json.loads(raw_json)
             code_str = parsed.get("code", "")
             
             # Execute safely in sandbox
             execution_res = self._execute_sandboxed(code_str)
 
             math_artifact = MathExecutionResult(
-                task=parsed.get("task", "Calculation"),
-                inputs=parsed.get("inputs", {}),
-                formula=parsed.get("formula", ""),
-                code_executed=code_str,
+                task=parsed.get("task") or "Calculation",
+                inputs=parsed.get("inputs") or {},
+                formula=parsed.get("formula") or "",
+                code_executed=code_str or "",
                 exact_result=execution_res.get("result"),
                 units=parsed.get("units"),
-                assumptions=parsed.get("assumptions", []),
+                assumptions=parsed.get("assumptions") or [],
                 source_evidence_ids=[ch.get("chunk_id", "") for ch in chunks[:3]]
             )
 
@@ -100,6 +104,7 @@ class MathematicsAgent:
         except Exception as e:
             logger.error(f"MathAgent error: {e}")
             return {
+                "math_results": [],
                 "errors": [f"MathAgent execution error: {str(e)}"]
             }
 
@@ -138,8 +143,10 @@ class MathematicsAgent:
             # Convert numpy/sympy types to standard python for serialization
             if hasattr(result_val, "item"):
                 result_val = result_val.item()
-            elif isinstance(result_val, float):
+            if isinstance(result_val, float):
                 result_val = round(result_val, 4)
+            elif isinstance(result_val, (int, bool)):
+                pass
             elif result_val is not None:
                 result_val = str(result_val)
 
