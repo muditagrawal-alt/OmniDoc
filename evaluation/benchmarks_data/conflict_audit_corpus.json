@@ -1,0 +1,40 @@
+[
+  {
+    "doc_id": "audit_press_release_q4",
+    "title": "Starlight Dynamics Q4 Preliminary Unaudited Earnings Release",
+    "chunks": [
+      {
+        "chunk_id": "audit_pr_c1",
+        "section": "Preliminary Results Announcement",
+        "page_number": 1,
+        "text": "Starlight Dynamics (NASDAQ: STLD) today announced preliminary unaudited financial results for the fourth quarter ended December 31, 2023. Total revenue was $62.5 billion, representing an 8% year-over-year increase. Operating expenses for Q4 were reported as $14.2 billion, resulting in an operating margin of 24.1% and a net margin of 22.4%. Chief Financial Officer Sarah Jenkins noted that operational efficiencies drove lower-than-anticipated administrative overhead.",
+        "entities": [
+          {"name": "Starlight Dynamics", "category": "Organization", "description": "Global enterprise logistics and software provider"},
+          {"name": "Sarah Jenkins", "category": "Person", "description": "Chief Financial Officer of Starlight Dynamics"}
+        ],
+        "relations": [
+          {"source": "Sarah Jenkins", "target": "Starlight Dynamics", "relation": "SERVES_AS_CFO", "description": "CFO of Starlight Dynamics"}
+        ]
+      }
+    ]
+  },
+  {
+    "doc_id": "audit_10k_filed",
+    "title": "Starlight Dynamics Form 10-K Audited Annual Report",
+    "chunks": [
+      {
+        "chunk_id": "audit_10k_c1",
+        "section": "Item 8 - Note 18: Restatement and Litigation Accrual",
+        "page_number": 88,
+        "text": "In the audited financial statements for the fiscal year ended December 31, 2023, filed March 15, 2024, Starlight Dynamics recognized a post-closing litigation settlement accrual of $1.6 billion related to intellectual property disputes. Consequently, fourth quarter operating expenses were revised and audited at $15.8 billion (an increase from the preliminary estimate of $14.2 billion), reducing fourth quarter operating margin to 21.5% and net margin to 19.8%. Full year net income was adjusted downward to $11.2 billion.",
+        "entities": [
+          {"name": "Starlight Dynamics", "category": "Organization", "description": "Global enterprise logistics and software provider"},
+          {"name": "Litigation Settlement", "category": "Component", "description": "$1.6B post-closing accrual for IP dispute"}
+        ],
+        "relations": [
+          {"source": "Starlight Dynamics", "target": "Litigation Settlement", "relation": "INCURRED", "description": "Recognized $1.6B legal settlement adjusting Q4 expenses from $14.2B to $15.8B"}
+        ]
+      }
+    ]
+  }
+]
