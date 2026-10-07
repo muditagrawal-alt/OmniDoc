@@ -1,0 +1,57 @@
+[
+  {
+    "doc_id": "graphrag_llm_survey_doc",
+    "title": "Large Language Models: Architectural Innovations, MoE, and RAG Taxonomy",
+    "chunks": [
+      {
+        "chunk_id": "gr_llm_c1",
+        "section": "Attention Mechanisms and Scaling Laws",
+        "page_number": 12,
+        "text": "The evolution of autoregressive Transformer architectures has transitioned from vanilla Dense Multi-Head Attention (MHA) to Multi-Query Attention (MQA), Grouped-Query Attention (GQA), and Multi-Head Latent Attention (MLA). Vanilla MHA creates a linear memory scaling bottleneck where Key-Value (KV) cache grows proportionally with batch size and context window length, exhausting High Bandwidth Memory (HBM). GQA groups query heads into shared key-value pairs (as adopted in LLaMA-2 and LLaMA-3), while MLA employs low-rank matrix decomposition to compress keys and values into a shared latent space.",
+        "entities": [
+          {"name": "Multi-Head Attention", "category": "Method", "description": "Standard Transformer attention with independent heads"},
+          {"name": "Grouped-Query Attention", "category": "Method", "description": "Attention sharing KV heads across query groups"},
+          {"name": "KV Cache", "category": "Component", "description": "Memory buffer holding key-value states in HBM"},
+          {"name": "LLaMA-3", "category": "Model", "description": "Open weights dense language model series"}
+        ],
+        "relations": [
+          {"source": "Multi-Head Attention", "target": "KV Cache", "relation": "CREATES_BOTTLENECK", "description": "Memory scales linearly with sequence length"},
+          {"source": "Grouped-Query Attention", "target": "KV Cache", "relation": "REDUCES_MEMORY", "description": "Shares key-value heads across query groups"},
+          {"source": "LLaMA-3", "target": "Grouped-Query Attention", "relation": "IMPLEMENTS", "description": "Uses GQA for efficient inference"}
+        ]
+      },
+      {
+        "chunk_id": "gr_llm_c2",
+        "section": "Sparse Mixture-of-Experts (MoE) Architecture",
+        "page_number": 19,
+        "text": "Sparse Mixture-of-Experts (MoE) architectures decouple parameter capacity from per-token computational cost. In standard dense models (e.g. GPT-3 175B), every token activates all feed-forward network (FFN) parameters. In MoE models (such as Mixtral 8x7B, DeepSeek-V3, and Switch Transformer), a learned routing router dynamically directs each token to top-K expert FFN layers. This enables models to possess hundreds of billions of total parameters while keeping active FLOPs per token equivalent to a much smaller dense model. However, MoE models encounter load-balancing routing collapse and massive VRAM communication overhead across distributed compute clusters.",
+        "entities": [
+          {"name": "Mixture-of-Experts", "category": "Method", "description": "Architecture routing tokens to specialized expert sub-networks"},
+          {"name": "Mixtral 8x7B", "category": "Model", "description": "Sparse MoE model activating 2 of 8 experts per token"},
+          {"name": "Token Routing", "category": "Component", "description": "Softmax gating network directing tokens to experts"},
+          {"name": "DeepSeek-V3", "category": "Model", "description": "671B parameter Mixture-of-Experts language model"}
+        ],
+        "relations": [
+          {"source": "Mixture-of-Experts", "target": "Token Routing", "relation": "USES", "description": "Routes each token to top-K expert networks"},
+          {"source": "Mixtral 8x7B", "target": "Mixture-of-Experts", "relation": "IMPLEMENTS", "description": "Activates 2 out of 8 experts per token"},
+          {"source": "DeepSeek-V3", "target": "Mixture-of-Experts", "relation": "IMPLEMENTS", "description": "Uses fine-grained MoE with 256 total experts"}
+        ]
+      },
+      {
+        "chunk_id": "gr_llm_c3",
+        "section": "Retrieval-Augmented Generation (RAG) and Graph RAG",
+        "page_number": 28,
+        "text": "Retrieval-Augmented Generation (RAG) addresses hallucination, knowledge recency, and private document reasoning. Traditional RAG relies exclusively on dense vector similarity (approximate nearest neighbor search in embedding space), which excels at local semantic passage lookup but fails at global sensemaking, cross-document entity relationship discovery, and multi-hop reasoning. In contrast, Graph RAG extracts structured entity-relation knowledge graphs and property graphs from unstructured documents. By combining hybrid vector retrieval (BM25 + dense vectors) with graph traversal and community summarization, Graph RAG systems achieve high groundedness and synthesize answers across disparate documents.",
+        "entities": [
+          {"name": "Traditional RAG", "category": "Method", "description": "Vector-only similarity search over chunk embeddings"},
+          {"name": "Graph RAG", "category": "Method", "description": "Combines vector retrieval with entity-relation property graphs"},
+          {"name": "Community Summarization", "category": "Method", "description": "Hierarchical clustering and summarization of graph subgraphs"}
+        ],
+        "relations": [
+          {"source": "Graph RAG", "target": "Traditional RAG", "relation": "EXTENDS", "description": "Adds structured entity-relation graphs and multi-hop traversal to vector retrieval"},
+          {"source": "Graph RAG", "target": "Community Summarization", "relation": "USES", "description": "Hierarchically aggregates knowledge for global sensemaking"}
+        ]
+      }
+    ]
+  }
+]
