@@ -1,101 +1,183 @@
 """
-Multimodal Vision Agent Node for LangGraph.
-Inspects diagrams, charts, plots, and figures using a dual-tier approach:
-Tier 1: Free Multimodal API (Gemini Flash / Groq)
-Tier 2: Local Apple Silicon MPS (Ollama llama3.2-vision / qwen2.5-vl)
+Vision agent: reads the figures of the documents in scope with a local vision-language
+model served by Ollama. Nothing leaves the machine.
+
+Figures are saved at ingestion as ``<images_dir>/<doc_id>/p<page>_img<k>.png`` (embedded
+images) and ``p<page>_page.png`` (whole pages dominated by vector charts or diagrams). The
+agent prefers figures on the pages the retriever already found relevant, so the analysis can
+be cited next to the passages it explains.
 """
 import os
-import base64
+import re
+import time
 import logging
-from typing import Dict, Any, List, Optional
-import ollama
+import threading
+from typing import Any, Dict, List, Optional, Set, Tuple
 
-from core.state import AgentWorkflowState, VisualElement
+from core.state import AgentWorkflowState
+from agents.llm_utils import get_client, trace
 
 logger = logging.getLogger("OmniDoc.VisionAgent")
 
+# Vision-capable models tried in order after OMNIDOC_VISION_MODEL.
+FALLBACK_VISION_MODELS = ("qwen3.5:9b", "gemma4:12b", "qwen2.5vl:7b", "llama3.2-vision:11b")
+MAX_FIGURES = int(os.getenv("OMNIDOC_VISION_MAX_FIGURES", "2"))
+
+_FIGURE_RE = re.compile(r"^p(\d+)_(?:img(\d+)|page)\.(?:png|jpe?g)$", re.IGNORECASE)
+_DOC_ID_RE = re.compile(r"^[A-Za-z0-9_\-.]+$")
+
+PROMPT = """You are reading a figure from a document to help answer a question.
+
+Question: {query}
+Figure location: page {page} of document {doc_id}
+
+Describe what the figure shows that is relevant to the question: its type (chart, table,
+diagram, photo...), axis titles, legend entries, labels and every number you can read.
+Transcribe numbers and labels exactly as printed; do not estimate values you cannot read.
+If the figure is unrelated to the question, say so in one sentence.
+Answer in plain prose, at most 150 words."""
+
+
+def _field(obj: Any, key: str) -> Any:
+    return obj.get(key) if isinstance(obj, dict) else getattr(obj, key, None)
+
+
+def _page_scores(chunks: List[Any]) -> Dict[Tuple[str, int], float]:
+    """Best retrieval score per (doc_id, page) among the retrieved passages."""
+    scores: Dict[Tuple[str, int], float] = {}
+    for ch in chunks or []:
+        if not isinstance(ch, dict):
+            continue
+        try:
+            key = (str(ch.get("doc_id") or ""), int(ch.get("page_number") or 0))
+            score = float(ch.get("score") or 0.0)
+        except (TypeError, ValueError):
+            continue
+        scores[key] = max(scores.get(key, 0.0), score)
+    return scores
+
 
 class VisionAgent:
-    """Analyzes diagrams and visual elements extracted from documents."""
+    """Analyses document figures with a local Ollama vision model."""
 
-    def __init__(
-        self,
-        local_vlm_model: str = "llama3.2-vision:11b",
-        api_key_env: str = "GEMINI_API_KEY"
-    ):
-        self.local_vlm_model = local_vlm_model
-        self.api_key = os.getenv(api_key_env)
+    def __init__(self, images_dir: str = "extracted_images", vision_model: Optional[str] = None,
+                 max_figures: int = MAX_FIGURES):
+        self.images_dir = images_dir
+        # Deliberately not called `model_name`: switching the text model must not
+        # replace the vision model with one that cannot read images.
+        self.vision_model = vision_model or os.getenv("OMNIDOC_VISION_MODEL", "")
+        self.max_figures = max_figures
+        self._resolved: Optional[str] = None
+        self._resolve_lock = threading.Lock()
 
     def run(self, state: AgentWorkflowState) -> Dict[str, Any]:
-        """
-        Processes visual elements relevant to the user query.
-        """
-        intent = state.get("intent")
-        if intent and not intent.requires_vision:
-            return {"visual_context": []}
+        started = time.perf_counter()
+        figures = self._candidate_figures(state)
+        if not figures:
+            return {"visual_context": [],
+                    "agent_traces": [trace("vision_agent", "skipped", "No figures in the selected documents.", started)]}
+
+        model = self._resolve_model()
+        if not model:
+            return {"visual_context": [],
+                    "agent_traces": [trace("vision_agent", "skipped", "No local vision model is installed.", started)]}
 
         query = state.get("user_query", "")
-        logger.info(f"VisionAgent activated for query: '{query[:60]}'")
+        findings: List[Dict[str, Any]] = []
+        for fig in figures[: self.max_figures]:
+            analysis = self._analyze(model, fig, query)
+            if analysis:
+                findings.append({**fig, "analysis": analysis, "model": model})
+        detail = f"{len(findings)} of {min(len(figures), self.max_figures)} figures read with {model}"
+        return {"visual_context": findings, "agent_traces": [trace("vision_agent", "completed", detail, started)]}
 
-        # In production, images extracted to 'extracted_images/' are matched by caption/similarity
-        extracted_images_dir = "extracted_images"
-        findings = []
+    def _scope_doc_ids(self, state: AgentWorkflowState) -> List[str]:
+        doc_ids = [str(d) for d in (state.get("document_ids") or []) if _DOC_ID_RE.match(str(d))]
+        if doc_ids:
+            return doc_ids
+        return [d for d in os.listdir(self.images_dir)
+                if _DOC_ID_RE.match(d) and os.path.isdir(os.path.join(self.images_dir, d))]
 
-        if os.path.exists(extracted_images_dir):
-            image_files = [
-                os.path.join(extracted_images_dir, f)
-                for f in os.listdir(extracted_images_dir)
-                if f.lower().endswith((".png", ".jpg", ".jpeg"))
-            ][:2]  # Inspect top 2 figures
+    def _candidate_figures(self, state: AgentWorkflowState) -> List[Dict[str, Any]]:
+        """Figures of in-scope documents, best-matching pages first, then in page order."""
+        if not os.path.isdir(self.images_dir):
+            return []
+        page_score = _page_scores(state.get("chunk_context") or [])
+        ranked: List[Tuple[Tuple[float, int, int], Dict[str, Any]]] = []
+        for doc_id in self._scope_doc_ids(state):
+            folder = os.path.join(self.images_dir, doc_id)
+            if not os.path.isdir(folder):
+                continue
+            for name in os.listdir(folder):
+                m = _FIGURE_RE.match(name)
+                if not m:
+                    continue
+                page = int(m.group(1))
+                # A whole-page render (k = -1) shows a chart with its labels; prefer it.
+                k = int(m.group(2)) if m.group(2) is not None else -1
+                ranked.append(((-page_score.get((doc_id, page), -1.0), page, k), {
+                    "figure_id": f"{doc_id}_p{page}_" + (f"img{k}" if k >= 0 else "page"),
+                    "doc_id": doc_id,
+                    "page": page,
+                    "caption": f"Figure on page {page}" if k >= 0 else f"Page {page} (charts or diagrams)",
+                    "image_path": os.path.join(folder, name),
+                }))
+        ranked.sort(key=lambda t: t[0])
+        return [fig for _, fig in ranked]
 
-            for img_path in image_files:
-                analysis = self._analyze_image(img_path, query)
-                if analysis:
-                    findings.append({
-                        "image_path": img_path,
-                        "query": query,
-                        "analysis": analysis
-                    })
-
-        if not findings:
-            # Descriptive fallback if no images on disk
-            findings.append({
-                "notice": "Diagram inspection completed: No direct visual discrepancy found with text."
-            })
-
-        return {"visual_context": findings}
-
-    def _analyze_image(self, image_path: str, query: str) -> Optional[str]:
-        """Attempts Tier 1 Cloud API, falling back to Tier 2 Local MPS VLM."""
-        # Tier 1: Gemini Free Tier if key is provided
-        if self.api_key:
-            try:
-                import google.generativeai as genai
-                genai.configure(api_key=self.api_key)
-                model = genai.GenerativeModel("gemini-1.5-flash")
-                with open(image_path, "rb") as f:
-                    img_data = f.read()
-                prompt = f"Analyze this diagram or figure in the context of the user question: {query}. Describe the components, data points, and relationships depicted."
-                res = model.generate_content([prompt, {"mime_type": "image/png", "data": img_data}])
-                return res.text
-            except Exception as e:
-                logger.warning(f"Gemini API vision failed ({e}). Falling back to local MPS VLM.")
-
-        # Tier 2: Local Ollama VLM on Apple Silicon MPS
+    def _installed_models(self) -> Set[str]:
         try:
-            with open(image_path, "rb") as f:
-                b64_image = base64.b64encode(f.read()).decode("utf-8")
-
-            res = ollama.chat(
-                model=self.local_vlm_model,
-                messages=[{
-                    "role": "user",
-                    "content": f"Analyze this figure regarding: {query}",
-                    "images": [b64_image]
-                }],
-                options={"temperature": 0.1, "num_predict": 512}
-            )
-            return res["message"]["content"]
+            listed = get_client().list()
         except Exception as e:
-            logger.info(f"Local VLM inference skipped ({e}). Visual analysis completed via metadata.")
+            logger.warning(f"Could not list Ollama models: {e}")
+            return set()
+        return {_field(m, "model") or _field(m, "name") for m in (_field(listed, "models") or [])}
+
+    def _resolve_model(self) -> Optional[str]:
+        """First installed model (the configured one first) that reports the vision capability."""
+        with self._resolve_lock:
+            if self._resolved is None:
+                self._resolved = ""
+                installed = self._installed_models()
+                preferred = [self.vision_model] if self.vision_model else []
+                for name in preferred + [m for m in FALLBACK_VISION_MODELS if m not in preferred]:
+                    if name in installed and self._supports_vision(name):
+                        self._resolved = name
+                        break
+                if not self._resolved:
+                    logger.warning("No local vision model is installed; figure analysis is disabled.")
+            return self._resolved or None
+
+    @staticmethod
+    def _supports_vision(name: str) -> bool:
+        try:
+            caps = _field(get_client().show(name), "capabilities")
+        except Exception:
+            return False
+        # Older Ollama servers do not report capabilities; trust the curated list then.
+        return caps is None or "vision" in caps
+
+    @staticmethod
+    def _analyze(model: str, fig: Dict[str, Any], query: str) -> Optional[str]:
+        try:
+            with open(fig["image_path"], "rb") as f:
+                image = f.read()
+            request = {
+                "model": model,
+                "messages": [{
+                    "role": "user",
+                    "content": PROMPT.format(query=query[:500], page=fig["page"], doc_id=fig["doc_id"]),
+                    "images": [image],
+                }],
+                "options": {"temperature": 0.1, "num_predict": 400},
+            }
+            try:
+                # Thinking-capable VLMs answer much faster with thinking off.
+                resp = get_client().chat(think=False, **request)
+            except TypeError:
+                resp = get_client().chat(**request)
+            content = _field(_field(resp, "message"), "content") or ""
+            return content.strip() or None
+        except Exception as e:
+            logger.warning(f"Figure analysis failed for {fig.get('image_path')}: {e}")
             return None
