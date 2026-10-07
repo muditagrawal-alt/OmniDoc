@@ -3,13 +3,12 @@ Query Decomposition and Dynamic Execution Planner for OmniDoc.
 Transforms rich SemanticQuery representations and Multi-Label Intents
 into an executable machine-readable DAG of PlanSteps with dependencies.
 """
-import re
 import json
 import logging
 from typing import Dict, Any, List
-import ollama
 
 from core.state import SemanticQuery, IntentClassificationResult, QueryExecutionPlan, PlanStep
+from agents.llm_utils import chat_json, as_list, as_str_list
 
 logger = logging.getLogger("OmniDoc.QueryPlanner")
 
@@ -33,7 +32,7 @@ Available Specialized Agents:
 
 Rules:
 1. Do NOT over-agentify simple queries! For a simple fact, use ONLY: [advanced_hybrid_retrieval, synthesis_agent, output_groundedness_agent].
-2. For comparative or numerical questions, sequence: retrieval -> evidence_selection -> math_agent -> [optional: visualization_agent] -> synthesis_agent -> output_groundedness_agent.
+2. For comparative or numerical questions, sequence: retrieval -> evidence_selection -> math_agent -> synthesis_agent -> output_groundedness_agent. Add visualization_agent ONLY if the user explicitly asks for a chart, plot, graph or visual.
 3. Every step MUST have an "id", "agent", "description", and "depends_on" list of step IDs.
 4. Output ONLY valid JSON matching this schema:
 {{
@@ -52,6 +51,14 @@ Rules:
     ]
 }}
 """
+
+
+KNOWN_AGENTS = {
+    "entity_resolution_agent", "temporal_reasoning_agent", "query_expansion_agent",
+    "advanced_hybrid_retrieval", "knowledge_graph_agent", "document_intelligence_agent",
+    "vision_agent", "math_agent", "visualization_agent", "evidence_selection_agent",
+    "evidence_verification_agent", "synthesis_agent", "output_groundedness_agent",
+}
 
 
 class QueryPlanner:
@@ -106,7 +113,7 @@ class QueryPlanner:
             )
 
         # Complex path: Dynamic DAG generation via Planner LLM
-        prompt = f"""{PLANNER_SYSTEM_PROMPT}
+        prompt = f"""{PLANNER_SYSTEM_PROMPT.format()}
 
 SEMANTIC QUERY:
 {json.dumps(semantic_query.model_dump(), indent=2)}
@@ -115,30 +122,69 @@ INTENT RESULT:
 {json.dumps(intent_result.model_dump(), indent=2)}
 """
         try:
-            response = ollama.chat(
-                model=self.model_name,
-                messages=[{"role": "user", "content": prompt}],
-                options={"temperature": 0.0, "num_predict": 1024},
-                stream=False
-            )
-            raw = response["message"]["content"].strip()
-            if raw.startswith("```"):
-                raw = re.sub(r"^```(?:json)?\s*", "", raw)
-                raw = re.sub(r"\s*```$", "", raw)
-
-            parsed = json.loads(raw)
-            steps = [PlanStep(**s) for s in parsed.get("steps", [])]
+            parsed = chat_json(self.model_name, prompt, num_predict=900)
+            if not isinstance(parsed, dict):
+                raise ValueError("planner did not return a JSON object")
+            steps = self._validated_steps(parsed.get("steps"), semantic_query, intent_result)
+            if not steps:
+                raise ValueError("planner returned no usable steps")
 
             return QueryExecutionPlan(
-                goal=parsed.get("goal", semantic_query.goal),
-                execution_mode=parsed.get("execution_mode", "dag"),
-                estimated_complexity=parsed.get("estimated_complexity", "medium"),
+                goal=str(parsed.get("goal") or semantic_query.goal),
+                execution_mode=parsed.get("execution_mode") if parsed.get("execution_mode") in ("dag", "single_agent", "linear_pipeline") else "dag",
+                estimated_complexity=parsed.get("estimated_complexity") if parsed.get("estimated_complexity") in ("low", "medium", "high") else "medium",
                 steps=steps
             )
 
         except Exception as e:
             logger.warning(f"Planner LLM failed ({e}). Generating robust default DAG.")
             return self._build_robust_default_dag(semantic_query, intent_result)
+
+    @staticmethod
+    def _wants_chart(semantic_query: SemanticQuery, intent_result: IntentClassificationResult) -> bool:
+        return (
+            "visualize" in semantic_query.operations
+            or "chart" in semantic_query.output_requirements
+            or "visualization" in semantic_query.task_types
+            or intent_result.primary_intent == "visualization"
+            or "visualization" in intent_result.secondary_intents
+        )
+
+    def _validated_steps(
+        self,
+        raw_steps: Any,
+        semantic_query: SemanticQuery,
+        intent_result: IntentClassificationResult
+    ) -> List[PlanStep]:
+        """Keeps well-formed steps for known agents; drops chart steps nobody asked for."""
+        steps: List[PlanStep] = []
+        ids = set()
+        wants_chart = self._wants_chart(semantic_query, intent_result)
+        for i, raw in enumerate(as_list(raw_steps), 1):
+            if not isinstance(raw, dict):
+                continue
+            agent = str(raw.get("agent") or "").strip()
+            if agent not in KNOWN_AGENTS:
+                continue
+            if agent == "visualization_agent" and not wants_chart:
+                continue
+            step_id = str(raw.get("id") or f"step_{i}_{agent}")
+            if step_id in ids:
+                step_id = f"{step_id}_{i}"
+            ids.add(step_id)
+            inputs = raw.get("inputs") if isinstance(raw.get("inputs"), dict) else {}
+            fallback = raw.get("fallback_agent")
+            steps.append(PlanStep(
+                id=step_id,
+                agent=agent,
+                description=str(raw.get("description") or agent)[:300],
+                depends_on=as_str_list(raw.get("depends_on"), max_items=10, max_len=80),
+                inputs=inputs,
+                fallback_agent=fallback if isinstance(fallback, str) and fallback in KNOWN_AGENTS else None,
+            ))
+        for st in steps:
+            st.depends_on = [d for d in st.depends_on if d in ids and d != st.id]
+        return steps
 
     def _build_robust_default_dag(
         self,
@@ -205,7 +251,7 @@ INTENT RESULT:
             last_dep = ["step_5_math"]
 
         # 6. Visualization if requested
-        if "visualize" in semantic_query.operations or "chart" in semantic_query.output_requirements:
+        if self._wants_chart(semantic_query, intent_result):
             steps.append(PlanStep(
                 id="step_6_viz",
                 agent="visualization_agent",
