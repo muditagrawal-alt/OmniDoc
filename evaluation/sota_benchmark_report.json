@@ -1,0 +1,108 @@
+{
+  "benchmark_suite": "OmniDoc SOTA Agentic Graph RAG Benchmark",
+  "model_evaluated": "qwen2.5:7b-instruct",
+  "total_test_cases": 3,
+  "mean_faithfulness": 0.983,
+  "guardrail_rejection_accuracy_pct": 100.0,
+  "p50_latency_ms": 269761.5,
+  "p95_latency_ms": 388530.9,
+  "benchmark_breakdown": {
+    "MultiHop-RAG": {
+      "queries_evaluated": 2,
+      "mean_faithfulness": 1.0,
+      "mean_latency_ms": 182131.5
+    },
+    "FinanceBench": {
+      "queries_evaluated": 1,
+      "mean_faithfulness": 0.95,
+      "mean_latency_ms": 388530.9
+    }
+  },
+  "detailed_results": [
+    {
+      "id": "bench_mh_01",
+      "benchmark": "MultiHop-RAG",
+      "type": "multihop_relational",
+      "query": "Which computing infrastructure was built by the hedge fund founded by the creator of DeepSeek AI?",
+      "ground_truth": "DeepSeek AI was founded by Liang Wenfeng, who also founded High-Flyer Quant in 2015. High-Flyer Quant developed the Fire-Flyer 2 supercomputing cluster with over 10,000 GPUs.",
+      "duration_ms": 269761.54923439026,
+      "faithfulness_score": 1.0,
+      "is_grounded": true,
+      "graph_nodes_retrieved": 0,
+      "graph_edges_retrieved": 0,
+      "chunks_retrieved": 5,
+      "math_results": [
+        {
+          "task": "Identify the computing infrastructure built by High-Flyer Quant",
+          "inputs": {},
+          "formula": "",
+          "code_executed": "result = 'Fire-Flyer 2 supercomputing cluster'",
+          "exact_result": "Fire-Flyer 2 supercomputing cluster",
+          "units": "",
+          "assumptions": [
+            "Information provided in Passage 2"
+          ],
+          "source_evidence_ids": [
+            "mh_c1_01",
+            "mh_c1_02",
+            "mh_c2_02"
+          ]
+        }
+      ],
+      "conflicts_audited": [],
+      "response_preview": "The computing infrastructure built by the hedge fund founded by the creator of DeepSeek AI is the Fire-Flyer 2 supercomputing cluster.\n\nThis information can be found in the evidence provided:\n\n- High-..."
+    },
+    {
+      "id": "bench_mh_02",
+      "benchmark": "MultiHop-RAG",
+      "type": "multihop_relational",
+      "query": "How does DeepSeek-V3 reduce pipeline bubbles during training, and what supercomputing hardware cluster does it deploy across?",
+      "ground_truth": "DeepSeek-V3 employs DualPipe, an overlapping pipeline parallelism algorithm that cuts pipeline latency bubbles by 50% compared to 1F1B scheduling, running across the Fire-Flyer 2 supercomputing cluster.",
+      "duration_ms": 94501.36494636536,
+      "faithfulness_score": 1.0,
+      "is_grounded": true,
+      "graph_nodes_retrieved": 0,
+      "graph_edges_retrieved": 0,
+      "chunks_retrieved": 5,
+      "math_results": [],
+      "conflicts_audited": [],
+      "response_preview": "Not found in provided sources. The uploaded documents do not contain sufficient evidence to answer this question.\n\nHowever, based on the available information:\n\n- **Supercomputing Hardware Cluster**: ..."
+    },
+    {
+      "id": "bench_fb_01",
+      "benchmark": "FinanceBench",
+      "type": "financial_mathematical",
+      "query": "Based on Apple's Form 10-K, calculate the Compound Annual Growth Rate (CAGR) of Total Net Sales from FY2021 ($365,817M) to FY2024 ($391,035M).",
+      "ground_truth": "Apple's Net Sales grew from $365,817 million in FY2021 to $391,035 million in FY2024 over 3 periods. CAGR = (391035 / 365817) ** (1 / 3) - 1 \u2248 2.25% (0.0225).",
+      "duration_ms": 388530.92098236084,
+      "faithfulness_score": 0.95,
+      "is_grounded": true,
+      "graph_nodes_retrieved": 0,
+      "graph_edges_retrieved": 0,
+      "chunks_retrieved": 5,
+      "math_results": [
+        {
+          "task": "Calculate CAGR of Apple's Total Net Sales from FY2021 to FY2024",
+          "inputs": {
+            "2021_revenue": 365817,
+            "2024_revenue": 391035
+          },
+          "formula": "(EV / BV) ** (1 / n) - 1",
+          "code_executed": "r2021 = 365817\nr2024 = 391035\nn = 3\nresult = (r2024 / r2021) ** (1 / n) - 1",
+          "exact_result": 0.0225,
+          "units": "percentage",
+          "assumptions": [
+            "Revenues are in millions USD"
+          ],
+          "source_evidence_ids": [
+            "fb_aapl_c1",
+            "fb_aapl_c2",
+            "fb_msft_c1"
+          ]
+        }
+      ],
+      "conflicts_audited": [],
+      "response_preview": "Based on the provided Apple Inc. Form 10-K data, we can calculate the Compound Annual Growth Rate (CAGR) of Total Net Sales from FY2021 to FY2024.\n\n### Calculation Steps:\nThe formula for CAGR is given..."
+    }
+  ]
+}
