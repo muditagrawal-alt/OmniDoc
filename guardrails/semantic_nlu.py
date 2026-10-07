@@ -127,11 +127,14 @@ class SemanticNLUEngine:
                 stream=False
             )
             raw_text = response["message"]["content"].strip()
-            if raw_text.startswith("```"):
-                raw_text = re.sub(r"^```(?:json)?\s*", "", raw_text)
-                raw_text = re.sub(r"\s*```$", "", raw_text)
+            json_match = re.search(r"```(?:json)?\s*(\{.*?\})\s*```", raw_text, re.DOTALL)
+            if json_match:
+                raw_json = json_match.group(1)
+            else:
+                json_match = re.search(r"(\{.*\})", raw_text, re.DOTALL)
+                raw_json = json_match.group(1) if json_match else raw_text
 
-            parsed = json.loads(raw_text)
+            parsed = json.loads(raw_json)
 
             return SemanticQuery(
                 raw_query=raw_query,
