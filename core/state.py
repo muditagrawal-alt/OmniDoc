@@ -337,8 +337,13 @@ class AgentWorkflowState(TypedDict):
     # Outputs & Control
     draft_response: str
     verified_response: str
+    # Numbered evidence list cited in the answer as [1], [2], ... (set by the synthesis agent)
+    sources: List[Dict[str, Any]]
     iteration_count: int
     max_iterations: int
+    # Self-correction: how many times the answer was re-synthesized, and why
+    reflection_count: int
+    reflection_feedback: Optional[str]
     errors: Annotated[List[str], operator.add]
     agent_traces: Annotated[List[Dict[str, Any]], operator.add]
     conversation_history: List[Dict[str, str]]
