@@ -1,50 +1,95 @@
 /**
- * OmniDoc Frontend API Client & Type Definitions
+ * OmniDoc API client and shared response types.
+ *
+ * In development Vite proxies /api to the FastAPI server (see vite.config.ts),
+ * so the default base is same-origin. Set VITE_API_BASE to point elsewhere.
  */
 
 export interface User {
   id: string;
   email: string;
   name: string;
-  provider: 'google' | 'apple' | 'email';
-  avatar_url: string;
+  provider: string;
+  avatar_url?: string;
 }
 
 export interface ChatSession {
   id: string;
   title: string;
-  document_id?: string;
+  document_id?: string | null;
   created_at: string;
   updated_at: string;
   message_count?: number;
   last_message?: string;
 }
 
-export interface MathResult {
-  expression: string;
-  result: number | string;
-  unit?: string;
-  verified: boolean;
-  steps?: string[];
-  computation_trace?: string;
+/** One numbered piece of evidence. Answers cite it inline as [n]. */
+export interface Source {
+  n: number;
+  kind: 'chunk' | 'graph' | 'math' | 'visual' | 'web' | 'conflict' | string;
+  doc_id: string;
+  doc_title?: string;
+  chunk_id?: string;
+  page?: number | null;
+  section?: string;
+  title?: string;
+  snippet: string;
+  score?: number | null;
 }
 
-export interface EvidenceSource {
-  chunk_id: string;
-  doc_id: string;
-  snippet: string;
-  score: number;
-  source_type: string;
+export interface MathResult {
+  task: string;
+  formula?: string;
+  exact_result?: number | string | null;
+  units?: string | null;
+  inputs?: Record<string, unknown>;
+  assumptions?: string[];
+  code_executed?: string;
+}
+
+export interface ChartTrace {
+  type?: string;
+  name?: string;
+  x?: Array<string | number>;
+  y?: Array<number | string>;
+  labels?: Array<string | number>;
+  values?: Array<number | string>;
+}
+
+export interface ChartArtifact {
+  chart_type: 'bar' | 'line' | 'scatter' | 'pie' | string;
+  title: string;
+  caption?: string;
+  plotly_spec?: {
+    data?: ChartTrace[];
+    layout?: { xaxis?: { title?: unknown }; yaxis?: { title?: unknown }; title?: unknown };
+  };
+  underlying_data?: Array<Record<string, unknown>>;
+  source_ns?: number[];
 }
 
 export interface ConflictItem {
-  entity: string;
-  claim_a: string;
-  claim_b: string;
-  source_a: string;
-  source_b: string;
-  resolution: string;
+  conflicting_claim: string;
+  resolution_status?: string;
+  rationale?: string;
   confidence?: number;
+  evidence_a?: { content?: string; source_id?: string; provenance?: Record<string, unknown> };
+  evidence_b?: { content?: string; source_id?: string; provenance?: Record<string, unknown> };
+}
+
+export interface AgentStep {
+  node: string;
+  label: string;
+  detail?: string;
+  duration_ms?: number;
+}
+
+export interface Verification {
+  status: 'verified' | 'partial' | 'unverified';
+  score: number | null;
+  supported: number;
+  unsupported: number;
+  feedback?: string;
 }
 
 export interface GraphNode {
@@ -52,52 +97,56 @@ export interface GraphNode {
   name: string;
   category: string;
   description: string;
-  x?: number;
-  y?: number;
+  doc_id?: string;
 }
 
 export interface GraphEdge {
   source: string;
-  source_name: string;
   target: string;
-  target_name: string;
+  source_name?: string;
+  target_name?: string;
   relation: string;
-  description: string;
+  description?: string;
 }
 
-export interface GeoLocationItem {
-  id: string;
-  name: string;
-  region: string;
-  country: string;
-  lat: number;
-  lon: number;
-  description: string;
-  radius_meters?: number;
-  highlight_color?: string;
-  entities?: string[];
-  metrics?: Record<string, string>;
+export interface GraphData {
+  nodes: GraphNode[];
+  edges: GraphEdge[];
+  documents?: Array<{ id: string; title: string }>;
 }
 
-export interface ChatMetadata {
-  math_results?: MathResult[];
-  visual_artifacts?: any[];
-  geo_locations?: GeoLocationItem[];
-  sources?: EvidenceSource[];
-  conflicts?: ConflictItem[];
-  graph_entities?: GraphNode[];
-  thought_process?: string[];
-  groundedness_score?: number;
+export interface AnswerPayload {
+  answer: string;
+  sources: Source[];
+  math_results: MathResult[];
+  visual_artifacts: ChartArtifact[];
+  conflicts: ConflictItem[];
+  graph: GraphData;
+  steps: AgentStep[];
+  verification: Verification;
+  model?: string;
+  elapsed_ms?: number;
   document_ids?: string[];
 }
+
+export interface QueryResponse extends AnswerPayload {
+  status: string;
+  message_id: number;
+}
+
+/** Message metadata is stored as returned by the server; older rows use legacy keys. */
+export type ChatMetadata = Partial<AnswerPayload> & Record<string, unknown>;
 
 export interface ChatMessage {
   id?: number;
   chat_id?: string;
   role: 'user' | 'assistant';
   content: string;
-  metadata?: ChatMetadata;
+  metadata?: ChatMetadata | null;
   timestamp?: string;
+  /** Client-only: set while the answer is streaming or after a failure. */
+  pending?: boolean;
+  error?: string;
 }
 
 export interface DocumentItem {
@@ -106,209 +155,258 @@ export interface DocumentItem {
   upload_date: string;
   size_bytes: number;
   file_type: string;
+  chunk_count?: number | null;
+  /** Background knowledge-graph extraction progress (null once the server restarts). */
+  graph_status?: { status: 'queued' | 'running' | 'done' | 'failed' | 'cancelled'; processed: number; total: number; entities?: number } | null;
 }
 
-const API_BASE = 'http://localhost:8000';
+export interface UploadResult {
+  doc_id: string;
+  filename: string;
+  chunk_count: number;
+  duplicate?: boolean;
+}
+
+export interface ModelInfo {
+  name: string;
+  size_gb?: number | null;
+  parameter_size?: string | null;
+}
+
+export interface Health {
+  status: string;
+  version: string;
+  model: string;
+  ollama: boolean;
+  stores: Record<string, string>;
+}
+
+const API_BASE: string = (import.meta.env.VITE_API_BASE as string | undefined) ?? '';
+const TOKEN_KEY = 'omnidoc_token';
+
+export class ApiError extends Error {
+  status: number;
+  constructor(message: string, status: number) {
+    super(message);
+    this.status = status;
+  }
+}
+
+async function readError(res: Response, fallback: string): Promise<ApiError> {
+  let message = fallback;
+  try {
+    const body = await res.json();
+    if (typeof body?.detail === 'string') message = body.detail;
+  } catch {
+    /* non-JSON error body */
+  }
+  return new ApiError(message, res.status);
+}
 
 class OmniDocApiClient {
   private token: string | null = null;
 
   constructor() {
-    this.token = localStorage.getItem('omnidoc_token');
+    try {
+      this.token = localStorage.getItem(TOKEN_KEY);
+    } catch {
+      this.token = null;
+    }
   }
 
   setToken(token: string | null) {
     this.token = token;
-    if (token) {
-      localStorage.setItem('omnidoc_token', token);
-    } else {
-      localStorage.removeItem('omnidoc_token');
+    try {
+      if (token) localStorage.setItem(TOKEN_KEY, token);
+      else localStorage.removeItem(TOKEN_KEY);
+    } catch {
+      /* storage unavailable */
     }
   }
 
-  getToken(): string | null {
-    return this.token;
+  private headers(json = true): HeadersInit {
+    const h: Record<string, string> = {};
+    if (json) h['Content-Type'] = 'application/json';
+    if (this.token) h.Authorization = `Bearer ${this.token}`;
+    return h;
   }
 
-  private headers(isJson = true): HeadersInit {
-    const headers: Record<string, string> = {};
-    if (isJson) {
-      headers['Content-Type'] = 'application/json';
+  private async request<T>(path: string, init: RequestInit = {}, fallback = 'Request failed'): Promise<T> {
+    let res: Response;
+    try {
+      res = await fetch(`${API_BASE}${path}`, {
+        ...init,
+        headers: { ...this.headers(!(init.body instanceof FormData)), ...(init.headers || {}) },
+      });
+    } catch {
+      throw new ApiError('Cannot reach the OmniDoc server. Is it running on port 8000?', 0);
     }
-    if (this.token) {
-      headers['Authorization'] = `Bearer ${this.token}`;
-    }
-    return headers;
+    if (!res.ok) throw await readError(res, fallback);
+    return res.json() as Promise<T>;
   }
 
-  async login(provider: 'google' | 'apple' | 'email', email?: string, name?: string): Promise<{ user: User; token: string }> {
-    const res = await fetch(`${API_BASE}/api/auth/login`, {
-      method: 'POST',
-      headers: this.headers(),
-      body: JSON.stringify({ provider, email, name }),
-    });
-    if (!res.ok) throw new Error('Authentication failed');
-    const data = await res.json();
+  // ---- Profile -------------------------------------------------------------
+  async login(name: string, email: string): Promise<User> {
+    const data = await this.request<{ user: User; token: string }>(
+      '/api/auth/login',
+      { method: 'POST', body: JSON.stringify({ provider: 'local', name, email }) },
+      'Could not sign in',
+    );
     this.setToken(data.token);
-    return data;
+    return data.user;
   }
 
   async getMe(): Promise<User | null> {
     if (!this.token) return null;
     try {
-      const res = await fetch(`${API_BASE}/api/auth/me`, {
-        headers: this.headers(),
-      });
-      if (!res.ok) {
-        this.setToken(null);
-        return null;
-      }
-      const data = await res.json();
+      const data = await this.request<{ user: User }>('/api/auth/me');
       return data.user;
-    } catch {
+    } catch (err) {
+      if (err instanceof ApiError && err.status === 401) this.setToken(null);
       return null;
     }
   }
 
   async logout(): Promise<void> {
-    this.setToken(null);
+    try {
+      await this.request('/api/auth/logout', { method: 'POST' });
+    } finally {
+      this.setToken(null);
+    }
   }
 
+  // ---- System --------------------------------------------------------------
+  health(): Promise<Health> {
+    return this.request<Health>('/api/health');
+  }
+
+  async getModels(): Promise<{ models: ModelInfo[]; current: string }> {
+    return this.request('/api/models');
+  }
+
+  async setModel(model: string): Promise<{ current: string }> {
+    return this.request('/api/models/current', { method: 'PUT', body: JSON.stringify({ model }) }, 'Could not switch model');
+  }
+
+  // ---- Chats ---------------------------------------------------------------
   async getChats(): Promise<ChatSession[]> {
-    const res = await fetch(`${API_BASE}/api/chats`, {
-      headers: this.headers(),
-    });
-    if (!res.ok) throw new Error('Failed to fetch chats');
-    const data = await res.json();
+    const data = await this.request<{ chats: ChatSession[] }>('/api/chats', {}, 'Could not load conversations');
     return data.chats;
   }
 
-  async createChat(title?: string, documentId?: string): Promise<ChatSession> {
-    const res = await fetch(`${API_BASE}/api/chats`, {
-      method: 'POST',
-      headers: this.headers(),
-      body: JSON.stringify({ title, document_id: documentId }),
-    });
-    if (!res.ok) throw new Error('Failed to create chat');
-    const data = await res.json();
+  async createChat(title?: string): Promise<ChatSession> {
+    const data = await this.request<{ chat: ChatSession }>(
+      '/api/chats',
+      { method: 'POST', body: JSON.stringify({ title }) },
+      'Could not start a conversation',
+    );
     return data.chat;
   }
 
-  async getChat(chatId: string): Promise<{ chat: ChatSession; messages: ChatMessage[] }> {
-    const res = await fetch(`${API_BASE}/api/chats/${chatId}`, {
-      headers: this.headers(),
-    });
-    if (!res.ok) throw new Error('Failed to fetch chat details');
-    return res.json();
+  getChat(chatId: string): Promise<{ chat: ChatSession; messages: ChatMessage[] }> {
+    return this.request(`/api/chats/${encodeURIComponent(chatId)}`, {}, 'Could not load the conversation');
   }
 
   async renameChat(chatId: string, title: string): Promise<void> {
-    const res = await fetch(`${API_BASE}/api/chats/${chatId}`, {
-      method: 'PATCH',
-      headers: this.headers(),
-      body: JSON.stringify({ title }),
-    });
-    if (!res.ok) throw new Error('Failed to rename chat');
+    await this.request(`/api/chats/${encodeURIComponent(chatId)}`, { method: 'PATCH', body: JSON.stringify({ title }) });
   }
 
   async deleteChat(chatId: string): Promise<void> {
-    const res = await fetch(`${API_BASE}/api/chats/${chatId}`, {
-      method: 'DELETE',
-      headers: this.headers(),
-    });
-    if (!res.ok) throw new Error('Failed to delete chat');
+    await this.request(`/api/chats/${encodeURIComponent(chatId)}`, { method: 'DELETE' });
   }
 
-  async queryChat(
+  /**
+   * Runs the agent pipeline and streams progress. `onStep` fires once per finished
+   * pipeline stage; the promise resolves with the final answer.
+   */
+  async streamQuery(
     chatId: string,
-    query: string,
-    documentIds?: string[],
-    language: string = 'en'
-  ): Promise<{
-    answer: string;
-    math_results: MathResult[];
-    visual_artifacts: any[];
-    geo_locations?: GeoLocationItem[];
-    sources: EvidenceSource[];
-    conflicts: ConflictItem[];
-    graph_entities: GraphNode[];
-    thought_process: string[];
-    groundedness_score: number;
-  }> {
-    const res = await fetch(`${API_BASE}/api/chats/${chatId}/query`, {
-      method: 'POST',
-      headers: this.headers(),
-      body: JSON.stringify({ query, document_ids: documentIds, language }),
-    });
-    if (!res.ok) {
-      const err = await res.text();
-      throw new Error(err || 'Query failed');
+    body: { query: string; document_ids?: string[]; language?: string },
+    handlers: { onStep?: (step: AgentStep) => void; signal?: AbortSignal } = {},
+  ): Promise<QueryResponse> {
+    let res: Response;
+    try {
+      res = await fetch(`${API_BASE}/api/chats/${encodeURIComponent(chatId)}/query/stream`, {
+        method: 'POST',
+        headers: { ...this.headers(), Accept: 'text/event-stream' },
+        body: JSON.stringify(body),
+        signal: handlers.signal,
+      });
+    } catch (err) {
+      if ((err as Error).name === 'AbortError') throw err;
+      throw new ApiError('Cannot reach the OmniDoc server. Is it running on port 8000?', 0);
     }
-    return res.json();
+    if (!res.ok || !res.body) throw await readError(res, 'The query failed');
+
+    const reader = res.body.getReader();
+    const decoder = new TextDecoder();
+    let buffer = '';
+    let result: QueryResponse | null = null;
+
+    const handleEvent = (raw: string) => {
+      let event = 'message';
+      const dataLines: string[] = [];
+      for (const line of raw.split('\n')) {
+        if (line.startsWith('event:')) event = line.slice(6).trim();
+        else if (line.startsWith('data:')) dataLines.push(line.slice(5).trimStart());
+      }
+      if (!dataLines.length) return;
+      const data = JSON.parse(dataLines.join('\n'));
+      if (event === 'step') handlers.onStep?.(data as AgentStep);
+      else if (event === 'result') result = data as QueryResponse;
+      else if (event === 'error') throw new ApiError(data?.message || 'The query failed', 500);
+    };
+
+    for (;;) {
+      const { value, done } = await reader.read();
+      if (done) break;
+      buffer += decoder.decode(value, { stream: true }).replace(/\r\n/g, '\n');
+      let sep: number;
+      while ((sep = buffer.indexOf('\n\n')) !== -1) {
+        const chunk = buffer.slice(0, sep);
+        buffer = buffer.slice(sep + 2);
+        if (chunk.trim()) handleEvent(chunk);
+      }
+    }
+    if (buffer.trim()) handleEvent(buffer);
+    if (!result) throw new ApiError('The server closed the stream before answering', 500);
+    return result;
   }
 
-  async getGraph(limit: number = 150): Promise<{ nodes: GraphNode[]; edges: GraphEdge[] }> {
-    const res = await fetch(`${API_BASE}/api/graph?limit=${limit}`, {
-      headers: this.headers(),
-    });
-    if (!res.ok) throw new Error('Failed to fetch knowledge graph');
-    return res.json();
-  }
-
-  async getNodeDetails(nodeId: string): Promise<{ node: GraphNode; connected_edges: GraphEdge[]; stats: any }> {
-    const res = await fetch(`${API_BASE}/api/graph/node/${encodeURIComponent(nodeId)}`, {
-      headers: this.headers(),
-    });
-    if (!res.ok) throw new Error('Failed to fetch node details');
-    return res.json();
-  }
-
+  // ---- Documents -----------------------------------------------------------
   async getDocuments(): Promise<DocumentItem[]> {
-    const res = await fetch(`${API_BASE}/api/documents`, {
-      headers: this.headers(),
-    });
-    if (!res.ok) throw new Error('Failed to fetch documents');
-    const data = await res.json();
+    const data = await this.request<{ documents: DocumentItem[] }>('/api/documents', {}, 'Could not load the library');
     return data.documents;
   }
 
-  async uploadDocument(file: File): Promise<{ doc_id: string; filename: string; chunk_count: number }> {
-    const formData = new FormData();
-    formData.append('file', file);
-    const res = await fetch(`${API_BASE}/api/documents/upload`, {
-      method: 'POST',
-      headers: this.headers(false),
-      body: formData,
-    });
-    if (!res.ok) throw new Error('Document upload failed');
-    return res.json();
+  uploadDocument(file: File): Promise<UploadResult> {
+    const form = new FormData();
+    form.append('file', file);
+    return this.request<UploadResult>('/api/documents/upload', { method: 'POST', body: form }, 'Upload failed');
   }
 
   async deleteDocument(docId: string): Promise<void> {
-    const res = await fetch(`${API_BASE}/api/documents/${encodeURIComponent(docId)}`, {
-      method: 'DELETE',
-      headers: this.headers(),
-    });
-    if (!res.ok) throw new Error('Failed to delete document');
+    await this.request(`/api/documents/${encodeURIComponent(docId)}`, { method: 'DELETE' }, 'Could not delete the document');
   }
 
-  async exportPdf(chatId?: string, messages?: any[], title?: string): Promise<Blob> {
-    const res = await fetch(`${API_BASE}/api/export/pdf`, {
-      method: 'POST',
-      headers: this.headers(),
-      body: JSON.stringify({ chat_id: chatId, messages, title }),
-    });
-    if (!res.ok) throw new Error('Failed to export PDF');
-    return res.blob();
+  // ---- Knowledge graph -----------------------------------------------------
+  getGraph(limit = 2000): Promise<GraphData> {
+    return this.request<GraphData>(`/api/graph?limit=${limit}`, {}, 'Could not load the knowledge graph');
   }
 
-  async exportDocx(chatId?: string, messages?: any[], title?: string): Promise<Blob> {
-    const res = await fetch(`${API_BASE}/api/export/docx`, {
-      method: 'POST',
-      headers: this.headers(),
-      body: JSON.stringify({ chat_id: chatId, messages, title }),
-    });
-    if (!res.ok) throw new Error('Failed to export DOCX');
+  // ---- Export --------------------------------------------------------------
+  async exportChat(chatId: string, format: 'pdf' | 'docx'): Promise<Blob> {
+    let res: Response;
+    try {
+      res = await fetch(`${API_BASE}/api/export/${format}`, {
+        method: 'POST',
+        headers: this.headers(),
+        body: JSON.stringify({ chat_id: chatId }),
+      });
+    } catch {
+      throw new ApiError('Cannot reach the OmniDoc server.', 0);
+    }
+    if (!res.ok) throw await readError(res, `Could not export ${format.toUpperCase()}`);
     return res.blob();
   }
 }
