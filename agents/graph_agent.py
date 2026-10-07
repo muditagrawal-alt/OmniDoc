@@ -22,14 +22,27 @@ class GraphAgent:
         Executes graph queries based on extracted entities and sub-questions.
         """
         intent = state.get("intent")
-        entities = []
-        if intent and intent.entities_mentioned:
-            entities = intent.entities_mentioned
-        else:
-            # Fallback: extract potential noun terms from query
+        intent_res = state.get("intent_result")
+        semantic_q = state.get("semantic_query")
+
+        raw_entities = []
+        if semantic_q and getattr(semantic_q, "entities", None):
+            raw_entities.extend(semantic_q.entities)
+        if intent and getattr(intent, "entities_mentioned", None):
+            raw_entities.extend(intent.entities_mentioned)
+
+        if not raw_entities:
             query = state.get("user_query", "")
             words = [w for w in query.split() if len(w) > 4 and w.isalnum()]
-            entities = words[:4]
+            raw_entities = words[:4]
+
+        # Deduplicate while preserving order
+        seen = set()
+        entities = []
+        for e in raw_entities:
+            if e.strip().lower() not in seen:
+                seen.add(e.strip().lower())
+                entities.append(e.strip())
 
         logger.info(f"GraphAgent exploring neighborhood for entities: {entities}")
         neighborhood = self.graph_store.query_neighborhood(entities, hops=2)
@@ -45,6 +58,8 @@ class GraphAgent:
         edges = [RelationshipEdge(
             source_id=e["source"],
             target_id=e["target"],
+            source_name=e.get("source_name", ""),
+            target_name=e.get("target_name", ""),
             relation=e["relation"],
             description=e.get("description", ""),
             weight=1.0,
