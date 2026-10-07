@@ -75,42 +75,80 @@ class LanceDBStore:
         doc_ids: Optional[List[str]] = None
     ) -> List[RetrievedChunk]:
         """
-        Executes hybrid search (BM25 lexical + dense vector) with RRF fusion.
-        Falls back to pure vector search if FTS is unavailable.
+        Executes true hybrid search combining BM25 lexical search (Tantivy FTS) and
+        dense vector search with Reciprocal Rank Fusion (RRF).
         """
         if self.table is None:
             logger.warning("LanceDB table is empty. Returning 0 results.")
             return []
 
-        results: List[RetrievedChunk] = []
-        try:
-            # Try native hybrid search first
-            builder = self.table.search(query, query_type="hybrid").vector(query_vector).limit(top_k * 2)
-            if doc_ids:
-                filter_expr = " OR ".join([f"doc_id = '{did}'" for did in doc_ids])
-                builder = builder.where(filter_expr)
-            df = builder.to_pandas()
-        except Exception as e:
-            logger.info(f"Hybrid search fallback to vector-only ({e})")
-            builder = self.table.search(query_vector).metric("cosine").limit(top_k * 2)
-            if doc_ids:
-                filter_expr = " OR ".join([f"doc_id = '{did}'" for did in doc_ids])
-                builder = builder.where(filter_expr)
-            df = builder.to_pandas()
+        filter_expr = " OR ".join([f"doc_id = '{did}'" for did in doc_ids]) if doc_ids else None
 
-        for _, row in df.iterrows():
-            score = 1.0 - float(row.get("_distance", 0.5)) if "_distance" in row else float(row.get("_relevance_score", 0.7))
+        # 1. Dense Vector Search
+        vec_candidates: Dict[str, Dict[str, Any]] = {}
+        try:
+            vec_builder = self.table.search(query_vector).metric("cosine").limit(top_k * 2)
+            if filter_expr:
+                vec_builder = vec_builder.where(filter_expr)
+            vec_df = vec_builder.to_pandas()
+            for rank, (_, row) in enumerate(vec_df.iterrows(), 1):
+                cid = str(row["id"])
+                vec_candidates[cid] = {
+                    "row": row,
+                    "vec_rank": rank,
+                    "score": 1.0 - float(row.get("_distance", 0.5))
+                }
+        except Exception as e:
+            logger.warning(f"Vector search failed: {e}")
+
+        # 2. BM25 Lexical Full-Text Search (Tantivy FTS)
+        fts_candidates: Dict[str, Dict[str, Any]] = {}
+        clean_kw = "".join(c for c in query if c.isalnum() or c.isspace()).strip()
+        if clean_kw:
+            try:
+                fts_builder = self.table.search(clean_kw, query_type="fts").limit(top_k * 2)
+                if filter_expr:
+                    fts_builder = fts_builder.where(filter_expr)
+                fts_df = fts_builder.to_pandas()
+                for rank, (_, row) in enumerate(fts_df.iterrows(), 1):
+                    cid = str(row["id"])
+                    fts_candidates[cid] = {
+                        "row": row,
+                        "fts_rank": rank,
+                        "score": float(row.get("_score", 1.0))
+                    }
+            except Exception as e:
+                logger.debug(f"FTS search notice: {e}")
+
+        # 3. Reciprocal Rank Fusion (RRF: 1 / (60 + rank))
+        rrf_scores: Dict[str, float] = {}
+        all_cids = set(vec_candidates.keys()).union(set(fts_candidates.keys()))
+        for cid in all_cids:
+            score = 0.0
+            if cid in vec_candidates:
+                score += 1.0 / (60 + vec_candidates[cid]["vec_rank"])
+            if cid in fts_candidates:
+                score += 1.0 / (60 + fts_candidates[cid]["fts_rank"])
+            rrf_scores[cid] = score
+
+        # Sort by fused score
+        sorted_cids = sorted(all_cids, key=lambda c: rrf_scores[c], reverse=True)
+
+        results: List[RetrievedChunk] = []
+        for cid in sorted_cids[:top_k]:
+            data = vec_candidates.get(cid) or fts_candidates.get(cid)
+            row = data["row"]
             results.append(RetrievedChunk(
                 chunk_id=str(row["id"]),
                 doc_id=str(row["doc_id"]),
                 text=str(row["text"]),
                 page_number=int(row["page_number"]),
                 section_title=str(row.get("section_title", "General")),
-                score=score,
-                retrieval_method="hybrid"
+                score=round(rrf_scores[cid] * 60, 4),
+                retrieval_method="hybrid_rrf"
             ))
 
-        return results[:top_k]
+        return results
 
     def delete_document(self, doc_id: str):
         """Deletes all chunks belonging to a document."""
