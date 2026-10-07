@@ -1,40 +1,52 @@
-# Core Web App & UI
-streamlit>=1.30.0
+# API server (FastAPI backend for the React frontend)
+fastapi>=0.110.0
+uvicorn[standard]>=0.29.0
+python-multipart>=0.0.9
 
-# Multi-Agent Orchestration & Workflow State
+# Multi-agent orchestration & workflow state
 langgraph>=0.2.0
 langchain-core>=0.3.0
 pydantic>=2.10.0
 
-# Document Ingestion & Layout-Aware Parsing
+# Document ingestion & layout-aware parsing
 docling>=2.69.0
 docling-core>=2.60.0
 PyMuPDF>=1.24.0
 python-docx>=1.1.0
 Pillow>=10.2.0
 
-# Knowledge Graph (Graph RAG)
+# Knowledge graph
 kuzu>=0.11.0
-networkx>=3.2.0
 
-# Vector Storage & Hybrid Search
+# Vector storage & hybrid (dense + BM25) search
 lancedb>=0.27.0
 tantivy>=0.25.0
-chromadb>=0.4.22
+pyarrow>=14.0.0
 sentence-transformers>=3.0.0
 
-# Local LLM & AI Pipeline
+# Local LLMs (Ollama) and numeric reasoning
 ollama>=0.6.1
-instructor>=1.17.0
 numpy>=1.26.0
+sympy>=1.12
+pandas>=2.0.0
 
-# Multimodal & Vision Pipeline
+# Vision models used by the legacy image pipeline
 transformers>=4.40.0
 torch>=2.2.0
 torchvision>=0.17.0
 
-# Networking & Real-Time Web Search
+# Report export (WeasyPrint needs Cairo + Pango: `brew install pango`)
+weasyprint>=60.0
+
+# Networking (optional web search)
 requests>=2.31.0
 
-# Persistence (PostgreSQL & SQLite)
+# Optional: PostgreSQL persistence (db/connection.py)
 psycopg2-binary>=2.9.9
+
+# Legacy Streamlit dashboard (app.py)
+streamlit>=1.30.0
+
+# Tests
+pytest>=8.0.0
+httpx>=0.27.0
