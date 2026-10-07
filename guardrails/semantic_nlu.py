@@ -4,10 +4,8 @@ Zero-keyword natural language understanding using structured in-context learning
 Deconstructs queries into goals, entities, constraints, operations, and ambiguity.
 """
 import re
-import json
 import logging
 from typing import Optional, Dict, Any, List
-import ollama
 
 from core.state import SemanticQuery, ConversationMemoryState
 
@@ -39,47 +37,47 @@ You must extract:
 17. "sub_questions": Discrete questions that decompose the multi-part request.
 
 Respond with ONLY valid JSON matching this schema.
+Only include "calculate" in operations when arithmetic is required, and only include "visualize" / "chart" when the user explicitly asks for a chart, plot, graph or visual.
+Extract only entities that literally appear in the query; never add names, numbers or years that are not in it.
 
 Exemplar 1:
-Query: "Compare the revenue growth of Microsoft and Google from 2020 to 2024, explain the major reasons for the differences, and show me a chart."
+Query: "Compare the error rates of the baseline model and the proposed model in Table 3, compute the relative improvement, and plot both."
 Output:
 {
-  "goal": "comparative financial growth analysis and visualization",
-  "task_types": ["comparison", "mathematical_analysis", "visualization", "temporal_reasoning"],
-  "entities": ["Microsoft", "Google"],
-  "entity_types": {"Microsoft": "Organization", "Google": "Organization"},
-  "relationships": ["competitive comparison"],
-  "attributes": ["revenue", "revenue_growth"],
+  "goal": "comparative evaluation of two models with a computed improvement and a chart",
+  "task_types": ["comparison", "mathematical_analysis", "visualization", "table_analysis"],
+  "entities": ["baseline model", "proposed model", "Table 3"],
+  "entity_types": {"baseline model": "Method", "proposed model": "Method", "Table 3": "Table"},
+  "relationships": ["performance comparison"],
+  "attributes": ["error rate", "relative improvement"],
   "constraints": {},
-  "temporal_constraints": {"start_year": 2020, "end_year": 2024, "interval": "annual"},
-  "numerical_constraints": {"metrics": ["growth_rate", "percentage_change"]},
+  "temporal_constraints": null,
+  "numerical_constraints": {"metrics": ["relative_change"]},
   "geographic_constraints": null,
-  "operations": ["retrieve", "calculate", "compare", "visualize", "explain"],
+  "operations": ["retrieve", "compare", "calculate", "visualize"],
   "output_requirements": ["narrative", "chart", "citations"],
   "modality_requirements": ["text", "tabular", "visual"],
   "language": "en",
   "ambiguity_detected": false,
   "ambiguity_details": null,
   "sub_questions": [
-    "What was Microsoft's revenue each year from 2020 to 2024?",
-    "What was Google's revenue each year from 2020 to 2024?",
-    "What was the year-over-year revenue growth rate for both companies?",
-    "What were the primary drivers and business factors behind the difference in growth?"
+    "What is the error rate of the baseline model in Table 3?",
+    "What is the error rate of the proposed model in Table 3?"
   ]
 }
 
 Exemplar 2:
-Query: "Who was CEO of Microsoft in 2012, and who succeeded them?"
+Query: "Who approved the policy described in section 4, and when did it take effect?"
 Output:
 {
-  "goal": "historical leadership query with succession sequence",
-  "task_types": ["temporal_reasoning", "multi_hop_relational", "factual_lookup"],
-  "entities": ["Microsoft"],
-  "entity_types": {"Microsoft": "Organization"},
-  "relationships": ["leadership", "succession"],
-  "attributes": ["CEO", "successor"],
+  "goal": "identify the approving party and effective date of a policy",
+  "task_types": ["factual_lookup", "temporal_reasoning"],
+  "entities": ["section 4"],
+  "entity_types": {"section 4": "Section"},
+  "relationships": ["approved by"],
+  "attributes": ["approver", "effective date"],
   "constraints": {},
-  "temporal_constraints": {"target_year": 2012, "sequence": "successor_after"},
+  "temporal_constraints": {"sequence": "effective_date"},
   "numerical_constraints": null,
   "geographic_constraints": null,
   "operations": ["retrieve", "explain"],
@@ -89,11 +87,38 @@ Output:
   "ambiguity_detected": false,
   "ambiguity_details": null,
   "sub_questions": [
-    "Who was the CEO of Microsoft as of 2012?",
-    "When did their tenure end and who was appointed as the successor?"
+    "Who approved the policy described in section 4?",
+    "When did the policy in section 4 take effect?"
   ]
 }
 """
+
+
+def _str_list(v: Any) -> List[str]:
+    """Coerces LLM output into a list of non-empty strings."""
+    if v is None:
+        return []
+    if isinstance(v, str):
+        v = [v]
+    if not isinstance(v, (list, tuple)):
+        return []
+    return [str(x).strip() for x in v if isinstance(x, (str, int, float)) and not isinstance(x, bool) and str(x).strip()]
+
+
+def _str_dict(v: Any) -> Dict[str, str]:
+    if not isinstance(v, dict):
+        return {}
+    return {str(k): str(val) for k, val in v.items() if isinstance(val, (str, int, float))}
+
+
+def _opt_dict(v: Any) -> Optional[Dict[str, Any]]:
+    if isinstance(v, dict) and v:
+        return v
+    if isinstance(v, list) and v:
+        return {"values": v}
+    if isinstance(v, str) and v.strip() and v.strip().lower() not in ("null", "none"):
+        return {"description": v.strip()}
+    return None
 
 
 class SemanticNLUEngine:
@@ -120,44 +145,33 @@ class SemanticNLUEngine:
         full_prompt = f"{SEMANTIC_NLU_SYSTEM_PROMPT}\n{context_prompt}\nUSER QUERY:\n{effective_query}"
 
         try:
-            response = ollama.chat(
-                model=self.model_name,
-                messages=[{"role": "user", "content": full_prompt}],
-                options={"temperature": 0.0, "num_predict": 1024},
-                stream=False
-            )
-            raw_text = response["message"]["content"].strip()
-            json_match = re.search(r"```(?:json)?\s*(\{.*?\})\s*```", raw_text, re.DOTALL)
-            if json_match:
-                raw_json = json_match.group(1)
-            else:
-                json_match = re.search(r"(\{.*\})", raw_text, re.DOTALL)
-                raw_json = json_match.group(1) if json_match else raw_text
+            from agents.llm_utils import chat_json  # local import keeps guardrails importable standalone
+            parsed = chat_json(self.model_name, full_prompt, num_predict=900)
+            if not isinstance(parsed, dict):
+                raise ValueError("expected a JSON object")
 
-            parsed = json.loads(raw_json)
-
+            sub_questions = _str_list(parsed.get("sub_questions"))[:6] or [effective_query]
             return SemanticQuery(
                 raw_query=raw_query,
                 resolved_query=effective_query,
-                goal=parsed.get("goal") or "Information retrieval",
-                task_types=parsed.get("task_types") or ["factual_lookup"],
-                entities=parsed.get("entities") or [],
-                entity_types=parsed.get("entity_types") or {},
-                relationships=parsed.get("relationships") or [],
-                attributes=parsed.get("attributes") or [],
-                constraints=parsed.get("constraints") or {},
-                temporal_constraints=parsed.get("temporal_constraints"),
-                numerical_constraints=parsed.get("numerical_constraints"),
-                geographic_constraints=parsed.get("geographic_constraints"),
-                operations=parsed.get("operations") or ["retrieve"],
-                output_requirements=parsed.get("output_requirements") or ["narrative", "citations"],
-                modality_requirements=parsed.get("modality_requirements") or ["text"],
-                language=parsed.get("language") or "en",
-                ambiguity_detected=bool(parsed.get("ambiguity_detected", False)),
-                ambiguity_details=parsed.get("ambiguity_details"),
-                sub_questions=parsed.get("sub_questions") or [effective_query]
+                goal=str(parsed.get("goal") or "Information retrieval")[:300],
+                task_types=_str_list(parsed.get("task_types")) or ["factual_lookup"],
+                entities=[e for e in _str_list(parsed.get("entities")) if len(e) <= 120][:10],
+                entity_types=_str_dict(parsed.get("entity_types")),
+                relationships=_str_list(parsed.get("relationships")),
+                attributes=_str_list(parsed.get("attributes")),
+                constraints=parsed.get("constraints") if isinstance(parsed.get("constraints"), dict) else {},
+                temporal_constraints=_opt_dict(parsed.get("temporal_constraints")),
+                numerical_constraints=_opt_dict(parsed.get("numerical_constraints")),
+                geographic_constraints=_opt_dict(parsed.get("geographic_constraints")),
+                operations=[o.lower() for o in _str_list(parsed.get("operations"))] or ["retrieve"],
+                output_requirements=[o.lower() for o in _str_list(parsed.get("output_requirements"))] or ["narrative", "citations"],
+                modality_requirements=[o.lower() for o in _str_list(parsed.get("modality_requirements"))] or ["text"],
+                language=str(parsed.get("language") or "en")[:10],
+                ambiguity_detected=parsed.get("ambiguity_detected") is True,
+                ambiguity_details=parsed.get("ambiguity_details") if isinstance(parsed.get("ambiguity_details"), str) else None,
+                sub_questions=sub_questions
             )
-
 
         except Exception as e:
             logger.warning(f"Semantic NLU extraction fallback triggered ({e}).")
