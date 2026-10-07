@@ -41,39 +41,40 @@ logger = logging.getLogger("OmniDoc.Pipeline")
 class AgenticGraphRAGPipeline:
     """End-to-end coordinator for ingestion and LangGraph multi-agent execution."""
 
-    def __init__(self, data_dir: str = ".data"):
+    def __init__(self, data_dir: str = ".data", model_name: str = "qwen2.5:7b-instruct"):
         self.data_dir = data_dir
+        self.model_name = model_name
         os.makedirs(data_dir, exist_ok=True)
 
         # 1. Stores & Parsers
         self.parser = DoclingParser()
         self.graph_store = KuzuGraphStore(db_path=os.path.join(data_dir, "kuzu_db", "graph.kuzu"))
-        self.extractor = GraphExtractor(self.graph_store)
+        self.extractor = GraphExtractor(self.graph_store, model_name=model_name)
         self.embed_service = EmbeddingService()
         self.lance_store = LanceDBStore(db_dir=os.path.join(data_dir, "lancedb"))
         self.reranker = ChunkReranker()
 
         # 2. Guardrails & Semantic NLU
-        self.input_guard = InputGuardrail()
-        self.output_guard = OutputGuardrail()
+        self.input_guard = InputGuardrail(model_name=model_name)
+        self.output_guard = OutputGuardrail(model_name=model_name)
         self.execution_guard = ExecutionBudgetGuard()
-        self.semantic_nlu = SemanticNLU()
-        self.intent_classifier = IntentClassifierAgent()
+        self.semantic_nlu = SemanticNLU(model_name=model_name)
+        self.intent_classifier = IntentClassifierAgent(model_name=model_name)
 
         # 3. Agents
-        self.context_memory_agent = ContextMemoryAgent()
-        self.query_planner = QueryPlanner()
-        self.supervisor = SupervisorAgent()
-        self.entity_resolution_agent = EntityResolutionAgent()
-        self.query_expansion_agent = QueryExpansionAgent()
+        self.context_memory_agent = ContextMemoryAgent(model_name=model_name)
+        self.query_planner = QueryPlanner(model_name=model_name)
+        self.supervisor = SupervisorAgent(model_name=model_name)
+        self.entity_resolution_agent = EntityResolutionAgent(model_name=model_name)
+        self.query_expansion_agent = QueryExpansionAgent(model_name=model_name)
         self.graph_agent = GraphAgent(self.graph_store)
         self.hybrid_agent = HybridRetrievalAgent(self.embed_service, self.lance_store, self.reranker)
         self.vision_agent = VisionAgent()
         self.evidence_selection_agent = EvidenceSelectionAgent(self.reranker)
-        self.conflict_resolution_agent = ConflictResolutionAgent()
-        self.math_agent = MathematicsAgent()
-        self.visualization_agent = VisualizationAgent()
-        self.synthesis_agent = SynthesisAgent()
+        self.conflict_resolution_agent = ConflictResolutionAgent(model_name=model_name)
+        self.math_agent = MathematicsAgent(model_name=model_name)
+        self.visualization_agent = VisualizationAgent(model_name=model_name)
+        self.synthesis_agent = SynthesisAgent(model_name=model_name)
 
         # 4. LangGraph Multi-Agent Workflow
         self.workflow = OmniDocWorkflow(
@@ -98,15 +99,15 @@ class AgenticGraphRAGPipeline:
         )
 
 
-    def ingest_document(self, file_path: str, doc_id: str, doc_hash: str) -> ParsedDocument:
+    def ingest_document(self, file_path: str, doc_id: str, doc_hash: str, fast_mode: bool = False) -> ParsedDocument:
         """
-        Parses document via Docling, indexes chunks into LanceDB,
+        Parses document via Docling or fast PyMuPDF, indexes chunks into LanceDB,
         and extracts entities and relations into Kùzu.
         """
-        logger.info(f"Starting Agentic Graph RAG ingestion for {file_path} (ID: {doc_id})")
+        logger.info(f"Starting Agentic Graph RAG ingestion for {file_path} (ID: {doc_id}, fast_mode={fast_mode})")
         
-        # 1. Parse via Docling
-        parsed_doc = self.parser.parse_document(file_path, doc_id=doc_id)
+        # 1. Parse via Docling or PyMuPDF JIT
+        parsed_doc = self.parser.parse_document(file_path, doc_id=doc_id, fast_mode=fast_mode)
         
         # 2. Register Document in Kùzu
         self.graph_store.add_document(
@@ -141,13 +142,20 @@ class AgenticGraphRAGPipeline:
         self,
         user_query: str,
         doc_id: Optional[str] = None,
+        document_ids: Optional[List[str]] = None,
         session_id: str = "default_session",
         conversation_history: Optional[List[Dict[str, str]]] = None
     ) -> Dict[str, Any]:
         """
         Executes query through the LangGraph Multi-Agent Workflow.
         """
-        doc_ids = [doc_id] if doc_id else []
+        if document_ids is not None:
+            doc_ids = document_ids
+        elif doc_id:
+            doc_ids = [doc_id]
+        else:
+            doc_ids = []
+
         return self.workflow.execute(
             user_query=user_query,
             document_ids=doc_ids,
