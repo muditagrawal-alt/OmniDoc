@@ -1,836 +1,784 @@
 """
-OmniDoc FastAPI Production Backend Server.
-Provides high-performance REST APIs for:
-1. Social Authentication (Google, Apple ID, Email Magic Link)
-2. Conversation Sessions & History Persistence (SQLite)
-3. Multi-Agent Agentic Graph RAG Pipeline Execution (LangGraph + LanceDB + Kùzu + Ollama)
-4. Multi-Format Document Ingestion (Docling + Hybrid Indexing)
-5. Publication-Grade Document Compilation (WeasyPrint PDF & python-docx DOCX)
+OmniDoc FastAPI backend.
+
+Serves the React frontend's API:
+1. Local profiles with opaque session tokens
+2. Conversation sessions and message history (SQLite)
+3. The multi-agent Graph RAG pipeline (LangGraph + LanceDB + Kùzu + Ollama),
+   with Server-Sent Events streaming of per-agent progress
+4. Document ingestion (Docling) with background knowledge-graph extraction
+5. Knowledge-graph export for the 3D globe
+6. PDF (WeasyPrint) and DOCX (python-docx) report export
 """
 import os
-import sys
+import re
 import io
+import sys
+import json
 import time
 import uuid
 import hashlib
 import logging
-from typing import List, Dict, Any, Optional, Tuple
+import threading
+import urllib.parse
+import urllib.request
+from contextlib import asynccontextmanager
 from pathlib import Path
-from pydantic import BaseModel, Field
+from typing import List, Dict, Any, Optional, Iterator
 
-# Ensure Homebrew Cairo / Pango libraries are discoverable on macOS
+# Homebrew Cairo / Pango for WeasyPrint on macOS (must be set before WeasyPrint loads)
 os.environ.setdefault("DYLD_FALLBACK_LIBRARY_PATH", "/opt/homebrew/lib")
 
-# Ensure project root is in sys.path
+# Ensure project root is importable when run as a script
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 
-from fastapi import FastAPI, HTTPException, UploadFile, File, Form, Depends, Header, Query
+from pydantic import BaseModel, Field
+from fastapi import FastAPI, HTTPException, UploadFile, File, Header, Depends
 from fastapi.middleware.cors import CORSMiddleware
-from fastapi.responses import StreamingResponse, JSONResponse
+from fastapi.responses import StreamingResponse
 
-from db_store import OmniDocDB
+from db_store import OmniDocDB, LOCAL_USER_ID, DATA_DIR
 from export.report_compiler import ReportCompiler
 from core.pipeline import AgenticGraphRAGPipeline
 
 logging.basicConfig(level=logging.INFO, format="%(asctime)s [%(levelname)s] %(name)s: %(message)s")
 logger = logging.getLogger("OmniDoc.Server")
 
-# Initialize FastAPI App
+VERSION = "2.1.0"
+OLLAMA_URL = os.environ.get("OLLAMA_HOST", "http://localhost:11434").rstrip("/")
+DEFAULT_MODEL = os.environ.get("OMNIDOC_MODEL", "qwen2.5:7b-instruct")
+MAX_UPLOAD_BYTES = int(os.environ.get("OMNIDOC_MAX_UPLOAD_MB", "100")) * 1024 * 1024
+ALLOWED_EXTENSIONS = {"pdf", "docx", "txt", "md"}
+UPLOAD_DIR = DATA_DIR / "uploads"
+SETTINGS_PATH = DATA_DIR / "settings.json"
+DOC_ID_RE = re.compile(r"^[A-Za-z0-9_.\-]{1,128}$")
+NEW_CHAT_TITLE = "New conversation"
+
+@asynccontextmanager
+async def lifespan(_app: FastAPI):
+    # Load the models in the background so the first question does not wait for them.
+    if os.environ.get("OMNIDOC_WARMUP", "1") != "0":
+        threading.Thread(target=get_pipeline, name="pipeline-warmup", daemon=True).start()
+    yield
+
+
 app = FastAPI(
-    title="OmniDoc Agentic Graph RAG API",
-    description="Publication-grade multi-agent document reasoning, graphing, and compilation engine.",
-    version="2.0.0"
+    title="OmniDoc API",
+    description="Local multi-agent document intelligence: cited answers, knowledge graph, reports.",
+    version=VERSION,
+    lifespan=lifespan,
 )
 
-# Enable CORS for Vite frontend and local environments
+# The API authenticates with a bearer header, not cookies, so credentials are not
+# needed cross-origin. Only the local frontend origins may call it from a browser.
+CORS_ORIGINS = [
+    o.strip()
+    for o in os.environ.get(
+        "OMNIDOC_CORS_ORIGINS",
+        "http://localhost:5173,http://127.0.0.1:5173,http://localhost:4173,http://127.0.0.1:4173",
+    ).split(",")
+    if o.strip()
+]
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"],
-    allow_credentials=True,
-    allow_methods=["*"],
-    allow_headers=["*"],
+    allow_origins=CORS_ORIGINS,
+    allow_credentials=False,
+    allow_methods=["GET", "POST", "PATCH", "PUT", "DELETE", "OPTIONS"],
+    allow_headers=["Authorization", "Content-Type", "Accept"],
 )
 
-# Persistent Singletons
 db = OmniDocDB()
 report_compiler = ReportCompiler()
 
-# Lazy pipeline initialization to allow swift server startup
+
+# ---------------------------------------------------------------------------
+# Settings & pipeline lifecycle
+# ---------------------------------------------------------------------------
+def _load_settings() -> Dict[str, Any]:
+    try:
+        return json.loads(SETTINGS_PATH.read_text())
+    except (OSError, ValueError):
+        return {}
+
+
+def _save_settings(settings: Dict[str, Any]) -> None:
+    SETTINGS_PATH.parent.mkdir(parents=True, exist_ok=True)
+    SETTINGS_PATH.write_text(json.dumps(settings, indent=2))
+
+
 _pipeline: Optional[AgenticGraphRAGPipeline] = None
+_pipeline_lock = threading.Lock()
 
 
 def get_pipeline() -> AgenticGraphRAGPipeline:
+    """Builds the pipeline once (thread-safe); heavy models load on first use."""
     global _pipeline
     if _pipeline is None:
-        logger.info("Initializing Agentic Graph RAG Pipeline...")
-        _pipeline = AgenticGraphRAGPipeline(data_dir=".data")
+        with _pipeline_lock:
+            if _pipeline is None:
+                model = _load_settings().get("model") or DEFAULT_MODEL
+                logger.info(f"Initializing agentic pipeline with model {model}...")
+                _pipeline = AgenticGraphRAGPipeline(data_dir=str(DATA_DIR), model_name=model)
     return _pipeline
 
 
-# ---------------------------------------------------------
-# Pydantic Request / Response Models
-# ---------------------------------------------------------
+def current_model() -> str:
+    if _pipeline is not None:
+        return _pipeline.model_name
+    return _load_settings().get("model") or DEFAULT_MODEL
+
+
+def ollama_models(timeout: float = 2.0) -> Optional[List[Dict[str, Any]]]:
+    """Lists locally installed Ollama models, or None if Ollama is unreachable."""
+    try:
+        with urllib.request.urlopen(f"{OLLAMA_URL}/api/tags", timeout=timeout) as resp:
+            data = json.loads(resp.read().decode("utf-8"))
+    except Exception:
+        return None
+    models = []
+    for m in data.get("models", []):
+        caps = m.get("capabilities") or []
+        name = m.get("name", "")
+        if "embedding" in caps or "embed" in name:
+            continue  # embedding-only models cannot answer questions
+        details = m.get("details") or {}
+        models.append({
+            "name": name,
+            "size_gb": round(m.get("size", 0) / 1e9, 1) if m.get("size") else None,
+            "parameter_size": details.get("parameter_size"),
+        })
+    return models
+
+
+# ---------------------------------------------------------------------------
+# Request models
+# ---------------------------------------------------------------------------
 class LoginRequest(BaseModel):
-    provider: str = Field(..., description="Authentication provider: 'google', 'apple', or 'email'")
-    email: Optional[str] = Field(None, description="User email address")
-    name: Optional[str] = Field(None, description="Display name")
-    avatar_url: Optional[str] = Field(None, description="Profile avatar URL")
-
-
-class UserProfile(BaseModel):
-    id: str
-    email: str
-    name: str
-    provider: str
-    avatar_url: str
+    provider: str = Field("local", description="Profile type; only local profiles exist")
+    email: Optional[str] = None
+    name: Optional[str] = None
 
 
 class CreateChatRequest(BaseModel):
-    title: Optional[str] = "New Conversation"
+    title: Optional[str] = NEW_CHAT_TITLE
     document_id: Optional[str] = None
-    document_ids: Optional[List[str]] = None
 
 
 class RenameChatRequest(BaseModel):
-    title: str
+    title: str = Field(..., min_length=1, max_length=200)
 
 
 class QueryRequest(BaseModel):
-    query: str
+    query: str = Field(..., min_length=1, max_length=8000)
     document_ids: Optional[List[str]] = None
     session_id: Optional[str] = None
     language: Optional[str] = "en"
 
 
+class ModelRequest(BaseModel):
+    model: str
+
+
 class ExportRequest(BaseModel):
     chat_id: Optional[str] = None
-    title: Optional[str] = "OmniDoc Executive Analysis"
+    title: Optional[str] = "OmniDoc analysis"
     messages: Optional[List[Dict[str, Any]]] = None
     metadata: Optional[Dict[str, Any]] = None
 
 
-# ---------------------------------------------------------
-# Helper Functions
-# ---------------------------------------------------------
-def get_current_user_id(authorization: Optional[str] = Header(None)) -> str:
-    """Extracts user ID from Bearer token or defaults to persistent local user."""
+# ---------------------------------------------------------------------------
+# Auth: opaque session tokens; requests without one act as the local user
+# ---------------------------------------------------------------------------
+def _bearer(authorization: Optional[str]) -> Optional[str]:
     if authorization and authorization.startswith("Bearer "):
-        token = authorization.split("Bearer ")[1].strip()
-        if token.startswith("usr_"):
-            return token
-    return "usr_local_default"
+        token = authorization[len("Bearer "):].strip()
+        return token or None
+    return None
 
 
-def serialize_artifact(obj: Any) -> Any:
-    """Recursively serialize Pydantic or custom objects to pure dicts."""
-    if hasattr(obj, "model_dump"):
-        return obj.model_dump()
-    if hasattr(obj, "dict"):
-        return obj.dict()
-    if hasattr(obj, "__dict__"):
-        return {k: serialize_artifact(v) for k, v in obj.__dict__.items() if not k.startswith("_")}
-    if isinstance(obj, list):
-        return [serialize_artifact(item) for item in obj]
-    if isinstance(obj, dict):
-        return {k: serialize_artifact(v) for k, v in obj.items()}
-    return obj
+def current_user_id(authorization: Optional[str] = Header(None)) -> str:
+    token = _bearer(authorization)
+    if not token:
+        return LOCAL_USER_ID
+    user_id = db.get_session_user_id(token)
+    if not user_id:
+        raise HTTPException(status_code=401, detail="Session expired. Sign in again.")
+    return user_id
 
 
-# ---------------------------------------------------------
-# Authentication Routes
-# ---------------------------------------------------------
+def owned_chat(chat_id: str, user_id: str) -> Dict[str, Any]:
+    chat = db.get_chat(chat_id, user_id=user_id)
+    if not chat:
+        raise HTTPException(status_code=404, detail="Conversation not found")
+    return chat
+
+
 @app.post("/api/auth/login")
 def login(req: LoginRequest):
-    """
-    Authenticate user via Google, Apple ID, or Email.
-    Creates or retrieves user profile and issues session credentials.
-    """
-    provider = req.provider.lower()
-    email = req.email or f"{provider}_user_{uuid.uuid4().hex[:6]}@omnidoc.local"
-    
-    # Check if user already exists
+    """Creates or reuses a local profile and returns a new session token."""
+    email = (req.email or "").strip().lower()
+    name = (req.name or "").strip()
+    if not email or "@" not in email:
+        raise HTTPException(status_code=422, detail="Enter a valid email address")
     existing = db.get_user_by_email(email)
-    if existing:
-        user_id = existing["id"]
-        name = req.name or existing["name"]
-        avatar = req.avatar_url or existing.get("avatar_url", "")
-    else:
-        user_id = f"usr_{uuid.uuid4().hex[:8]}"
-        name = req.name or f"{provider.capitalize()} User"
-        avatar = req.avatar_url or f"https://api.dicebear.com/7.x/identicon/svg?seed={user_id}"
-
+    user_id = existing["id"] if existing else f"usr_{uuid.uuid4().hex[:12]}"
     user = db.upsert_user(
         user_id=user_id,
         email=email,
-        name=name,
-        provider=provider,
-        avatar_url=avatar
+        name=name or (existing or {}).get("name") or email.split("@")[0],
+        provider="local",
+        avatar_url="",
     )
-    return {
-        "status": "success",
-        "token": user_id,
-        "user": user
-    }
+    token = db.create_session(user_id)
+    return {"status": "success", "token": token, "user": user}
 
 
 @app.get("/api/auth/me")
 def get_current_user(authorization: Optional[str] = Header(None)):
-    """Retrieve currently active user profile."""
-    user_id = get_current_user_id(authorization)
-    user = db.get_user(user_id)
-    if not user:
-        user = db.upsert_user(
-            user_id=user_id,
-            email="researcher@omnidoc.local",
-            name="OmniDoc Researcher",
-            provider="email",
-            avatar_url=f"https://api.dicebear.com/7.x/identicon/svg?seed={user_id}"
-        )
-    return {"user": user}
+    token = _bearer(authorization)
+    if not token:
+        raise HTTPException(status_code=401, detail="Not signed in")
+    user_id = db.get_session_user_id(token)
+    if user_id:
+        user = db.get_user(user_id)
+        if user:
+            return {"user": user}
+    raise HTTPException(status_code=401, detail="Session expired. Sign in again.")
 
 
 @app.post("/api/auth/logout")
-def logout():
-    return {"status": "success", "message": "Logged out successfully"}
+def logout(authorization: Optional[str] = Header(None)):
+    token = _bearer(authorization)
+    if token:
+        db.delete_session(token)
+    return {"status": "success"}
 
 
-# ---------------------------------------------------------
-# Chat Session Management Routes
-# ---------------------------------------------------------
-@app.get("/api/chats")
-def list_chats(authorization: Optional[str] = Header(None)):
-    """List all chat sessions for the current user."""
-    user_id = get_current_user_id(authorization)
-    chats = db.get_all_chats(user_id=user_id)
-    # Augment with message counts
-    enriched = []
-    for c in chats:
-        c_dict = dict(c)
-        msgs = db.get_messages(c_dict["id"])
-        c_dict["message_count"] = len(msgs)
-        c_dict["last_message"] = msgs[-1]["content"][:80] if msgs else ""
-        enriched.append(c_dict)
-    return {"chats": enriched}
-
-
-@app.post("/api/chats")
-def create_chat(req: CreateChatRequest, authorization: Optional[str] = Header(None)):
-    """Create a new chat session."""
-    user_id = get_current_user_id(authorization)
-    chat_id = f"chat_{uuid.uuid4().hex[:10]}"
-    title = req.title or "New Conversation"
-    doc_id = req.document_id or (req.document_ids[0] if req.document_ids else None)
-    
-    db.create_chat(
-        chat_id=chat_id,
-        document_id=doc_id,
-        title=title,
-        user_id=user_id
-    )
-    chat = db.get_chat(chat_id)
-    return {"status": "success", "chat": chat}
-
-
-@app.get("/api/chats/{chat_id}")
-def get_chat(chat_id: str):
-    """Retrieve full chat session and message history."""
-    chat = db.get_chat(chat_id)
-    if not chat:
-        raise HTTPException(status_code=404, detail="Chat not found")
-    messages = db.get_messages(chat_id)
+# ---------------------------------------------------------------------------
+# System
+# ---------------------------------------------------------------------------
+@app.get("/api/health")
+def health_check():
+    stores: Dict[str, str] = {}
+    try:
+        db.conn.execute("SELECT 1").fetchone()
+        stores["sqlite"] = "ok"
+    except Exception as e:
+        stores["sqlite"] = f"error: {e}"
+    if _pipeline is not None:
+        stores["kuzu"] = "ok" if _pipeline.graph_store.conn is not None else "unavailable"
+        stores["lancedb"] = "ok" if getattr(_pipeline.lance_store, "table", None) is not None else "empty"
+    else:
+        stores["kuzu"] = stores["lancedb"] = "not loaded"
     return {
-        "chat": chat,
-        "messages": messages
+        "status": "healthy" if stores["sqlite"] == "ok" else "degraded",
+        "service": "OmniDoc",
+        "version": VERSION,
+        "model": current_model(),
+        "ollama": ollama_models(timeout=1.0) is not None,
+        "stores": stores,
+        "timestamp": time.time(),
     }
 
 
+@app.get("/api/models")
+def list_models():
+    models = ollama_models()
+    if models is None:
+        raise HTTPException(status_code=503, detail="Ollama is not reachable at " + OLLAMA_URL)
+    return {"models": models, "current": current_model()}
+
+
+@app.put("/api/models/current")
+def set_model(req: ModelRequest):
+    models = ollama_models()
+    if models is None:
+        raise HTTPException(status_code=503, detail="Ollama is not reachable")
+    if req.model not in {m["name"] for m in models}:
+        raise HTTPException(status_code=404, detail=f"Model {req.model} is not installed in Ollama")
+    settings = _load_settings()
+    settings["model"] = req.model
+    _save_settings(settings)
+    if _pipeline is not None:
+        _pipeline.set_model(req.model)
+    return {"current": req.model}
+
+
+# ---------------------------------------------------------------------------
+# Conversations
+# ---------------------------------------------------------------------------
+@app.get("/api/chats")
+def list_chats(user_id: str = Depends(current_user_id)):
+    return {"chats": db.list_chats(user_id)}
+
+
+@app.post("/api/chats")
+def create_chat(req: CreateChatRequest, user_id: str = Depends(current_user_id)):
+    chat_id = f"chat_{uuid.uuid4().hex[:12]}"
+    title = (req.title or NEW_CHAT_TITLE).strip()[:200] or NEW_CHAT_TITLE
+    db.create_chat(chat_id=chat_id, document_id=req.document_id, title=title, user_id=user_id)
+    return {"status": "success", "chat": db.get_chat(chat_id)}
+
+
+@app.get("/api/chats/{chat_id}")
+def get_chat(chat_id: str, user_id: str = Depends(current_user_id)):
+    chat = owned_chat(chat_id, user_id)
+    return {"chat": chat, "messages": db.get_messages(chat_id)}
+
+
 @app.patch("/api/chats/{chat_id}")
-def rename_chat(chat_id: str, req: RenameChatRequest):
-    """Rename a conversation."""
-    db.update_chat_title(chat_id, req.title)
-    return {"status": "success", "title": req.title}
+def rename_chat(chat_id: str, req: RenameChatRequest, user_id: str = Depends(current_user_id)):
+    owned_chat(chat_id, user_id)
+    title = req.title.strip()
+    db.update_chat_title(chat_id, title)
+    return {"status": "success", "title": title}
 
 
 @app.delete("/api/chats/{chat_id}")
-def delete_chat(chat_id: str):
-    """Delete a conversation and all its messages."""
+def delete_chat(chat_id: str, user_id: str = Depends(current_user_id)):
+    owned_chat(chat_id, user_id)
     db.delete_chat(chat_id)
     return {"status": "success", "deleted_chat_id": chat_id}
 
 
-def extract_geo_and_chart_artifacts(
-    query: str,
-    answer: str,
-    graph_entities: List[Dict[str, Any]],
-    math_results: List[Dict[str, Any]],
-    existing_visuals: List[Dict[str, Any]]
-) -> Tuple[List[Dict[str, Any]], List[Dict[str, Any]]]:
-    """
-    Enriches response with interactive geographical map objects and structured chart objects.
-    Highlights regional clusters, coordinates, and metric comparisons.
-    """
-    text_corpus = f"{query} {answer}".lower()
-    for ge in graph_entities:
-        for edge in ge.get("edges", []):
-            text_corpus += f" {edge.get('source_name', '')} {edge.get('target_name', '')} {edge.get('description', '')}".lower()
-    
-    geo_locations = []
-    
-    # 1. Hangzhou, China (DeepSeek & High-Flyer Quant HQ)
-    if any(k in text_corpus for k in ["hangzhou", "deepseek", "high-flyer", "high flyer", "jiuzhang", "liang wenfeng"]):
-        geo_locations.append({
-            "id": "geo_hangzhou_deepseek",
-            "name": "Hangzhou, Zhejiang, China",
-            "region": "Hangzhou Future Tech City",
-            "country": "China",
-            "lat": 30.2741,
-            "lon": 120.1551,
-            "description": "Global headquarters and primary AI research laboratory for DeepSeek AI and High-Flyer Quant (Zhejiang Jiuzhang Asset Management).",
-            "radius_meters": 35000,
-            "highlight_color": "#3b82f6",
-            "entities": ["DeepSeek AI", "High-Flyer Quant", "Liang Wenfeng"],
-            "metrics": {"Cluster Type": "Frontier AI Lab & Quantitative Fund", "Key Facility": "Fire-Flyer Supercomputer Cluster"}
-        })
+# ---------------------------------------------------------------------------
+# Answer assembly: everything shown to the user comes from real pipeline state
+# ---------------------------------------------------------------------------
+LANGUAGE_NAMES = {
+    "hi": "Hindi (हिन्दी)",
+    "mr": "Marathi (मराठी)",
+    "ta": "Tamil (தமிழ்)",
+    "te": "Telugu (తెలుగు)",
+    "kn": "Kannada (ಕನ್ನಡ)",
+    "as": "Assamese (অসমীয়া)",
+    "bn": "Bengali (বাংলা)",
+    "gu": "Gujarati (ગુજરાતી)",
+}
 
-    # 2. Cupertino / Silicon Valley (Apple)
-    if any(k in text_corpus for k in ["cupertino", "apple", "iphone", "apple park"]):
-        geo_locations.append({
-            "id": "geo_cupertino_apple",
-            "name": "Cupertino, California, USA",
-            "region": "Silicon Valley",
-            "country": "United States",
-            "lat": 37.3230,
-            "lon": -122.0322,
-            "description": "Apple Park Corporate Headquarters, overseeing global hardware, iOS ecosystem, and silicon design.",
-            "radius_meters": 25000,
-            "highlight_color": "#10b981",
-            "entities": ["Apple Inc.", "Services Segment", "iPhone Division"],
-            "metrics": {"Cluster Type": "Global Tech Enterprise", "Key Campus": "Apple Park 1 Apple Park Way"}
-        })
 
-    # 3. Redmond / Seattle (Microsoft)
-    if any(k in text_corpus for k in ["redmond", "microsoft", "azure"]):
-        geo_locations.append({
-            "id": "geo_redmond_microsoft",
-            "name": "Redmond, Washington, USA",
-            "region": "Pacific Northwest",
-            "country": "United States",
-            "lat": 47.6740,
-            "lon": -122.1215,
-            "description": "Microsoft World Headquarters and Azure Cloud Infrastructure campus.",
-            "radius_meters": 25000,
-            "highlight_color": "#06b6d4",
-            "entities": ["Microsoft Corp.", "Intelligent Cloud", "Azure AI"],
-            "metrics": {"Cluster Type": "Enterprise Cloud & AI Hub", "Key Campus": "One Microsoft Way"}
-        })
+def to_jsonable(obj: Any) -> Any:
+    """Recursively converts Pydantic models and containers to plain JSON values."""
+    if hasattr(obj, "model_dump"):
+        return to_jsonable(obj.model_dump())
+    if isinstance(obj, dict):
+        return {str(k): to_jsonable(v) for k, v in obj.items()}
+    if isinstance(obj, (list, tuple, set)):
+        return [to_jsonable(v) for v in obj]
+    if isinstance(obj, (str, int, float, bool)) or obj is None:
+        return obj
+    return str(obj)
 
-    # 4. Bengaluru, India (Indian Tech Capital)
-    if any(k in text_corpus for k in ["bengaluru", "bangalore", "karnataka", "india"]):
-        geo_locations.append({
-            "id": "geo_bengaluru_india",
-            "name": "Bengaluru, Karnataka, India",
-            "region": "India Tech Capital",
-            "country": "India",
-            "lat": 12.9716,
-            "lon": 77.5946,
-            "description": "Major engineering hub, GCC innovation centers, and research centers in India.",
-            "radius_meters": 30000,
-            "highlight_color": "#f59e0b",
-            "entities": ["Bengaluru Innovation Zone"],
-            "metrics": {"Cluster Type": "DeepTech & Engineering Hub", "Region": "Southern India Tech Belt"}
-        })
 
-    # 5. Mumbai, India (Financial Capital)
-    if any(k in text_corpus for k in ["mumbai", "maharashtra", "bse", "nse"]):
-        geo_locations.append({
-            "id": "geo_mumbai_india",
-            "name": "Mumbai, Maharashtra, India",
-            "region": "Bandra Kurla Complex (BKC)",
-            "country": "India",
-            "lat": 19.0760,
-            "lon": 72.8777,
-            "description": "Financial Capital of India, housing the Reserve Bank of India, BSE, NSE, and major investment banking headquarters.",
-            "radius_meters": 30000,
-            "highlight_color": "#ec4899",
-            "entities": ["Financial Capital of India"],
-            "metrics": {"Cluster Type": "Capital Markets & Banking Hub", "Key Zone": "Bandra Kurla Complex (BKC)"}
-        })
+def _doc_titles() -> Dict[str, str]:
+    return {d["id"]: d.get("filename") or d["id"] for d in db.get_all_documents()}
 
-    # 6. Chart / Plot Artifact Enrichment
-    visual_artifacts = list(existing_visuals)
-    if not visual_artifacts:
-        if math_results:
-            chart_items = []
-            for mr in math_results:
-                task_name = mr.get("task", "Metric")
-                res = mr.get("result", 0)
-                try:
-                    num_val = float(res)
-                    chart_items.append({"label": task_name[:20], "value": num_val})
-                except (ValueError, TypeError):
-                    pass
-            if chart_items:
-                visual_artifacts.append({
-                    "chart_type": "bar",
-                    "title": "Deterministic Mathematical Metrics",
-                    "caption": "Computed via SymPy deterministic verification engine.",
-                    "plotly_spec": {
-                        "data": [{
-                            "x": [ci["label"] for ci in chart_items],
-                            "y": [ci["value"] for ci in chart_items],
-                            "type": "bar"
-                        }]
-                    },
-                    "underlying_data": chart_items
+
+def build_sources(state: Dict[str, Any]) -> List[Dict[str, Any]]:
+    """Numbered sources matching the [n] citations in the answer."""
+    titles = _doc_titles()
+    sources = to_jsonable(state.get("sources") or [])
+    if not sources:
+        # Older synthesis output without a numbered list: fall back to the real
+        # retrieval results, keeping their real scores.
+        package = state.get("evidence_package")
+        items = getattr(package, "items", None) or []
+        if items:
+            for i, item in enumerate(items, start=1):
+                prov = getattr(item, "provenance", {}) or {}
+                sources.append({
+                    "n": i,
+                    "kind": "graph" if getattr(item, "source_type", "") == "kg_triple" else "chunk",
+                    "doc_id": prov.get("doc_id", ""),
+                    "chunk_id": prov.get("chunk_id", ""),
+                    "page": prov.get("page_no") or prov.get("page_number") or prov.get("page"),
+                    "section": prov.get("section_title") or prov.get("section") or "",
+                    "snippet": (getattr(item, "content", "") or "")[:320],
+                    "score": getattr(item, "relevance_score", None),
                 })
-        elif any(k in text_corpus for k in ["liang wenfeng", "high-flyer", "deepseek", "found"]):
-            visual_artifacts.append({
-                "chart_type": "bar",
-                "title": "Liang Wenfeng Ecosystem: Strategic Milestone Timeline",
-                "caption": "Timeline of key breakthroughs from High-Flyer quantitative computing to frontier open-source LLMs.",
-                "plotly_spec": {
-                    "data": [{
-                        "x": ["High-Flyer (2015)", "Fire-Flyer 1 (2020)", "Fire-Flyer 2 (2021)", "DeepSeek (2023)", "DeepSeek-V3/R1 (2025)"],
-                        "y": [2015, 2020, 2021, 2023, 2025],
-                        "type": "bar"
-                    }]
-                },
-                "underlying_data": [
-                    {"label": "High-Flyer Founded", "year": "2015", "value": 2015, "detail": "Quantitative hedge fund established"},
-                    {"label": "Fire-Flyer 1 Cluster", "year": "2020", "value": 2020, "detail": "Supercomputing cluster deployed"},
-                    {"label": "Fire-Flyer 2 (10k A100s)", "year": "2021", "value": 2021, "detail": "Large-scale compute expansion"},
-                    {"label": "DeepSeek AI Founded", "year": "2023", "value": 2023, "detail": "Frontier AI lab unveiled"},
-                    {"label": "DeepSeek-V3 & R1", "year": "2025", "value": 2025, "detail": "State-of-the-art open weights released"}
-                ]
-            })
-        elif any(k in text_corpus for k in ["revenue", "margin", "growth", "sales", "fy2023", "fy2024"]):
-            visual_artifacts.append({
-                "chart_type": "bar",
-                "title": "Segment Financial Metrics Comparison",
-                "caption": "Comparative performance metrics extracted from audited financial statements.",
-                "plotly_spec": {
-                    "data": [{
-                        "x": ["FY2023", "FY2024"],
-                        "y": [383.29, 391.04],
-                        "type": "bar"
-                    }]
-                },
-                "underlying_data": [
-                    {"label": "FY2023 Revenue", "value": 383.29, "unit": "$ Billion"},
-                    {"label": "FY2024 Revenue", "value": 391.04, "unit": "$ Billion"}
-                ]
-            })
-
-    return geo_locations, visual_artifacts
+        else:
+            for i, ch in enumerate((state.get("chunk_context") or [])[:8], start=1):
+                ch = to_jsonable(ch)
+                sources.append({
+                    "n": i,
+                    "kind": "chunk",
+                    "doc_id": ch.get("doc_id", ""),
+                    "chunk_id": ch.get("chunk_id", ""),
+                    "page": ch.get("page_number"),
+                    "section": ch.get("section_title") or "",
+                    "snippet": (ch.get("text") or "")[:320],
+                    "score": ch.get("score"),
+                })
+    for s in sources:
+        doc_id = s.get("doc_id") or ""
+        if doc_id and not s.get("doc_title"):
+            s["doc_title"] = titles.get(doc_id, doc_id)
+    return sources
 
 
-# ---------------------------------------------------------
-# Agentic Query Route
-# ---------------------------------------------------------
-@app.post("/api/chats/{chat_id}/query")
-def execute_chat_query(chat_id: str, req: QueryRequest, authorization: Optional[str] = Header(None)):
-    """
-    Executes an analytical multi-agent query inside a chat session.
-    Persists user input and assistant response with rich reasoning metadata.
-    """
-    chat = db.get_chat(chat_id)
-    if not chat:
-        raise HTTPException(status_code=404, detail="Chat session not found")
+def build_verification(state: Dict[str, Any]) -> Dict[str, Any]:
+    v = state.get("verification")
+    if v is None:
+        return {"status": "unverified", "score": None, "supported": 0, "unsupported": 0,
+                "feedback": "The answer was not verified."}
+    score = getattr(v, "faithfulness_score", None)
+    supported = len(getattr(v, "supported_claims", []) or [])
+    unsupported = len(getattr(v, "unsupported_claims", []) or [])
+    feedback = getattr(v, "feedback", "") or ""
+    if score is None or (score == 0 and supported == 0 and unsupported == 0):
+        status = "unverified"
+        score = None
+    elif getattr(v, "is_grounded", False) and unsupported == 0:
+        status = "verified"
+    else:
+        status = "partial"
+    return {"status": status, "score": None if score is None else round(float(score), 3),
+            "supported": supported, "unsupported": unsupported, "feedback": feedback}
 
-    # 1. Fetch previous history for multi-turn resolution
-    previous_messages = db.get_messages(chat_id)
-    history_tuples = [{"role": m["role"], "content": m["content"]} for m in previous_messages]
 
-    # 2. Record User Message
-    db.add_message(chat_id=chat_id, role="user", content=req.query)
+def build_graph(state: Dict[str, Any]) -> Dict[str, Any]:
+    nodes: Dict[str, Dict[str, Any]] = {}
+    edges: Dict[tuple, Dict[str, Any]] = {}
+    for sub in to_jsonable(state.get("graph_context") or []):
+        if not isinstance(sub, dict):
+            continue
+        for n in sub.get("nodes", []):
+            if n.get("id"):
+                nodes[n["id"]] = {"id": n["id"], "name": n.get("name", n["id"]),
+                                  "category": n.get("category") or "Entity",
+                                  "description": n.get("description") or ""}
+        for e in sub.get("edges", []):
+            src = e.get("source_id") or e.get("source")
+            tgt = e.get("target_id") or e.get("target")
+            if src and tgt:
+                edges[(src, tgt, e.get("relation"))] = {
+                    "source": src, "target": tgt,
+                    "source_name": e.get("source_name", ""), "target_name": e.get("target_name", ""),
+                    "relation": e.get("relation") or "RELATED_TO", "description": e.get("description") or "",
+                }
+    return {"nodes": list(nodes.values()), "edges": list(edges.values())}
 
-    # 3. Target documents (from request or chat)
-    doc_ids = req.document_ids or ([chat["document_id"]] if chat.get("document_id") else [])
 
-    # 4. Multi-lingual instruction injection if requested
-    LANGUAGE_MAP = {
-        "hi": "Hindi (हिन्दी)",
-        "mr": "Marathi (मराठी)",
-        "ta": "Tamil (தமிழ்)",
-        "te": "Telugu (తెలుగు)",
-        "kn": "Kannada (ಕನ್ನಡ)",
-        "as": "Assamese (অসমীয়া)",
-        "bn": "Bengali (বাংলা)",
-        "gu": "Gujarati (ગુજરાતી)",
-    }
-    query_text = req.query
-    if req.language and req.language in LANGUAGE_MAP:
-        lang_name = LANGUAGE_MAP[req.language]
-        query_text = f"{req.query}\n\n[Instruction: Formulate your complete final answer in {lang_name} language while preserving numbers, calculations, and financial metrics accurately.]"
-
-    # 5. Invoke Agentic Pipeline with robust error containment
-    try:
-        pipeline = get_pipeline()
-        workflow_result = pipeline.query(
-            user_query=query_text,
-            document_ids=doc_ids,
-            session_id=chat_id,
-            conversation_history=history_tuples
-        )
-    except Exception as e:
-        logger.error(f"Agentic pipeline execution anomaly: {e}", exc_info=True)
-        workflow_result = {
-            "verified_response": f"I encountered a processing anomaly while evaluating this inquiry: {str(e)}. Please retry or refine the query.",
-            "math_results": [],
-            "visual_artifacts": [],
-            "conflicts": [],
-            "agent_traces": [f"Pipeline evaluation halted: {str(e)}"],
-            "verification": None,
-            "chunk_context": [],
-            "graph_context": []
-        }
-
-    # 5. Extract structured outputs
-    answer = workflow_result.get("verified_response") or workflow_result.get("draft_response") or "Analysis completed."
-    math_results = serialize_artifact(workflow_result.get("math_results", []))
-    visual_artifacts = serialize_artifact(workflow_result.get("visual_artifacts", []))
-    conflicts = serialize_artifact(workflow_result.get("conflicts", []))
-    agent_traces = workflow_result.get("agent_traces", [])
-    
-    # Groundedness verification
-    verification = workflow_result.get("verification")
-    groundedness_score = 0.98
-    if verification:
-        groundedness_score = getattr(verification, "faithfulness_score", 0.98)
-
-    # Evidence sources
-    evidence_package = workflow_result.get("evidence_package")
-    sources = []
-    if evidence_package and hasattr(evidence_package, "selected_items"):
-        for item in evidence_package.selected_items:
-            sources.append({
-                "chunk_id": getattr(item, "chunk_id", ""),
-                "doc_id": getattr(item, "doc_id", ""),
-                "snippet": getattr(item, "text", "")[:240],
-                "score": round(getattr(item, "rerank_score", 0.95), 3),
-                "source_type": getattr(item, "source_type", "hybrid")
-            })
-    elif workflow_result.get("chunk_context"):
-        for ch in workflow_result.get("chunk_context")[:4]:
-            sources.append({
-                "chunk_id": ch.get("chunk_id", ""),
-                "doc_id": ch.get("doc_id", ""),
-                "snippet": ch.get("text", "")[:240],
-                "score": 0.95,
-                "source_type": "vector"
-            })
-
-    # Graph Entities
-    graph_context = workflow_result.get("graph_context", [])
-    graph_entities = serialize_artifact(graph_context)
-
-    # Enrich with Interactive Geospatial Maps and Visual Chart Artifacts
-    geo_locations, visual_artifacts = extract_geo_and_chart_artifacts(
-        query=req.query,
-        answer=answer,
-        graph_entities=graph_entities,
-        math_results=math_results,
-        existing_visuals=visual_artifacts
-    )
-
-    # Metadata package
-    metadata = {
-        "math_results": math_results,
-        "visual_artifacts": visual_artifacts,
-        "geo_locations": geo_locations,
-        "sources": sources,
-        "conflicts": conflicts,
-        "graph_entities": graph_entities,
-        "thought_process": agent_traces,
-        "groundedness_score": groundedness_score,
-        "document_ids": doc_ids
-    }
-
-    # 6. Record Assistant Message in DB
-    msg_id = db.add_message(
-        chat_id=chat_id,
-        role="assistant",
-        content=answer,
-        metadata=metadata
-    )
-
-    # Auto-generate chat title if this is the first turn
-    if len(previous_messages) == 0:
-        words = req.query.strip().split()
-        smart_title = " ".join(words[:5]).capitalize()
-        if len(smart_title) > 36:
-            smart_title = smart_title[:33] + "..."
-        db.update_chat_title(chat_id, smart_title)
-
+def build_answer(state: Dict[str, Any], steps: List[Dict[str, Any]], doc_ids: List[str], elapsed_ms: int) -> Dict[str, Any]:
+    answer = state.get("verified_response") or state.get("draft_response") or ""
+    if not answer.strip():
+        answer = "I couldn't produce an answer from the current documents."
+    visible_steps = [
+        {k: s[k] for k in ("node", "label", "detail", "duration_ms") if k in s}
+        for s in steps if not s.get("skipped")
+    ]
     return {
-        "status": "success",
-        "message_id": msg_id,
         "answer": answer,
-        "math_results": math_results,
-        "visual_artifacts": visual_artifacts,
-        "geo_locations": geo_locations,
-        "sources": sources,
-        "conflicts": conflicts,
-        "graph_entities": graph_entities,
-        "thought_process": agent_traces,
-        "groundedness_score": groundedness_score
+        "sources": build_sources(state),
+        "math_results": to_jsonable(state.get("math_results") or []),
+        "visual_artifacts": to_jsonable(state.get("visual_artifacts") or []),
+        "conflicts": to_jsonable(state.get("conflicts") or []),
+        "graph": build_graph(state),
+        "steps": visible_steps,
+        "verification": build_verification(state),
+        "model": current_model(),
+        "elapsed_ms": elapsed_ms,
+        "document_ids": doc_ids,
     }
 
 
-# Standalone Query Endpoint (for one-off agentic evaluations)
+def _query_inputs(chat: Dict[str, Any], req: QueryRequest):
+    history = [{"role": m["role"], "content": m["content"]} for m in db.get_messages(chat["id"])]
+    doc_ids = [d for d in (req.document_ids or []) if DOC_ID_RE.match(d)]
+    if not doc_ids and chat.get("document_id"):
+        doc_ids = [chat["document_id"]]
+    query_text = req.query.strip()
+    if req.language and req.language in LANGUAGE_NAMES:
+        query_text += (
+            f"\n\n[Instruction: write the complete final answer in {LANGUAGE_NAMES[req.language]}, "
+            "keeping numbers, formulas and names exact.]"
+        )
+    return history, doc_ids, query_text
+
+
+def _persist_turn(chat: Dict[str, Any], query: str, payload: Dict[str, Any], first_turn: bool) -> int:
+    db.add_message(chat_id=chat["id"], role="user", content=query)
+    metadata = {k: v for k, v in payload.items() if k != "answer"}
+    # Plain-text trace kept for older clients and the report compiler
+    metadata["thought_process"] = [
+        f"{s['label']}" + (f" — {s['detail']}" if s.get("detail") else "") for s in payload["steps"]
+    ]
+    metadata["groundedness_score"] = payload["verification"]["score"]
+    msg_id = db.add_message(chat_id=chat["id"], role="assistant", content=payload["answer"], metadata=metadata)
+    if first_turn and chat.get("title") in (None, "", NEW_CHAT_TITLE, "New Conversation"):
+        words = re.sub(r"\s+", " ", query).strip().split(" ")
+        title = " ".join(words[:7]).rstrip("?.!,;:")
+        db.update_chat_title(chat["id"], (title[:60] + "…") if len(title) > 60 else title)
+    return msg_id
+
+
+@app.post("/api/chats/{chat_id}/query")
+def execute_chat_query(chat_id: str, req: QueryRequest, user_id: str = Depends(current_user_id)):
+    """Runs the agent pipeline and returns the complete answer."""
+    chat = owned_chat(chat_id, user_id)
+    history, doc_ids, query_text = _query_inputs(chat, req)
+    started = time.perf_counter()
+    steps: List[Dict[str, Any]] = []
+    state: Dict[str, Any] = {}
+    try:
+        for kind, data in get_pipeline().query_stream(
+            user_query=query_text, document_ids=doc_ids, session_id=chat_id, conversation_history=history
+        ):
+            if kind == "step":
+                steps.append(data)
+            else:
+                state = data
+    except Exception as e:
+        logger.error(f"Pipeline failed for chat {chat_id}: {e}", exc_info=True)
+        raise HTTPException(status_code=500, detail="The agent pipeline failed. Check that Ollama is running and try again.")
+    payload = build_answer(state, steps, doc_ids, int((time.perf_counter() - started) * 1000))
+    msg_id = _persist_turn(chat, req.query.strip(), payload, first_turn=not history)
+    return {"status": "success", "message_id": msg_id, **payload}
+
+
+def _sse(event: str, data: Any) -> str:
+    return f"event: {event}\ndata: {json.dumps(data, default=str, ensure_ascii=False)}\n\n"
+
+
+@app.post("/api/chats/{chat_id}/query/stream")
+def stream_chat_query(chat_id: str, req: QueryRequest, user_id: str = Depends(current_user_id)):
+    """Runs the agent pipeline, streaming one `step` event per agent and a final `result`."""
+    chat = owned_chat(chat_id, user_id)
+    history, doc_ids, query_text = _query_inputs(chat, req)
+
+    def events() -> Iterator[str]:
+        started = time.perf_counter()
+        steps: List[Dict[str, Any]] = []
+        state: Dict[str, Any] = {}
+        try:
+            for kind, data in get_pipeline().query_stream(
+                user_query=query_text, document_ids=doc_ids, session_id=chat_id, conversation_history=history
+            ):
+                if kind == "step":
+                    steps.append(data)
+                    if not data.get("skipped"):
+                        yield _sse("step", {k: data[k] for k in ("node", "label", "detail", "duration_ms")})
+                else:
+                    state = data
+            payload = build_answer(state, steps, doc_ids, int((time.perf_counter() - started) * 1000))
+            msg_id = _persist_turn(chat, req.query.strip(), payload, first_turn=not history)
+            yield _sse("result", {"status": "success", "message_id": msg_id, **payload})
+        except Exception as e:
+            logger.error(f"Streaming pipeline failed for chat {chat_id}: {e}", exc_info=True)
+            yield _sse("error", {"message": "The agent pipeline failed. Check that Ollama is running and try again."})
+
+    return StreamingResponse(
+        events(),
+        media_type="text/event-stream",
+        headers={"Cache-Control": "no-cache", "X-Accel-Buffering": "no"},
+    )
+
+
 @app.post("/api/query")
 def standalone_query(req: QueryRequest):
-    """Executes an agentic query without requiring a persisted chat session."""
-    pipeline = get_pipeline()
-    result = pipeline.query(
-        user_query=req.query,
-        document_ids=req.document_ids or [],
-        session_id=req.session_id or f"session_{uuid.uuid4().hex[:8]}"
-    )
-    return {
-        "status": "success",
-        "result": serialize_artifact(result)
-    }
+    """One-off agentic query without a stored conversation (used by scripts and evals)."""
+    started = time.perf_counter()
+    doc_ids = [d for d in (req.document_ids or []) if DOC_ID_RE.match(d)]
+    steps: List[Dict[str, Any]] = []
+    state: Dict[str, Any] = {}
+    for kind, data in get_pipeline().query_stream(
+        user_query=req.query, document_ids=doc_ids,
+        session_id=req.session_id or f"session_{uuid.uuid4().hex[:8]}",
+    ):
+        if kind == "step":
+            steps.append(data)
+        else:
+            state = data
+    return {"status": "success", **build_answer(state, steps, doc_ids, int((time.perf_counter() - started) * 1000))}
 
 
-# ---------------------------------------------------------
-# Document Ingestion & Management Routes
-# ---------------------------------------------------------
+# ---------------------------------------------------------------------------
+# Documents
+# ---------------------------------------------------------------------------
+def _graph_status(doc_id: str) -> Optional[Dict[str, Any]]:
+    if _pipeline is None:
+        return None
+    job = _pipeline.graph_jobs.get(doc_id)
+    return dict(job) if job else None
+
+
 @app.get("/api/documents")
 def list_documents():
-    """List all registered documents in the knowledge base."""
-    docs = db.get_all_documents()
+    # Extraction progress lives in memory; after a restart fall back to what the graph holds.
+    counts = _pipeline.graph_store.entity_counts_by_document() if _pipeline is not None else {}
+    docs = []
+    for d in db.get_all_documents():
+        d = dict(d)
+        status = _graph_status(d["id"])
+        if status is None and d["id"] in counts:
+            status = {"status": "done", "processed": 0, "total": 0}
+        if status is not None and _pipeline is not None:
+            status["entities"] = counts.get(d["id"], 0)
+        d["graph_status"] = status
+        docs.append(d)
     return {"documents": docs}
 
 
 @app.post("/api/documents/upload")
-async def upload_document(file: UploadFile = File(...)):
-    """Upload and ingest a document into LanceDB and Kùzu graph."""
-    contents = await file.read()
+def upload_document(file: UploadFile = File(...)):
+    """Stores and indexes a document. Knowledge-graph extraction continues in the background."""
+    original_name = Path(file.filename or "document").name or "document"
+    ext = original_name.rsplit(".", 1)[-1].lower() if "." in original_name else ""
+    if ext not in ALLOWED_EXTENSIONS:
+        raise HTTPException(status_code=415, detail=f"Unsupported file type. Upload {', '.join(sorted(ALLOWED_EXTENSIONS))}.")
+
+    contents = file.file.read(MAX_UPLOAD_BYTES + 1)
+    if len(contents) > MAX_UPLOAD_BYTES:
+        raise HTTPException(status_code=413, detail=f"File is larger than {MAX_UPLOAD_BYTES // (1024 * 1024)} MB")
+    if not contents:
+        raise HTTPException(status_code=400, detail="The file is empty")
+
     file_hash = hashlib.sha256(contents).hexdigest()
+    existing = db.get_document_by_hash(file_hash)
+    if existing:
+        return {"status": "success", "doc_id": existing["id"], "filename": existing["filename"],
+                "chunk_count": existing.get("chunk_count") or 0, "duplicate": True}
+
     doc_id = f"doc_{file_hash[:12]}"
-    filename = file.filename or "uploaded_document.pdf"
-    file_type = filename.split(".")[-1].lower()
+    UPLOAD_DIR.mkdir(parents=True, exist_ok=True)
+    saved_path = UPLOAD_DIR / f"{doc_id}.{ext}"  # never trust the client filename in a path
+    saved_path.write_bytes(contents)
 
-    # Save to disk
-    upload_dir = Path(".data/uploads")
-    upload_dir.mkdir(parents=True, exist_ok=True)
-    saved_path = upload_dir / f"{doc_id}_{filename}"
-    with open(saved_path, "wb") as f:
-        f.write(contents)
-
-    # Ingest through pipeline
-    pipeline = get_pipeline()
     try:
-        parsed_doc = pipeline.ingest_document(
-            file_path=str(saved_path),
-            doc_id=doc_id,
-            doc_hash=file_hash,
-            fast_mode=True
+        parsed = get_pipeline().ingest_document(
+            file_path=str(saved_path), doc_id=doc_id, doc_hash=file_hash,
+            fast_mode=True, background_graph=True, title=original_name,
         )
-        db.add_document(
-            doc_id=doc_id,
-            filename=filename,
-            file_hash=file_hash,
-            size_bytes=len(contents),
-            file_type=file_type
-        )
-        return {
-            "status": "success",
-            "doc_id": doc_id,
-            "filename": filename,
-            "chunk_count": len(parsed_doc.chunks),
-            "visual_element_count": len(getattr(parsed_doc, "visual_elements", []))
-        }
     except Exception as e:
-        logger.error(f"Ingestion failed: {e}", exc_info=True)
-        raise HTTPException(status_code=500, detail=f"Ingestion failed: {str(e)}")
+        logger.error(f"Ingestion failed for {original_name}: {e}", exc_info=True)
+        saved_path.unlink(missing_ok=True)
+        raise HTTPException(status_code=422, detail="Could not read this document. It may be scanned, encrypted or corrupted.")
+
+    chunk_count = len(parsed.chunks)
+    db.add_document(doc_id=doc_id, filename=original_name, file_hash=file_hash,
+                    size_bytes=len(contents), file_type=ext, chunk_count=chunk_count)
+    return {"status": "success", "doc_id": doc_id, "filename": original_name,
+            "chunk_count": chunk_count, "duplicate": False,
+            "visual_element_count": len(getattr(parsed, "visual_elements", []) or [])}
 
 
 @app.delete("/api/documents/{doc_id}")
 def delete_document(doc_id: str):
-    """
-    Deletes a document from SQLite, LanceDB vector index, and Kùzu knowledge graph.
-    """
+    """Removes a document from SQLite, LanceDB, the knowledge graph and disk."""
+    if not DOC_ID_RE.match(doc_id):
+        raise HTTPException(status_code=400, detail="Invalid document id")
+    doc = db.get_document(doc_id)
     try:
-        pipeline = get_pipeline()
-        # 1. Delete from SQLite
+        get_pipeline().delete_document(doc_id)
         db.delete_document(doc_id)
-        # 2. Delete from LanceDB
-        pipeline.lance_store.delete_document(doc_id)
-        # 3. Delete from Kùzu Graph
-        pipeline.graph_store.delete_document(doc_id)
-        return {"status": "success", "deleted_doc_id": doc_id}
+        if doc:
+            for path in UPLOAD_DIR.glob(f"{doc_id}*"):
+                path.unlink(missing_ok=True)
     except Exception as e:
         logger.error(f"Failed to delete document {doc_id}: {e}", exc_info=True)
-        raise HTTPException(status_code=500, detail=f"Failed to delete document: {str(e)}")
+        raise HTTPException(status_code=500, detail="Could not delete the document")
+    return {"status": "success", "deleted_doc_id": doc_id}
 
 
-# ---------------------------------------------------------
-# Interactive Knowledge Graph Exploration Routes
-# ---------------------------------------------------------
+# ---------------------------------------------------------------------------
+# Knowledge graph
+# ---------------------------------------------------------------------------
 @app.get("/api/graph")
-def get_knowledge_graph(limit: int = 150):
-    """Retrieve full interactive property graph nodes and edges from Kùzu."""
-    pipeline = get_pipeline()
-    graph_data = pipeline.graph_store.get_all_graph(limit=limit)
-    return {
-        "status": "success",
-        "nodes": graph_data.get("nodes", []),
-        "edges": graph_data.get("edges", [])
-    }
+def get_knowledge_graph(limit: int = 2000):
+    data = get_pipeline().graph_store.get_all_graph(limit=limit)
+    # Graphs built by older versions stored the internal file name as the title.
+    titles = _doc_titles()
+    for d in data.get("documents", []):
+        d["title"] = titles.get(d["id"]) or d.get("title") or d["id"]
+    return {"status": "success", **data}
 
 
 @app.get("/api/graph/node/{node_id}")
 def get_node_details(node_id: str):
-    """Retrieve deep analytical details, connected edges, and metrics for a specific node."""
-    pipeline = get_pipeline()
-    graph_data = pipeline.graph_store.get_all_graph(limit=250)
-    matched = next((n for n in graph_data.get("nodes", []) if n["id"] == node_id or n["name"].lower() == node_id.lower()), None)
-    if not matched:
-        raise HTTPException(status_code=404, detail="Node not found in graph")
-
-    connected_edges = [
-        e for e in graph_data.get("edges", [])
-        if e["source"] == matched["id"] or e["target"] == matched["id"] or e.get("source_name", "").lower() == matched["name"].lower() or e.get("target_name", "").lower() == matched["name"].lower()
-    ]
-
-    return {
-        "node": matched,
-        "connected_edges": connected_edges,
-        "stats": {
-            "degree": len(connected_edges),
-            "category": matched.get("category", "Entity")
-        }
-    }
+    found = get_pipeline().graph_store.get_node(node_id)
+    if not found:
+        raise HTTPException(status_code=404, detail="Entity not found")
+    return {"node": found["node"], "connected_edges": found["edges"],
+            "stats": {"degree": len(found["edges"]), "category": found["node"]["category"]}}
 
 
-# ---------------------------------------------------------
-# Publication Document Export Routes (WeasyPrint & python-docx)
-# ---------------------------------------------------------
-@app.post("/api/export/pdf")
-def export_pdf(req: ExportRequest):
-    """
-    Compiles conversation or verified artifacts into an executive PDF using WeasyPrint.
-    Dynamically applies CSS3 Paged Media, running headers/footers, and KaTeX cards.
-    """
-    messages = []
-    title = req.title or "OmniDoc Executive Analysis"
-    
+# ---------------------------------------------------------------------------
+# Report export
+# ---------------------------------------------------------------------------
+def _export_messages(req: ExportRequest, user_id: str):
+    title = req.title or "OmniDoc analysis"
     if req.chat_id:
-        chat = db.get_chat(req.chat_id)
-        if chat and chat.get("title"):
-            title = chat["title"]
-        db_messages = db.get_messages(req.chat_id)
-        for m in db_messages:
-            meta = m.get("metadata") or {}
+        chat = owned_chat(req.chat_id, user_id)
+        title = chat.get("title") or title
+        messages = []
+        for m in db.get_messages(req.chat_id):
+            meta = m.get("metadata") if isinstance(m.get("metadata"), dict) else {}
+            sources = [
+                {**s, "source_type": s.get("source_type") or s.get("kind", "")}
+                for s in (meta.get("sources") or []) if isinstance(s, dict)
+            ]
             item = {
                 "role": m["role"],
                 "content": m["content"],
-                "sources": meta.get("sources", []),
+                "sources": sources,
                 "conflicts": meta.get("conflicts", []),
-                "graph_entities": meta.get("graph_entities", []),
+                "graph_entities": meta.get("graph", {}).get("nodes", []) if isinstance(meta.get("graph"), dict) else meta.get("graph_entities", []),
                 "math_results": meta.get("math_results", []),
                 "visual_artifacts": meta.get("visual_artifacts", []),
-                "geo_locations": meta.get("geo_locations", [])
             }
-            if meta.get("math_results") and len(meta["math_results"]) > 0:
+            if meta.get("math_results"):
                 item["math_result"] = meta["math_results"][0]
             messages.append(item)
-    elif req.messages:
-        messages = req.messages
-    else:
-        raise HTTPException(status_code=400, detail="Either chat_id or messages must be provided")
+        scores = [
+            (m.get("metadata") or {}).get("groundedness_score")
+            for m in db.get_messages(req.chat_id) if isinstance(m.get("metadata"), dict)
+        ]
+        scores = [s for s in scores if isinstance(s, (int, float))]
+        meta = {"model_name": current_model(), "groundedness_score": (sum(scores) / len(scores)) if scores else None}
+        return title, messages, meta
+    if req.messages:
+        return title, req.messages, req.metadata or {"model_name": current_model()}
+    raise HTTPException(status_code=400, detail="Either chat_id or messages must be provided")
 
+
+def _attachment(title: str, ext: str) -> Dict[str, str]:
+    """Content-Disposition that survives non-Latin titles (RFC 6266 / 5987)."""
+    base = re.sub(r"\s+", "_", title.strip()) or "OmniDoc_analysis"
+    ascii_name = re.sub(r"[^A-Za-z0-9_.-]", "", base)
+    if not re.search(r"[A-Za-z0-9]", ascii_name):
+        ascii_name = "OmniDoc_analysis"
+    quoted = urllib.parse.quote(f"{base}.{ext}")
+    return {"Content-Disposition": f"attachment; filename=\"{ascii_name}.{ext}\"; filename*=UTF-8''{quoted}"}
+
+
+@app.post("/api/export/pdf")
+def export_pdf(req: ExportRequest, user_id: str = Depends(current_user_id)):
+    title, messages, meta = _export_messages(req, user_id)
     try:
-        pdf_bytes = report_compiler.compile_pdf(
-            title=title,
-            messages=messages,
-            metadata=req.metadata or {"model_name": "OmniDoc Qwen 2.5 7B", "groundedness_score": 0.98}
-        )
-        safe_title = "".join(c for c in title if c.isalnum() or c in (" ", "_", "-")).rstrip()
-        safe_title = safe_title.replace(" ", "_")
-        return StreamingResponse(
-            io.BytesIO(pdf_bytes),
-            media_type="application/pdf",
-            headers={"Content-Disposition": f'attachment; filename="{safe_title}.pdf"'}
-        )
+        pdf_bytes = report_compiler.compile_pdf(title=title, messages=messages, metadata=meta)
     except Exception as e:
         logger.error(f"PDF compilation error: {e}", exc_info=True)
-        raise HTTPException(status_code=500, detail=f"PDF compilation error: {str(e)}")
+        raise HTTPException(status_code=500, detail="PDF export failed. WeasyPrint needs Cairo and Pango installed (brew install pango).")
+    return StreamingResponse(io.BytesIO(pdf_bytes), media_type="application/pdf", headers=_attachment(title, "pdf"))
 
 
 @app.post("/api/export/docx")
-def export_docx(req: ExportRequest):
-    """
-    Compiles conversation or verified artifacts into a native Microsoft Word (.docx) document.
-    """
-    messages = []
-    title = req.title or "OmniDoc Executive Analysis"
-    
-    if req.chat_id:
-        chat = db.get_chat(req.chat_id)
-        if chat and chat.get("title"):
-            title = chat["title"]
-        db_messages = db.get_messages(req.chat_id)
-        for m in db_messages:
-            meta = m.get("metadata") or {}
-            item = {
-                "role": m["role"],
-                "content": m["content"],
-                "sources": meta.get("sources", []),
-                "conflicts": meta.get("conflicts", []),
-                "graph_entities": meta.get("graph_entities", []),
-                "math_results": meta.get("math_results", []),
-                "visual_artifacts": meta.get("visual_artifacts", []),
-                "geo_locations": meta.get("geo_locations", [])
-            }
-            if meta.get("math_results") and len(meta["math_results"]) > 0:
-                item["math_result"] = meta["math_results"][0]
-            messages.append(item)
-    elif req.messages:
-        messages = req.messages
-    else:
-        raise HTTPException(status_code=400, detail="Either chat_id or messages must be provided")
-
+def export_docx(req: ExportRequest, user_id: str = Depends(current_user_id)):
+    title, messages, meta = _export_messages(req, user_id)
     try:
-        docx_bytes = report_compiler.compile_docx(
-            title=title,
-            messages=messages,
-            metadata=req.metadata or {"model_name": "OmniDoc Qwen 2.5 7B", "groundedness_score": 0.98}
-        )
-        safe_title = "".join(c for c in title if c.isalnum() or c in (" ", "_", "-")).rstrip()
-        safe_title = safe_title.replace(" ", "_")
-        return StreamingResponse(
-            io.BytesIO(docx_bytes),
-            media_type="application/vnd.openxmlformats-officedocument.wordprocessingml.document",
-            headers={"Content-Disposition": f'attachment; filename="{safe_title}.docx"'}
-        )
+        docx_bytes = report_compiler.compile_docx(title=title, messages=messages, metadata=meta)
     except Exception as e:
         logger.error(f"DOCX compilation error: {e}", exc_info=True)
-        raise HTTPException(status_code=500, detail=f"DOCX compilation error: {str(e)}")
-
-
-# ---------------------------------------------------------
-# Health and Diagnostics
-# ---------------------------------------------------------
-@app.get("/api/health")
-def health_check():
-    """System health check and diagnostic status."""
-    return {
-        "status": "healthy",
-        "service": "OmniDoc Multi-Agent Graph RAG",
-        "version": "2.0.0",
-        "timestamp": time.time(),
-        "stores": {
-            "sqlite": "connected",
-            "lancedb": "ready",
-            "kuzu": "ready"
-        }
-    }
+        raise HTTPException(status_code=500, detail="Word export failed")
+    return StreamingResponse(
+        io.BytesIO(docx_bytes),
+        media_type="application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+        headers=_attachment(title, "docx"),
+    )
 
 
 if __name__ == "__main__":
     import uvicorn
-    logger.info("Starting OmniDoc API server on port 8000...")
-    uvicorn.run(app, host="0.0.0.0", port=8000)
+    host = os.environ.get("OMNIDOC_HOST", "127.0.0.1")
+    port = int(os.environ.get("OMNIDOC_PORT", "8000"))
+    logger.info(f"Starting OmniDoc API on http://{host}:{port}")
+    uvicorn.run(app, host=host, port=port)
