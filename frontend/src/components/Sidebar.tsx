@@ -1,472 +1,363 @@
-import React, { useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import {
-  Plus,
-  MessageSquare,
-  Search,
-  Layers,
-  Trash2,
-  Edit2,
   Check,
-  X,
+  Globe2,
+  Library,
+  LogIn,
   LogOut,
-  User as UserIcon,
-  ChevronRight,
-  Sparkles
+  MessageSquare,
+  Monitor,
+  Moon,
+  MoreHorizontal,
+  PanelLeftClose,
+  Pencil,
+  Search,
+  Settings2,
+  SquarePen,
+  Sun,
+  Trash2,
 } from 'lucide-react';
-import type { ChatSession, User } from '../api';
+import { api } from '../api';
+import type { ChatSession, ModelInfo, User } from '../api';
+import { dateGroup } from '../lib/format';
+import { useTheme } from '../lib/theme';
+import type { ThemePreference } from '../lib/theme';
+import { Menu } from './ui/Menu';
+import { useToast } from './ui/Toast';
+import { BrandMark } from './BrandMark';
+import styles from './Sidebar.module.css';
+
+export type View = 'chat' | 'library' | 'knowledge';
 
 interface SidebarProps {
+  open: boolean;
+  isMobile: boolean;
+  onClose: () => void;
+  view: View;
+  onNavigate: (view: View) => void;
   chats: ChatSession[];
+  chatsLoading: boolean;
   activeChatId: string | null;
-  onSelectChat: (chatId: string) => void;
+  onSelectChat: (id: string) => void;
   onNewChat: () => void;
-  onDeleteChat: (chatId: string) => void;
-  onRenameChat: (chatId: string, newTitle: string) => void;
-  onOpenDocuments: () => void;
-  selectedDocCount: number;
-  currentUser: User | null;
-  onOpenAuth: () => void;
-  onLogout: () => void;
+  onRenameChat: (id: string, title: string) => void;
+  onDeleteChat: (id: string) => void;
+  user: User | null;
+  onOpenProfile: () => void;
+  onSignOut: () => void;
+  documentCount: number;
 }
 
-export const Sidebar: React.FC<SidebarProps> = ({
-  chats,
-  activeChatId,
-  onSelectChat,
-  onNewChat,
-  onDeleteChat,
-  onRenameChat,
-  onOpenDocuments,
-  selectedDocCount,
-  currentUser,
-  onOpenAuth,
-  onLogout,
-}) => {
-  const [searchQuery, setSearchQuery] = useState('');
-  const [editingId, setEditingId] = useState<string | null>(null);
-  const [editTitle, setEditTitle] = useState('');
+const ICON = { size: 17, strokeWidth: 1.75 } as const;
 
-  // Chronological grouping helper
-  const groupChats = (chatList: ChatSession[]) => {
-    const now = new Date();
-    const today = new Date(now.getFullYear(), now.getMonth(), now.getDate()).getTime();
-    const yesterday = today - 86400000;
-    const past7Days = today - 7 * 86400000;
+export function Sidebar(props: SidebarProps) {
+  const {
+    open,
+    isMobile,
+    onClose,
+    view,
+    onNavigate,
+    chats,
+    chatsLoading,
+    activeChatId,
+    onSelectChat,
+    onNewChat,
+    onRenameChat,
+    onDeleteChat,
+    user,
+    onOpenProfile,
+    onSignOut,
+    documentCount,
+  } = props;
+  const [filter, setFilter] = useState('');
+  const [renamingId, setRenamingId] = useState<string | null>(null);
 
-    const groups: { [key: string]: ChatSession[] } = {
-      Today: [],
-      Yesterday: [],
-      'Previous 7 Days': [],
-      Older: [],
-    };
-
-    chatList.forEach((c) => {
-      const chatTime = new Date(c.updated_at || c.created_at).getTime();
-      if (chatTime >= today) {
-        groups.Today.push(c);
-      } else if (chatTime >= yesterday) {
-        groups.Yesterday.push(c);
-      } else if (chatTime >= past7Days) {
-        groups['Previous 7 Days'].push(c);
-      } else {
-        groups.Older.push(c);
-      }
-    });
-
-    return groups;
-  };
-
-  const filteredChats = chats.filter((c) =>
-    (c.title || 'New Conversation').toLowerCase().includes(searchQuery.toLowerCase())
-  );
-
-  const grouped = groupChats(filteredChats);
-
-  const startEditing = (chat: ChatSession, e: React.MouseEvent) => {
-    e.stopPropagation();
-    setEditingId(chat.id);
-    setEditTitle(chat.title || 'New Conversation');
-  };
-
-  const saveEditing = (chatId: string, e: React.MouseEvent) => {
-    e.stopPropagation();
-    if (editTitle.trim()) {
-      onRenameChat(chatId, editTitle.trim());
+  const groups = useMemo(() => {
+    const q = filter.trim().toLowerCase();
+    const list = q ? chats.filter((c) => (c.title || '').toLowerCase().includes(q)) : chats;
+    const out: Array<{ label: string; items: ChatSession[] }> = [];
+    for (const c of list) {
+      const label = dateGroup(c.updated_at || c.created_at);
+      const last = out[out.length - 1];
+      if (last && last.label === label) last.items.push(c);
+      else out.push({ label, items: [c] });
     }
-    setEditingId(null);
-  };
+    return out;
+  }, [chats, filter]);
 
-  const cancelEditing = (e: React.MouseEvent) => {
-    e.stopPropagation();
-    setEditingId(null);
-  };
+  const nav: Array<{ key: View; label: string; icon: typeof MessageSquare; hint?: string }> = [
+    { key: 'chat', label: 'Chat', icon: MessageSquare },
+    { key: 'library', label: 'Library', icon: Library, hint: documentCount ? String(documentCount) : undefined },
+    { key: 'knowledge', label: 'Knowledge', icon: Globe2 },
+  ];
 
   return (
-    <aside style={{
-      width: '270px',
-      height: '100%',
-      display: 'flex',
-      flexDirection: 'column',
-      backgroundColor: 'var(--bg-sidebar)',
-      borderRight: '1px solid var(--border-subtle)',
-      flexShrink: 0,
-      userSelect: 'none',
-    }}>
-      {/* Top Brand Header */}
-      <div style={{
-        padding: '1.1rem 1.15rem 0.85rem',
-        display: 'flex',
-        alignItems: 'center',
-        justifyContent: 'space-between',
-        borderBottom: '1px solid var(--border-subtle)',
-      }}>
-        <div style={{ display: 'flex', alignItems: 'center', gap: '0.65rem' }}>
-          <div style={{
-            width: '32px',
-            height: '32px',
-            borderRadius: '9px',
-            background: 'linear-gradient(135deg, #3b82f6 0%, #2563eb 100%)',
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'center',
-            color: '#fff',
-            boxShadow: '0 2px 8px rgba(59, 130, 246, 0.35)',
-          }}>
-            <Sparkles size={18} />
-          </div>
-          <div>
-            <div style={{ fontWeight: 700, fontSize: '1rem', letterSpacing: '-0.02em', color: 'var(--text-primary)' }}>
-              OmniDoc
-            </div>
-            <div style={{ fontSize: '0.68rem', color: 'var(--text-dim)', fontWeight: 500 }}>
-              Agentic Graph RAG
-            </div>
-          </div>
+    <>
+      {isMobile && open && <div className={styles.backdrop} onClick={onClose} aria-hidden="true" />}
+      <aside
+        className={styles.sidebar}
+        data-open={open}
+        data-mobile={isMobile}
+        aria-label="Sidebar"
+        aria-hidden={!open}
+        inert={!open || undefined}
+      >
+        <div className={styles.top}>
+          <button type="button" className={styles.brand} onClick={() => onNavigate('chat')}>
+            <BrandMark size={22} />
+            <span className={styles.wordmark}>OmniDoc</span>
+          </button>
+          <button type="button" className="icon-btn" onClick={onClose} aria-label="Close sidebar" title="Close sidebar">
+            <PanelLeftClose {...ICON} />
+          </button>
         </div>
 
-        <span style={{
-          fontSize: '0.68rem',
-          backgroundColor: 'rgba(59, 130, 246, 0.1)',
-          color: '#93c5fd',
-          padding: '0.15rem 0.45rem',
-          borderRadius: 'var(--radius-full)',
-          border: '1px solid rgba(59, 130, 246, 0.25)',
-          fontWeight: 600,
-        }}>
-          Qwen 2.5
-        </span>
-      </div>
-
-      {/* Action Buttons: New Chat & Document Library */}
-      <div style={{ padding: '0.85rem 1rem 0.4rem', display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
-        <button
-          onClick={onNewChat}
-          style={{
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'space-between',
-            width: '100%',
-            padding: '0.65rem 0.85rem',
-            backgroundColor: 'var(--accent-primary)',
-            borderRadius: 'var(--radius-md)',
-            color: '#ffffff',
-            fontWeight: 500,
-            fontSize: '0.86rem',
-            boxShadow: '0 2px 8px rgba(59, 130, 246, 0.25)',
-          }}
-          onMouseEnter={(e) => e.currentTarget.style.backgroundColor = 'var(--accent-primary-hover)'}
-          onMouseLeave={(e) => e.currentTarget.style.backgroundColor = 'var(--accent-primary)'}
-        >
-          <div style={{ display: 'flex', alignItems: 'center', gap: '0.45rem' }}>
-            <Plus size={16} />
-            <span>New Chat</span>
-          </div>
-          <span style={{ fontSize: '0.7rem', opacity: 0.8, backgroundColor: 'rgba(0,0,0,0.2)', padding: '0.1rem 0.35rem', borderRadius: 'var(--radius-sm)' }}>
-            ⌘N
-          </span>
-        </button>
-
-        <button
-          onClick={onOpenDocuments}
-          style={{
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'space-between',
-            width: '100%',
-            padding: '0.55rem 0.85rem',
-            backgroundColor: 'var(--bg-surface)',
-            border: '1px solid var(--border-subtle)',
-            borderRadius: 'var(--radius-md)',
-            color: 'var(--text-secondary)',
-            fontSize: '0.82rem',
-            fontWeight: 500,
-          }}
-          onMouseEnter={(e) => e.currentTarget.style.backgroundColor = 'var(--bg-surface-elevated)'}
-          onMouseLeave={(e) => e.currentTarget.style.backgroundColor = 'var(--bg-surface)'}
-        >
-          <div style={{ display: 'flex', alignItems: 'center', gap: '0.45rem' }}>
-            <Layers size={14} style={{ color: 'var(--accent-primary)' }} />
-            <span>Document Library</span>
-          </div>
-          {selectedDocCount > 0 && (
-            <span style={{
-              fontSize: '0.68rem',
-              backgroundColor: 'var(--accent-primary)',
-              color: '#fff',
-              padding: '0.1rem 0.4rem',
-              borderRadius: 'var(--radius-full)',
-              fontWeight: 600,
-            }}>
-              {selectedDocCount} active
+        <div className={styles.actions}>
+          <button type="button" className={styles.newChat} onClick={onNewChat}>
+            <SquarePen {...ICON} />
+            <span>New chat</span>
+            <span className={styles.shortcut} aria-hidden="true">
+              <kbd className="kbd">⌘</kbd>
+              <kbd className="kbd">⇧</kbd>
+              <kbd className="kbd">O</kbd>
             </span>
-          )}
-        </button>
-      </div>
-
-      {/* Search Input */}
-      <div style={{ padding: '0.4rem 1rem 0.6rem' }}>
-        <div style={{ position: 'relative' }}>
-          <Search size={13} style={{
-            position: 'absolute',
-            left: '0.65rem',
-            top: '50%',
-            transform: 'translateY(-50%)',
-            color: 'var(--text-dim)'
-          }} />
-          <input
-            type="text"
-            value={searchQuery}
-            onChange={(e) => setSearchQuery(e.target.value)}
-            placeholder="Search conversations..."
-            style={{
-              width: '100%',
-              padding: '0.42rem 0.5rem 0.42rem 1.85rem',
-              fontSize: '0.78rem',
-              borderRadius: 'var(--radius-sm)',
-            }}
-          />
+          </button>
+          <nav aria-label="Views">
+            {nav.map(({ key, label, icon: Icon, hint }) => (
+              <button
+                key={key}
+                type="button"
+                className={styles.navItem}
+                aria-current={view === key ? 'page' : undefined}
+                onClick={() => onNavigate(key)}
+              >
+                <Icon {...ICON} />
+                <span>{label}</span>
+                {hint && <span className={styles.navHint}>{hint}</span>}
+              </button>
+            ))}
+          </nav>
         </div>
-      </div>
 
-      {/* Chat History List */}
-      <div style={{
-        flex: 1,
-        overflowY: 'auto',
-        padding: '0.25rem 0.65rem 1rem',
-        display: 'flex',
-        flexDirection: 'column',
-        gap: '0.85rem',
-      }}>
-        {Object.entries(grouped).map(([groupTitle, groupItems]) => {
-          if (groupItems.length === 0) return null;
-          return (
-            <div key={groupTitle}>
-              <div style={{
-                fontSize: '0.7rem',
-                fontWeight: 600,
-                color: 'var(--text-dim)',
-                textTransform: 'uppercase',
-                letterSpacing: '0.04em',
-                padding: '0.2rem 0.5rem 0.4rem',
-              }}>
-                {groupTitle}
-              </div>
-
-              <div style={{ display: 'flex', flexDirection: 'column', gap: '0.15rem' }}>
-                {groupItems.map((chat) => {
-                  const isActive = chat.id === activeChatId;
-                  const isEditing = chat.id === editingId;
-
-                  return (
-                    <div
-                      key={chat.id}
-                      onClick={() => !isEditing && onSelectChat(chat.id)}
-                      style={{
-                        position: 'relative',
-                        display: 'flex',
-                        alignItems: 'center',
-                        justifyContent: 'space-between',
-                        padding: '0.45rem 0.65rem',
-                        borderRadius: 'var(--radius-md)',
-                        backgroundColor: isActive ? 'var(--bg-surface-elevated)' : 'transparent',
-                        color: isActive ? 'var(--text-primary)' : 'var(--text-secondary)',
-                        cursor: 'pointer',
-                        transition: 'var(--transition-fast)',
-                        border: `1px solid ${isActive ? 'var(--border-medium)' : 'transparent'}`,
-                      }}
-                      onMouseEnter={(e) => {
-                        if (!isActive) e.currentTarget.style.backgroundColor = 'rgba(255, 255, 255, 0.03)';
-                      }}
-                      onMouseLeave={(e) => {
-                        if (!isActive) e.currentTarget.style.backgroundColor = 'transparent';
-                      }}
-                    >
-                      <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', flex: 1, overflow: 'hidden' }}>
-                        <MessageSquare size={14} style={{ color: isActive ? 'var(--accent-primary)' : 'var(--text-dim)', flexShrink: 0 }} />
-                        {isEditing ? (
-                          <input
-                            type="text"
-                            value={editTitle}
-                            onChange={(e) => setEditTitle(e.target.value)}
-                            onClick={(e) => e.stopPropagation()}
-                            autoFocus
-                            style={{
-                              fontSize: '0.8rem',
-                              padding: '0.15rem 0.35rem',
-                              width: '100%',
-                              borderRadius: 'var(--radius-sm)',
-                            }}
-                          />
-                        ) : (
-                          <span style={{
-                            fontSize: '0.82rem',
-                            fontWeight: isActive ? 500 : 400,
-                            whiteSpace: 'nowrap',
-                            overflow: 'hidden',
-                            textOverflow: 'ellipsis',
-                          }}>
-                            {chat.title || 'New Conversation'}
-                          </span>
-                        )}
-                      </div>
-
-                      {/* Item Actions */}
-                      <div style={{ display: 'flex', alignItems: 'center', gap: '0.2rem', marginLeft: '0.25rem' }}>
-                        {isEditing ? (
-                          <>
-                            <button onClick={(e) => saveEditing(chat.id, e)} style={{ padding: '0.2rem', color: 'var(--accent-emerald)' }}>
-                              <Check size={13} />
-                            </button>
-                            <button onClick={cancelEditing} style={{ padding: '0.2rem', color: 'var(--text-dim)' }}>
-                              <X size={13} />
-                            </button>
-                          </>
-                        ) : isActive && (
-                          <>
-                            <button
-                              onClick={(e) => startEditing(chat, e)}
-                              title="Rename chat"
-                              style={{ padding: '0.2rem', color: 'var(--text-dim)' }}
-                              onMouseEnter={(e) => e.currentTarget.style.color = 'var(--text-primary)'}
-                              onMouseLeave={(e) => e.currentTarget.style.color = 'var(--text-dim)'}
-                            >
-                              <Edit2 size={12} />
-                            </button>
-                            <button
-                              onClick={(e) => {
-                                e.stopPropagation();
-                                onDeleteChat(chat.id);
-                              }}
-                              title="Delete chat"
-                              style={{ padding: '0.2rem', color: 'var(--text-dim)' }}
-                              onMouseEnter={(e) => e.currentTarget.style.color = 'var(--accent-rose)'}
-                              onMouseLeave={(e) => e.currentTarget.style.color = 'var(--text-dim)'}
-                            >
-                              <Trash2 size={12} />
-                            </button>
-                          </>
-                        )}
-                      </div>
-                    </div>
-                  );
-                })}
-              </div>
-            </div>
-          );
-        })}
-
-        {chats.length === 0 && (
-          <div style={{ textAlign: 'center', color: 'var(--text-dim)', fontSize: '0.78rem', padding: '2rem 1rem' }}>
-            No chat history yet.<br />Start a new conversation!
+        <div className={styles.recents}>
+          <div className={styles.recentsHeader}>
+            <span>Recents</span>
           </div>
-        )}
-      </div>
-
-      {/* User Profile Footer */}
-      <div style={{
-        padding: '0.85rem 1rem',
-        borderTop: '1px solid var(--border-subtle)',
-        backgroundColor: 'var(--bg-app)',
-      }}>
-        {currentUser ? (
-          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-            <div style={{ display: 'flex', alignItems: 'center', gap: '0.65rem', overflow: 'hidden' }}>
-              <img
-                src={currentUser.avatar_url || 'https://api.dicebear.com/7.x/identicon/svg?seed=user'}
-                alt={currentUser.name}
-                style={{
-                  width: '32px',
-                  height: '32px',
-                  borderRadius: 'var(--radius-full)',
-                  backgroundColor: 'var(--bg-surface-elevated)',
-                  border: '1px solid var(--border-medium)',
-                  flexShrink: 0
-                }}
+          {chats.length > 6 && (
+            <label className={styles.search}>
+              <Search size={14} strokeWidth={1.75} aria-hidden="true" />
+              <input
+                value={filter}
+                onChange={(e) => setFilter(e.target.value)}
+                placeholder="Search chats"
+                aria-label="Search chats"
               />
-              <div style={{ overflow: 'hidden' }}>
-                <div style={{
-                  fontSize: '0.82rem',
-                  fontWeight: 600,
-                  color: 'var(--text-primary)',
-                  whiteSpace: 'nowrap',
-                  overflow: 'hidden',
-                  textOverflow: 'ellipsis'
-                }}>
-                  {currentUser.name}
-                </div>
-                <div style={{
-                  fontSize: '0.7rem',
-                  color: 'var(--text-dim)',
-                  display: 'flex',
-                  alignItems: 'center',
-                  gap: '0.35rem'
-                }}>
-                  <span style={{ textTransform: 'capitalize' }}>{currentUser.provider}</span>
-                </div>
+            </label>
+          )}
+          <div className={styles.list}>
+            {chatsLoading && !chats.length && (
+              <div className={styles.skeletons} aria-hidden="true">
+                {[72, 56, 64, 48].map((w) => (
+                  <span key={w} style={{ width: `${w}%` }} />
+                ))}
               </div>
-            </div>
-
-            <button
-              onClick={onLogout}
-              title="Sign out"
-              style={{
-                color: 'var(--text-dim)',
-                padding: '0.35rem',
-                borderRadius: 'var(--radius-sm)'
-              }}
-              onMouseEnter={(e) => e.currentTarget.style.color = 'var(--accent-rose)'}
-              onMouseLeave={(e) => e.currentTarget.style.color = 'var(--text-dim)'}
-            >
-              <LogOut size={15} />
-            </button>
+            )}
+            {!chatsLoading && !chats.length && <p className={styles.emptyNote}>Your conversations will appear here.</p>}
+            {filter && !groups.length && <p className={styles.emptyNote}>No chats match “{filter}”.</p>}
+            {groups.map((g) => (
+              <section key={g.label} className={styles.group}>
+                <h3 className={styles.groupLabel}>{g.label}</h3>
+                <ul>
+                  {g.items.map((c) => (
+                    <ChatRow
+                      key={c.id}
+                      chat={c}
+                      active={view === 'chat' && c.id === activeChatId}
+                      renaming={renamingId === c.id}
+                      onSelect={() => onSelectChat(c.id)}
+                      onStartRename={() => setRenamingId(c.id)}
+                      onRename={(title) => {
+                        setRenamingId(null);
+                        if (title && title !== c.title) onRenameChat(c.id, title);
+                      }}
+                      onDelete={() => onDeleteChat(c.id)}
+                    />
+                  ))}
+                </ul>
+              </section>
+            ))}
           </div>
-        ) : (
-          <button
-            onClick={onOpenAuth}
-            style={{
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'space-between',
-              width: '100%',
-              padding: '0.6rem 0.85rem',
-              backgroundColor: 'var(--bg-surface)',
-              border: '1px solid var(--border-medium)',
-              borderRadius: 'var(--radius-md)',
-              color: 'var(--text-primary)',
-              fontSize: '0.82rem',
-              fontWeight: 500,
-            }}
-            onMouseEnter={(e) => e.currentTarget.style.backgroundColor = 'var(--bg-surface-elevated)'}
-            onMouseLeave={(e) => e.currentTarget.style.backgroundColor = 'var(--bg-surface)'}
-          >
-            <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
-              <UserIcon size={15} style={{ color: 'var(--accent-primary)' }} />
-              <span>Sign In / Log In</span>
-            </div>
-            <ChevronRight size={14} style={{ color: 'var(--text-dim)' }} />
+        </div>
+
+        <SettingsFooter user={user} onOpenProfile={onOpenProfile} onSignOut={onSignOut} />
+      </aside>
+    </>
+  );
+}
+
+interface ChatRowProps {
+  chat: ChatSession;
+  active: boolean;
+  renaming: boolean;
+  onSelect: () => void;
+  onStartRename: () => void;
+  onRename: (title: string) => void;
+  onDelete: () => void;
+}
+
+function ChatRow({ chat, active, renaming, onSelect, onStartRename, onRename, onDelete }: ChatRowProps) {
+  const inputRef = useRef<HTMLInputElement>(null);
+  useEffect(() => {
+    if (renaming) inputRef.current?.select();
+  }, [renaming]);
+
+  if (renaming) {
+    return (
+      <li className={styles.row} data-active={active}>
+        <input
+          ref={inputRef}
+          className={styles.renameInput}
+          defaultValue={chat.title}
+          aria-label="Chat title"
+          onBlur={(e) => onRename(e.currentTarget.value.trim())}
+          onKeyDown={(e) => {
+            if (e.key === 'Enter') onRename(e.currentTarget.value.trim());
+            if (e.key === 'Escape') onRename(chat.title);
+          }}
+        />
+      </li>
+    );
+  }
+
+  return (
+    <li className={styles.row} data-active={active}>
+      <button type="button" className={styles.rowButton} onClick={onSelect} aria-current={active ? 'true' : undefined} title={chat.title}>
+        {chat.title || 'Untitled'}
+      </button>
+      <Menu
+        label={`Actions for ${chat.title}`}
+        trigger={(p) => (
+          <button type="button" className={`icon-btn icon-btn-sm ${styles.rowMenu}`} aria-label="Chat actions" {...p}>
+            <MoreHorizontal size={15} strokeWidth={1.75} />
           </button>
         )}
-      </div>
-    </aside>
+      >
+        {(close) => (
+          <>
+            <button type="button" role="menuitem" className="menu-item" onClick={() => { close(); onStartRename(); }}>
+              <Pencil size={15} strokeWidth={1.75} /> Rename
+            </button>
+            <button type="button" role="menuitem" className="menu-item" onClick={() => { close(); onDelete(); }}>
+              <Trash2 size={15} strokeWidth={1.75} /> Delete
+            </button>
+          </>
+        )}
+      </Menu>
+    </li>
   );
-};
+}
+
+const THEMES: Array<{ key: ThemePreference; label: string; icon: typeof Sun }> = [
+  { key: 'system', label: 'System', icon: Monitor },
+  { key: 'light', label: 'Light', icon: Sun },
+  { key: 'dark', label: 'Dark', icon: Moon },
+];
+
+function SettingsFooter({ user, onOpenProfile, onSignOut }: { user: User | null; onOpenProfile: () => void; onSignOut: () => void }) {
+  const { preference, setPreference } = useTheme();
+  const toast = useToast();
+  const [models, setModels] = useState<ModelInfo[] | null>(null);
+  const [current, setCurrent] = useState<string>('');
+  const [modelError, setModelError] = useState<string | null>(null);
+
+  const loadModels = () => {
+    api
+      .getModels()
+      .then((r) => {
+        setModels(r.models);
+        setCurrent(r.current);
+        setModelError(null);
+      })
+      .catch((e: Error) => setModelError(e.message));
+  };
+
+  useEffect(loadModels, []);
+
+  const switchModel = async (name: string) => {
+    try {
+      const r = await api.setModel(name);
+      setCurrent(r.current);
+      toast(`Answers now use ${r.current}`, 'good');
+    } catch (e) {
+      toast((e as Error).message, 'bad');
+    }
+  };
+
+  const initials = (user?.name || 'Local').split(/\s+/).map((w) => w[0]).join('').slice(0, 2).toUpperCase();
+
+  return (
+    <div className={styles.footer}>
+      <Menu
+        label="Settings"
+        side="top"
+        align="start"
+        trigger={(p) => (
+          <button type="button" className={styles.profileButton} {...p} onClick={() => { loadModels(); p.onClick(); }}>
+            <span className={styles.avatar} aria-hidden="true">{initials}</span>
+            <span className={styles.profileText}>
+              <span className={styles.profileName}>{user?.name || 'Local profile'}</span>
+              <span className={styles.profileMeta}>{current || 'Settings'}</span>
+            </span>
+            <Settings2 size={16} strokeWidth={1.75} className={styles.profileIcon} />
+          </button>
+        )}
+      >
+        {(close) => (
+          <>
+            <div className="menu-label">Appearance</div>
+            {THEMES.map(({ key, label, icon: Icon }) => (
+              <button
+                key={key}
+                type="button"
+                role="menuitemradio"
+                aria-checked={preference === key}
+                className="menu-item"
+                onClick={() => setPreference(key)}
+              >
+                <Icon size={15} strokeWidth={1.75} /> {label}
+                {preference === key && <Check size={15} strokeWidth={2} className="menu-hint" />}
+              </button>
+            ))}
+            <div className="menu-sep" />
+            <div className="menu-label">Model</div>
+            {modelError && <div className="menu-label">{modelError}</div>}
+            {!models && !modelError && <div className="menu-label">Loading models…</div>}
+            {models?.map((m) => (
+              <button
+                key={m.name}
+                type="button"
+                role="menuitemradio"
+                aria-checked={current === m.name}
+                className="menu-item"
+                onClick={() => switchModel(m.name)}
+              >
+                <span>{m.name}</span>
+                <span className="menu-hint">{current === m.name ? <Check size={15} strokeWidth={2} /> : m.parameter_size || ''}</span>
+              </button>
+            ))}
+            <div className="menu-sep" />
+            {user ? (
+              <button type="button" role="menuitem" className="menu-item" onClick={() => { close(); onSignOut(); }}>
+                <LogOut size={15} strokeWidth={1.75} /> Sign out of {user.email}
+              </button>
+            ) : (
+              <button type="button" role="menuitem" className="menu-item" onClick={() => { close(); onOpenProfile(); }}>
+                <LogIn size={15} strokeWidth={1.75} /> Create a local profile
+              </button>
+            )}
+          </>
+        )}
+      </Menu>
+    </div>
+  );
+}
