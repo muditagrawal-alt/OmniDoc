@@ -21,8 +21,11 @@ class ChunkReranker:
         """Attempts to load CrossEncoder with graceful fallback."""
         try:
             from sentence_transformers import CrossEncoder
-            # Load cross-encoder if available
-            self.model = CrossEncoder("cross-encoder/ms-marco-MiniLM-L-6-v2")
+            # Load cross-encoder from local cache
+            try:
+                self.model = CrossEncoder("cross-encoder/ms-marco-MiniLM-L-6-v2", local_files_only=True)
+            except Exception:
+                self.model = CrossEncoder("cross-encoder/ms-marco-MiniLM-L-6-v2")
             logger.info("CrossEncoder model initialized successfully.")
         except Exception as e:
             logger.info(f"CrossEncoder offline/not loaded ({e}). Using lexical-density heuristic reranker.")
