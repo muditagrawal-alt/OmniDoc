@@ -96,11 +96,14 @@ class GraphExtractor:
                 stream=False
             )
             raw = response["message"]["content"].strip()
-            if raw.startswith("```"):
-                raw = re.sub(r"^```(?:json)?\s*", "", raw)
-                raw = re.sub(r"\s*```$", "", raw)
+            json_match = re.search(r"```(?:json)?\s*(\{.*?\})\s*```", raw, re.DOTALL)
+            if json_match:
+                raw_json = json_match.group(1)
+            else:
+                json_match = re.search(r"(\{.*\})", raw, re.DOTALL)
+                raw_json = json_match.group(1) if json_match else raw
 
-            data = json.loads(raw)
+            data = json.loads(raw_json)
             payload = ExtractionPayload(**data)
             
             created_entities = []
