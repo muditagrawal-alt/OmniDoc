@@ -62,6 +62,19 @@ class KuzuGraphStore:
         except Exception as e:
             logger.error(f"Failed to add document node {doc_id}: {e}")
 
+    def delete_document(self, doc_id: str):
+        """Cascading deletion of document node, its chunks, and associated entities from Kùzu graph."""
+        if not self.conn:
+            return
+        safe_did = doc_id.replace('"', '\\"')
+        try:
+            self.conn.execute(f'MATCH (c:Chunk {{doc_id: "{safe_did}"}}) DETACH DELETE c;')
+            self.conn.execute(f'MATCH (e:Entity {{doc_id: "{safe_did}"}}) DETACH DELETE e;')
+            self.conn.execute(f'MATCH (d:Document {{id: "{safe_did}"}}) DETACH DELETE d;')
+            logger.info(f"Deleted document {doc_id} and related nodes from Kùzu graph.")
+        except Exception as e:
+            logger.error(f"Failed to delete document {doc_id} from Kùzu: {e}")
+
     def add_chunk(self, chunk_id: str, doc_id: str, page_number: int, section_title: str, text: str):
         if not self.conn:
             return
@@ -196,3 +209,66 @@ class KuzuGraphStore:
         except Exception as e:
             logger.error(f"Error in multi-hop traversal: {e}")
         return paths
+
+    def get_all_graph(self, limit: int = 150) -> Dict[str, Any]:
+        """Returns all nodes and edges in the property graph for interactive visualization."""
+        if not self.conn:
+            return {"nodes": [], "edges": []}
+        results = {"nodes": [], "edges": []}
+        seen_nodes = set()
+        seen_edges = set()
+        try:
+            cypher = f"""
+            MATCH (s:Entity)-[r:RELATES_TO]->(t:Entity)
+            RETURN s.id, s.name, s.category, s.description,
+                   r.relation, r.description,
+                   t.id, t.name, t.category, t.description
+            LIMIT {limit}
+            """
+            cursor = self.conn.execute(cypher)
+            while cursor.has_next():
+                row = cursor.get_next()
+                s_id, s_name, s_cat, s_desc, rel, r_desc, t_id, t_name, t_cat, t_desc = row
+                if s_id not in seen_nodes:
+                    seen_nodes.add(s_id)
+                    results["nodes"].append({
+                        "id": s_id,
+                        "name": s_name,
+                        "category": s_cat or "Entity",
+                        "description": s_desc or ""
+                    })
+                if t_id not in seen_nodes:
+                    seen_nodes.add(t_id)
+                    results["nodes"].append({
+                        "id": t_id,
+                        "name": t_name,
+                        "category": t_cat or "Entity",
+                        "description": t_desc or ""
+                    })
+                edge_key = (s_id, t_id, rel)
+                if edge_key not in seen_edges:
+                    seen_edges.add(edge_key)
+                    results["edges"].append({
+                        "source": s_id,
+                        "source_name": s_name,
+                        "target": t_id,
+                        "target_name": t_name,
+                        "relation": rel,
+                        "description": r_desc or ""
+                    })
+
+            # Also fetch any standalone entities
+            cursor2 = self.conn.execute(f"MATCH (e:Entity) RETURN e.id, e.name, e.category, e.description LIMIT {limit}")
+            while cursor2.has_next():
+                e_id, e_name, e_cat, e_desc = cursor2.get_next()
+                if e_id not in seen_nodes:
+                    seen_nodes.add(e_id)
+                    results["nodes"].append({
+                        "id": e_id,
+                        "name": e_name,
+                        "category": e_cat or "Entity",
+                        "description": e_desc or ""
+                    })
+        except Exception as e:
+            logger.error(f"Error fetching all graph: {e}")
+        return results
