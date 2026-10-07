@@ -4,6 +4,7 @@ Provides Cypher querying, entity-relation persistence, and multi-hop graph trave
 """
 import os
 import logging
+import threading
 from typing import List, Dict, Any, Optional
 from graph.schema import KUZU_NODE_SCHEMAS, KUZU_REL_SCHEMAS
 
@@ -18,7 +19,15 @@ class KuzuGraphStore:
         os.makedirs(os.path.dirname(self.db_path), exist_ok=True)
         self.db = None
         self.conn = None
+        # One connection is shared by request threads and background extraction.
+        self._lock = threading.RLock()
         self._init_db()
+
+    def _exec(self, query: str, params: Optional[Dict[str, Any]] = None):
+        with self._lock:
+            if params is None:
+                return self.conn.execute(query)
+            return self.conn.execute(query, params)
 
     def _init_db(self):
         """Initializes connection and bootstraps schema DDL."""
@@ -39,14 +48,14 @@ class KuzuGraphStore:
             return
         for stmt in KUZU_NODE_SCHEMAS:
             try:
-                self.conn.execute(stmt)
+                self._exec(stmt)
             except Exception as e:
                 # Table might already exist
                 pass
 
         for stmt in KUZU_REL_SCHEMAS:
             try:
-                self.conn.execute(stmt)
+                self._exec(stmt)
             except Exception as e:
                 pass
 
@@ -58,19 +67,24 @@ class KuzuGraphStore:
         SET d.title = $title, d.doc_type = $doc_type, d.hash = $hash
         """
         try:
-            self.conn.execute(query, {"id": doc_id, "title": title, "doc_type": doc_type, "hash": doc_hash})
+            self._exec(query, {"id": doc_id, "title": title, "doc_type": doc_type, "hash": doc_hash})
         except Exception as e:
             logger.error(f"Failed to add document node {doc_id}: {e}")
 
     def delete_document(self, doc_id: str):
-        """Cascading deletion of document node, its chunks, and associated entities from Kùzu graph."""
+        """Removes a document, its chunks, and entities no other document still mentions."""
         if not self.conn:
             return
-        safe_did = doc_id.replace('"', '\\"')
+        params = {"doc": doc_id}
         try:
-            self.conn.execute(f'MATCH (c:Chunk {{doc_id: "{safe_did}"}}) DETACH DELETE c;')
-            self.conn.execute(f'MATCH (e:Entity {{doc_id: "{safe_did}"}}) DETACH DELETE e;')
-            self.conn.execute(f'MATCH (d:Document {{id: "{safe_did}"}}) DETACH DELETE d;')
+            self._exec("MATCH (c:Chunk) WHERE c.doc_id = $doc DETACH DELETE c", params)
+            # Entities are merged by id across documents; keep any still mentioned elsewhere.
+            self._exec(
+                "MATCH (e:Entity) WHERE e.doc_id = $doc "
+                "AND NOT EXISTS { MATCH (:Chunk)-[:MENTIONS]->(e) } DETACH DELETE e",
+                params,
+            )
+            self._exec("MATCH (d:Document) WHERE d.id = $doc DETACH DELETE d", params)
             logger.info(f"Deleted document {doc_id} and related nodes from Kùzu graph.")
         except Exception as e:
             logger.error(f"Failed to delete document {doc_id} from Kùzu: {e}")
@@ -83,18 +97,18 @@ class KuzuGraphStore:
         SET c.doc_id = $doc_id, c.page_number = $page_number, c.section_title = $section_title, c.text = $text
         """
         try:
-            self.conn.execute(query, {
+            self._exec(query, {
                 "id": chunk_id,
                 "doc_id": doc_id,
                 "page_number": int(page_number),
                 "section_title": section_title or "General",
                 "text": text[:2000]
             })
-            # Link Document -> Chunk
-            safe_did = doc_id.replace('"', '\\"')
-            safe_cid = chunk_id.replace('"', '\\"')
-            link_q = f'MATCH (d:Document {{id: "{safe_did}"}}), (c:Chunk {{id: "{safe_cid}"}}) CREATE (d)-[:HAS_CHUNK]->(c);'
-            self.conn.execute(link_q)
+            # Link Document -> Chunk (MERGE keeps re-ingestion idempotent)
+            self._exec(
+                "MATCH (d:Document {id: $doc}), (c:Chunk {id: $chunk}) MERGE (d)-[:HAS_CHUNK]->(c)",
+                {"doc": doc_id, "chunk": chunk_id},
+            )
         except Exception as e:
             logger.error(f"Failed to add chunk {chunk_id}: {e}")
 
@@ -106,7 +120,7 @@ class KuzuGraphStore:
         SET e.name = $name, e.category = $category, e.description = $description, e.doc_id = $doc_id
         """
         try:
-            self.conn.execute(query, {
+            self._exec(query, {
                 "id": entity_id,
                 "name": name,
                 "category": category,
@@ -119,27 +133,33 @@ class KuzuGraphStore:
     def add_relation(self, source_id: str, target_id: str, relation: str, description: str = "", weight: float = 1.0):
         if not self.conn:
             return
-        safe_sid = source_id.replace('"', '\\"')
-        safe_tid = target_id.replace('"', '\\"')
-        safe_rel = relation.replace('"', '\\"')
-        safe_desc = (description or "").replace('"', '\\"')
-        safe_weight = float(weight)
-        query = f'MATCH (s:Entity {{id: "{safe_sid}"}}), (t:Entity {{id: "{safe_tid}"}}) CREATE (s)-[r:RELATES_TO {{relation: "{safe_rel}", description: "{safe_desc}", weight: {safe_weight}}}]->(t);'
+        query = (
+            "MATCH (s:Entity {id: $sid}), (t:Entity {id: $tid}) "
+            "MERGE (s)-[r:RELATES_TO {relation: $rel}]->(t) "
+            "ON CREATE SET r.description = $rdesc, r.weight = $weight "
+            "ON MATCH SET r.description = $rdesc, r.weight = $weight"
+        )
         try:
-            self.conn.execute(query)
+            self._exec(query, {
+                "sid": source_id,
+                "tid": target_id,
+                "rel": relation,
+                "rdesc": description or "",
+                "weight": float(weight),
+            })
         except Exception as e:
             logger.error(f"Failed to add relation {source_id} -> {target_id}: {e}")
 
     def link_chunk_to_entity(self, chunk_id: str, entity_id: str):
         if not self.conn:
             return
-        safe_cid = chunk_id.replace('"', '\\"')
-        safe_eid = entity_id.replace('"', '\\"')
-        query = f'MATCH (c:Chunk {{id: "{safe_cid}"}}), (e:Entity {{id: "{safe_eid}"}}) CREATE (c)-[:MENTIONS]->(e);'
         try:
-            self.conn.execute(query)
+            self._exec(
+                "MATCH (c:Chunk {id: $cid}), (e:Entity {id: $eid}) MERGE (c)-[:MENTIONS]->(e)",
+                {"cid": chunk_id, "eid": entity_id},
+            )
         except Exception as e:
-            pass
+            logger.debug(f"Failed to link chunk {chunk_id} -> entity {entity_id}: {e}")
 
     def query_neighborhood(self, entity_names: List[str], hops: int = 1) -> Dict[str, Any]:
         """
@@ -162,7 +182,7 @@ class KuzuGraphStore:
             LIMIT 25
             """
             try:
-                cursor = self.conn.execute(cypher, {"name": name.strip()})
+                cursor = self._exec(cypher, {"name": name.strip()})
                 while cursor.has_next():
                     row = cursor.get_next()
                     s_id, s_name, s_cat, s_desc, rel, r_desc, t_id, t_name, t_cat, t_desc = row
@@ -203,72 +223,111 @@ class KuzuGraphStore:
         """
         paths = []
         try:
-            cursor = self.conn.execute(cypher, {"source": source_name, "target": target_name})
+            cursor = self._exec(cypher, {"source": source_name, "target": target_name})
             while cursor.has_next():
                 paths.append(str(cursor.get_next()[0]))
         except Exception as e:
             logger.error(f"Error in multi-hop traversal: {e}")
         return paths
 
-    def get_all_graph(self, limit: int = 150) -> Dict[str, Any]:
-        """Returns all nodes and edges in the property graph for interactive visualization."""
+    def get_all_graph(self, limit: int = 2000) -> Dict[str, Any]:
+        """
+        Returns entities, relations and source documents for the knowledge globe.
+        `limit` caps the number of entities; relations are returned only between
+        returned entities.
+        """
+        results: Dict[str, Any] = {"nodes": [], "edges": [], "documents": []}
         if not self.conn:
-            return {"nodes": [], "edges": []}
-        results = {"nodes": [], "edges": []}
-        seen_nodes = set()
-        seen_edges = set()
+            return results
+        limit = max(1, min(int(limit), 20000))
         try:
-            cypher = f"""
-            MATCH (s:Entity)-[r:RELATES_TO]->(t:Entity)
-            RETURN s.id, s.name, s.category, s.description,
-                   r.relation, r.description,
-                   t.id, t.name, t.category, t.description
-            LIMIT {limit}
-            """
-            cursor = self.conn.execute(cypher)
+            node_ids = set()
+            cursor = self._exec(
+                f"MATCH (e:Entity) RETURN e.id, e.name, e.category, e.description, e.doc_id "
+                f"ORDER BY e.name LIMIT {limit}"
+            )
             while cursor.has_next():
-                row = cursor.get_next()
-                s_id, s_name, s_cat, s_desc, rel, r_desc, t_id, t_name, t_cat, t_desc = row
-                if s_id not in seen_nodes:
-                    seen_nodes.add(s_id)
-                    results["nodes"].append({
-                        "id": s_id,
-                        "name": s_name,
-                        "category": s_cat or "Entity",
-                        "description": s_desc or ""
-                    })
-                if t_id not in seen_nodes:
-                    seen_nodes.add(t_id)
-                    results["nodes"].append({
-                        "id": t_id,
-                        "name": t_name,
-                        "category": t_cat or "Entity",
-                        "description": t_desc or ""
-                    })
-                edge_key = (s_id, t_id, rel)
-                if edge_key not in seen_edges:
-                    seen_edges.add(edge_key)
-                    results["edges"].append({
-                        "source": s_id,
-                        "source_name": s_name,
-                        "target": t_id,
-                        "target_name": t_name,
-                        "relation": rel,
-                        "description": r_desc or ""
-                    })
+                e_id, e_name, e_cat, e_desc, e_doc = cursor.get_next()
+                if not e_id or e_id in node_ids:
+                    continue
+                node_ids.add(e_id)
+                results["nodes"].append({
+                    "id": e_id,
+                    "name": e_name or e_id,
+                    "category": e_cat or "Entity",
+                    "description": e_desc or "",
+                    "doc_id": e_doc or "",
+                })
 
-            # Also fetch any standalone entities
-            cursor2 = self.conn.execute(f"MATCH (e:Entity) RETURN e.id, e.name, e.category, e.description LIMIT {limit}")
-            while cursor2.has_next():
-                e_id, e_name, e_cat, e_desc = cursor2.get_next()
-                if e_id not in seen_nodes:
-                    seen_nodes.add(e_id)
-                    results["nodes"].append({
-                        "id": e_id,
-                        "name": e_name,
-                        "category": e_cat or "Entity",
-                        "description": e_desc or ""
-                    })
+            seen_edges = set()
+            cursor = self._exec(
+                "MATCH (s:Entity)-[r:RELATES_TO]->(t:Entity) "
+                "RETURN s.id, s.name, r.relation, r.description, t.id, t.name"
+            )
+            while cursor.has_next():
+                s_id, s_name, rel, r_desc, t_id, t_name = cursor.get_next()
+                if s_id not in node_ids or t_id not in node_ids:
+                    continue
+                key = (s_id, t_id, rel)
+                if key in seen_edges:
+                    continue
+                seen_edges.add(key)
+                results["edges"].append({
+                    "source": s_id,
+                    "source_name": s_name,
+                    "target": t_id,
+                    "target_name": t_name,
+                    "relation": rel or "RELATED_TO",
+                    "description": r_desc or "",
+                })
+
+            cursor = self._exec("MATCH (d:Document) RETURN d.id, d.title ORDER BY d.title")
+            while cursor.has_next():
+                d_id, d_title = cursor.get_next()
+                results["documents"].append({"id": d_id, "title": d_title or d_id})
         except Exception as e:
             logger.error(f"Error fetching all graph: {e}")
         return results
+
+    def entity_counts_by_document(self) -> Dict[str, int]:
+        """Number of extracted entities per document id."""
+        counts: Dict[str, int] = {}
+        if not self.conn:
+            return counts
+        try:
+            cursor = self._exec("MATCH (e:Entity) RETURN e.doc_id, count(*)")
+            while cursor.has_next():
+                doc_id, n = cursor.get_next()
+                if doc_id:
+                    counts[doc_id] = int(n)
+        except Exception as e:
+            logger.warning(f"Could not count entities per document: {e}")
+        return counts
+
+    def get_node(self, node_id: str) -> Optional[Dict[str, Any]]:
+        """Returns one entity with its direct relations (both directions)."""
+        if not self.conn:
+            return None
+        try:
+            cursor = self._exec(
+                "MATCH (e:Entity) WHERE e.id = $id RETURN e.id, e.name, e.category, e.description, e.doc_id",
+                {"id": node_id},
+            )
+            if not cursor.has_next():
+                return None
+            e_id, e_name, e_cat, e_desc, e_doc = cursor.get_next()
+            node = {"id": e_id, "name": e_name, "category": e_cat or "Entity", "description": e_desc or "", "doc_id": e_doc or ""}
+            edges = []
+            cursor = self._exec(
+                "MATCH (s:Entity)-[r:RELATES_TO]->(t:Entity) WHERE s.id = $id OR t.id = $id "
+                "RETURN s.id, s.name, r.relation, r.description, t.id, t.name",
+                {"id": node_id},
+            )
+            while cursor.has_next():
+                s_id, s_name, rel, r_desc, t_id, t_name = cursor.get_next()
+                edges.append({"source": s_id, "source_name": s_name, "target": t_id, "target_name": t_name,
+                              "relation": rel, "description": r_desc or ""})
+            return {"node": node, "edges": edges}
+        except Exception as e:
+            logger.error(f"Error fetching node {node_id}: {e}")
+            return None
