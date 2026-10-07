@@ -2,8 +2,17 @@
 CLI runner for OmniDoc SOTA Evaluation Benchmarks.
 Usage: python evaluation/run_benchmarks.py
 """
-import json
+import os
 import sys
+import json
+
+# Force HuggingFace offline mode to avoid LibreSSL socket hangs on macOS
+os.environ["HF_HUB_OFFLINE"] = "1"
+os.environ["TRANSFORMERS_OFFLINE"] = "1"
+
+# Ensure project root is in sys.path
+sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+
 from evaluation.eval_harness import BenchmarkEvaluator
 
 
