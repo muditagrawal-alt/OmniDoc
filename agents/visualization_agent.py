@@ -79,7 +79,7 @@ class VisualizationAgent:
         # Build context
         context_parts = []
         if math_res:
-            context_parts.append(f"=== MATHEMATICAL RESULTS ===\n{json.dumps(math_res, indent=2)}")
+            context_parts.append(f"=== MATHEMATICAL RESULTS ===\n{json.dumps(math_res, indent=2, default=str)}")
         
         if chunks:
             context_parts.append("=== RETRIEVED TABLE & TEXT EVIDENCE ===")
@@ -98,11 +98,15 @@ class VisualizationAgent:
                 stream=False
             )
             raw = response["message"]["content"].strip()
-            if raw.startswith("```"):
-                raw = re.sub(r"^```(?:json)?\s*", "", raw)
-                raw = re.sub(r"\s*```$", "", raw)
+            # Robust JSON extraction from LLM response
+            json_match = re.search(r"```(?:json)?\s*(\{.*?\})\s*```", raw, re.DOTALL)
+            if json_match:
+                raw_json = json_match.group(1)
+            else:
+                json_match = re.search(r"(\{.*\})", raw, re.DOTALL)
+                raw_json = json_match.group(1) if json_match else raw
 
-            parsed = json.loads(raw)
+            parsed = json.loads(raw_json)
             artifact = VisualizationArtifact(
                 chart_type=parsed.get("chart_type", "bar"),
                 title=parsed.get("title", "Data Visualization"),
@@ -119,5 +123,6 @@ class VisualizationAgent:
         except Exception as e:
             logger.error(f"VisualizationAgent generation error: {e}")
             return {
+                "visual_artifacts": [],
                 "errors": [f"VisualizationAgent error: {str(e)}"]
             }
