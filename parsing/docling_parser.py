@@ -42,14 +42,15 @@ class DoclingParser:
         except Exception as e:
             logger.warning(f"Docling initialization notice: {e}. PyMuPDF fallback available.")
 
-    def parse_document(self, file_path: str, doc_id: Optional[str] = None) -> ParsedDocument:
+    def parse_document(self, file_path: str, doc_id: Optional[str] = None, fast_mode: bool = False) -> ParsedDocument:
         """
         Parses a PDF or DOCX file into structured text, tables, and figures.
+        If fast_mode=True, uses instant PyMuPDF parsing for real-time JIT interactive ingestion.
         """
         filename = os.path.basename(file_path)
         doc_id = doc_id or f"doc_{uuid.uuid4().hex[:10]}"
 
-        if self.converter:
+        if not fast_mode and self.converter:
             try:
                 return self._parse_with_docling(file_path, doc_id, filename)
             except Exception as e:
@@ -165,20 +166,61 @@ class DoclingParser:
                             section_title=f"Page {page_idx}",
                             score=0.0
                         ))
-        else:
-            import docx
-            doc = docx.Document(file_path)
-            paras = [p.text for p in doc.paragraphs if p.text.strip()]
-            full_text_parts = paras
-            text_blob = "\n\n".join(paras)
+        elif ext in [".txt", ".md", ".json", ".csv", ".log", ".yaml", ".yml"]:
+            try:
+                with open(file_path, "r", encoding="utf-8", errors="replace") as f:
+                    text_blob = f.read()
+            except Exception:
+                with open(file_path, "r", encoding="latin-1", errors="replace") as f:
+                    text_blob = f.read()
+
+            paras = [p for p in text_blob.split("\n\n") if p.strip()]
+            full_text_parts = paras if paras else [text_blob]
             words = text_blob.split()
-            for c_idx in range(0, len(words), 350):
+            chunk_size = 350
+            for c_idx in range(0, max(1, len(words)), chunk_size - 60):
+                chunk_slice = words[c_idx:c_idx + chunk_size]
+                if not chunk_slice:
+                    continue
                 chunks.append(RetrievedChunk(
                     chunk_id=f"{doc_id}_c{c_idx}",
                     doc_id=doc_id,
-                    text=" ".join(words[c_idx:c_idx + 400]),
+                    text=" ".join(chunk_slice),
                     page_number=1,
-                    section_title="General",
+                    section_title="Document Body",
+                    score=0.0
+                ))
+        else:
+            try:
+                import docx
+                doc = docx.Document(file_path)
+                paras = [p.text for p in doc.paragraphs if p.text.strip()]
+                full_text_parts = paras
+                text_blob = "\n\n".join(paras)
+                words = text_blob.split()
+                for c_idx in range(0, max(1, len(words)), 350):
+                    chunk_slice = words[c_idx:c_idx + 400]
+                    if not chunk_slice:
+                        continue
+                    chunks.append(RetrievedChunk(
+                        chunk_id=f"{doc_id}_c{c_idx}",
+                        doc_id=doc_id,
+                        text=" ".join(chunk_slice),
+                        page_number=1,
+                        section_title="General",
+                        score=0.0
+                    ))
+            except Exception as e:
+                logger.warning(f"Fallback docx read failed: {e}. Reading as raw text.")
+                with open(file_path, "r", encoding="utf-8", errors="replace") as f:
+                    raw_content = f.read()
+                full_text_parts = [raw_content]
+                chunks.append(RetrievedChunk(
+                    chunk_id=f"{doc_id}_c0",
+                    doc_id=doc_id,
+                    text=raw_content[:2000],
+                    page_number=1,
+                    section_title="Raw Content",
                     score=0.0
                 ))
 
