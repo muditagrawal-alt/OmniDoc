@@ -267,7 +267,13 @@ class OmniDocWorkflow:
 
     def _graph_retrieval_step(self, state: AgentWorkflowState) -> Dict[str, Any]:
         intent_res = state.get("intent_result")
-        requires_graph = (intent_res and intent_res.requires_graph) or self._is_agent_needed(state, ["knowledge_graph_agent", "graph_agent", "graph"])
+        semantic_q = state.get("semantic_query")
+        requires_graph = (
+            (intent_res and intent_res.requires_graph)
+            or (semantic_q and bool(semantic_q.entities))
+            or (semantic_q and any("multi_hop" in t for t in semantic_q.task_types))
+            or self._is_agent_needed(state, ["knowledge_graph_agent", "graph_agent", "graph"])
+        )
         if requires_graph and self.graph_agent:
             return self.graph_agent.run(state)
         return {}
@@ -329,12 +335,15 @@ class OmniDocWorkflow:
                 "is_complete": True
             }
 
-        return {"verification": verification}
+        return {
+            "verification": verification,
+            "verified_response": verified_resp
+        }
 
     def _route_after_output_guard(self, state: AgentWorkflowState) -> Literal["accept", "reflect"]:
         verification = state.get("verification")
         iter_count = state.get("iteration_count", 0)
-        max_iters = state.get("max_iterations", 3)
+        max_iters = state.get("max_iterations", 2)
 
         if not verification or verification.action == "accept" or iter_count >= max_iters:
             return "accept"
@@ -343,8 +352,10 @@ class OmniDocWorkflow:
     def _reflection_step(self, state: AgentWorkflowState) -> Dict[str, Any]:
         verification = state.get("verification")
         feedback = verification.feedback if verification else "Insufficient citations or groundedness detected."
-        logger.info(f"🔄 Reflection Loop Triggered: {feedback}")
+        curr_iter = state.get("iteration_count", 0) + 1
+        logger.info(f"🔄 Reflection Loop Triggered (Iteration {curr_iter}): {feedback}")
         return {
+            "iteration_count": curr_iter,
             "errors": [f"Reflection triggered: {feedback}"]
         }
 
@@ -378,11 +389,11 @@ class OmniDocWorkflow:
             "verified_response": "",
             "verification": None,
             "iteration_count": 0,
-            "max_iterations": 3,
+            "max_iterations": 1,
             "errors": [],
             "agent_traces": [],
             "conversation_history": conversation_history or [],
             "is_complete": False
         }
-        return self.graph.invoke(initial_state)
+        return self.graph.invoke(initial_state, config={"recursion_limit": 50})
 
