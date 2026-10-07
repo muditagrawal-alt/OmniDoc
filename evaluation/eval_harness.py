@@ -57,8 +57,28 @@ class BenchmarkEvaluator:
 
     def run_benchmark(self, dataset_path: str = "evaluation/benchmark_dataset.json") -> Dict[str, Any]:
         """Executes full evaluation suite and aggregates metrics."""
+        import os
         with open(dataset_path, "r") as f:
             test_cases = json.load(f)
+
+        # Ensure reference knowledge is indexed if LanceDB is empty
+        try:
+            is_empty = self.lance_store.table is None or self.lance_store.table.count_rows() == 0
+        except Exception:
+            is_empty = True
+
+        if is_empty:
+            sample_doc = "untitled folder/OMNIDOC Update.docx"
+            if os.path.exists(sample_doc):
+                print(f"📦 Populating benchmark index from {sample_doc}...")
+                from parsing.docling_parser import DoclingParser
+                parser = DoclingParser()
+                parsed = parser.parse_document(sample_doc, doc_id="bench_ref_doc")
+                if parsed.chunks:
+                    texts = [c.text for c in parsed.chunks]
+                    embs = self.embed_service.embed_texts(texts)
+                    self.lance_store.add_chunks(parsed.chunks, embs)
+                    print(f"✓ Indexed {len(parsed.chunks)} benchmark chunks into LanceDB.")
 
         results = []
         total_time = 0.0
@@ -66,12 +86,13 @@ class BenchmarkEvaluator:
         guardrail_successes = 0
         guardrail_total = 0
 
-        for case in test_cases:
+        for i, case in enumerate(test_cases, 1):
             cid = case["id"]
             ctype = case["type"]
             query = case["query"]
             expected = case["ground_truth"]
 
+            print(f"[{i}/{len(test_cases)}] Evaluating query: '{query[:65]}'...")
             start_t = time.time()
             state = self.workflow.execute(user_query=query)
             duration_ms = (time.time() - start_t) * 1000
@@ -80,6 +101,7 @@ class BenchmarkEvaluator:
             verification = state.get("verification")
             faith_score = verification.faithfulness_score if verification else 0.0
             response_text = state.get("verified_response", "")
+            print(f"  ✓ Finished in {duration_ms:.0f}ms (Faithfulness: {faith_score})")
 
             # Guardrail evaluation
             is_rejected = "filtered" in response_text.lower() or "not found" in response_text.lower()
