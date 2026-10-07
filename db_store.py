@@ -1,9 +1,9 @@
-"""Database persistence module for OmniDoc."""
 import sqlite3
+import threading
 from pathlib import Path
 from datetime import datetime
 import json
-from typing import List, Dict, Any
+from typing import List, Dict, Any, Optional
 
 DB_PATH = Path(".data/omnidoc.db")
 DB_PATH.parent.mkdir(exist_ok=True, parents=True)
@@ -14,13 +14,21 @@ class OmniDocDB:
     
     def __init__(self):
         self.db_path = DB_PATH
-        self.conn = None
+        self._local = threading.local()
         self.init_db()
+
+    @property
+    def conn(self):
+        if not hasattr(self._local, "conn") or self._local.conn is None:
+            conn = sqlite3.connect(str(self.db_path), timeout=30.0, check_same_thread=False)
+            conn.row_factory = sqlite3.Row
+            conn.execute("PRAGMA journal_mode=WAL")
+            conn.execute("PRAGMA synchronous=NORMAL")
+            self._local.conn = conn
+        return self._local.conn
 
     def init_db(self):
         """Initialize database schema."""
-        self.conn = sqlite3.connect(str(self.db_path))
-        self.conn.row_factory = sqlite3.Row
         cursor = self.conn.cursor()
         
         # Documents table
@@ -48,6 +56,18 @@ class OmniDocDB:
             )
         """)
         
+        # Users table
+        cursor.execute("""
+            CREATE TABLE IF NOT EXISTS users (
+                id TEXT PRIMARY KEY,
+                email TEXT UNIQUE,
+                name TEXT,
+                provider TEXT,
+                avatar_url TEXT,
+                created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+            )
+        """)
+
         # Messages table
         cursor.execute("""
             CREATE TABLE IF NOT EXISTS messages (
@@ -56,10 +76,22 @@ class OmniDocDB:
                 role TEXT NOT NULL,
                 content TEXT NOT NULL,
                 images TEXT,
+                metadata TEXT,
                 timestamp TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
                 FOREIGN KEY (chat_id) REFERENCES chats(id) ON DELETE CASCADE
             )
         """)
+
+        # Safe schema migrations for existing databases
+        try:
+            cursor.execute("ALTER TABLE messages ADD COLUMN metadata TEXT")
+        except Exception:
+            pass
+
+        try:
+            cursor.execute("ALTER TABLE chats ADD COLUMN user_id TEXT DEFAULT 'usr_default'")
+        except Exception:
+            pass
         
         # Vector metadata (for retrieval tracking)
         cursor.execute("""
@@ -98,35 +130,74 @@ class OmniDocDB:
         """, (doc_id, filename, file_hash, size_bytes, file_type))
         self.conn.commit()
 
-    def create_chat(self, chat_id: str, document_id: str, title: str = "New Chat"):
+    def upsert_user(self, user_id: str, email: str, name: str, provider: str = "email", avatar_url: str = "") -> Dict[str, Any]:
+        """Insert or update user profile."""
+        cursor = self.conn.cursor()
+        cursor.execute("""
+            INSERT INTO users (id, email, name, provider, avatar_url)
+            VALUES (?, ?, ?, ?, ?)
+            ON CONFLICT(id) DO UPDATE SET
+                email = excluded.email,
+                name = excluded.name,
+                provider = excluded.provider,
+                avatar_url = excluded.avatar_url
+        """, (user_id, email, name, provider, avatar_url))
+        self.conn.commit()
+        return self.get_user(user_id)
+
+    def get_user(self, user_id: str) -> Optional[Dict[str, Any]]:
+        """Get user by ID."""
+        cursor = self.conn.cursor()
+        cursor.execute("SELECT * FROM users WHERE id = ?", (user_id,))
+        row = cursor.fetchone()
+        return dict(row) if row else None
+
+    def get_user_by_email(self, email: str) -> Optional[Dict[str, Any]]:
+        """Get user by email."""
+        cursor = self.conn.cursor()
+        cursor.execute("SELECT * FROM users WHERE email = ?", (email,))
+        row = cursor.fetchone()
+        return dict(row) if row else None
+
+    def create_chat(self, chat_id: str, document_id: Optional[str] = None, title: str = "New Chat", user_id: str = "usr_default"):
         """Create a new chat session."""
         cursor = self.conn.cursor()
         cursor.execute("""
-            INSERT INTO chats (id, document_id, title)
-            VALUES (?, ?, ?)
-        """, (chat_id, document_id, title))
+            INSERT INTO chats (id, document_id, title, user_id)
+            VALUES (?, ?, ?, ?)
+        """, (chat_id, document_id, title, user_id))
         self.conn.commit()
 
-    def get_chat(self, chat_id: str) -> Dict[str, Any]:
+    def get_chat(self, chat_id: str) -> Optional[Dict[str, Any]]:
         """Get chat details."""
         cursor = self.conn.cursor()
         cursor.execute("SELECT * FROM chats WHERE id = ?", (chat_id,))
         row = cursor.fetchone()
         return dict(row) if row else None
 
-    def add_message(self, chat_id: str, role: str, content: str, images: List[Dict] = None):
-        """Add a message to chat."""
+    def add_message(
+        self,
+        chat_id: str,
+        role: str,
+        content: str,
+        images: Optional[List[Dict]] = None,
+        metadata: Optional[Dict[str, Any]] = None
+    ) -> int:
+        """Add a message to chat with optional rich metadata (math, viz, citations, graph)."""
         cursor = self.conn.cursor()
-        images_json = json.dumps(images) if images else None
+        images_json = json.dumps(images, default=str) if images else None
+        metadata_json = json.dumps(metadata, default=str) if metadata else None
         cursor.execute("""
-            INSERT INTO messages (chat_id, role, content, images)
-            VALUES (?, ?, ?, ?)
-        """, (chat_id, role, content, images_json))
+            INSERT INTO messages (chat_id, role, content, images, metadata)
+            VALUES (?, ?, ?, ?, ?)
+        """, (chat_id, role, content, images_json, metadata_json))
+        # Update chat updated_at
+        cursor.execute("UPDATE chats SET updated_at = CURRENT_TIMESTAMP WHERE id = ?", (chat_id,))
         self.conn.commit()
         return cursor.lastrowid
 
     def get_messages(self, chat_id: str) -> List[Dict[str, Any]]:
-        """Get all messages in a chat."""
+        """Get all messages in a chat, deserializing images and metadata."""
         cursor = self.conn.cursor()
         cursor.execute("""
             SELECT * FROM messages WHERE chat_id = ? ORDER BY timestamp ASC
@@ -135,20 +206,32 @@ class OmniDocDB:
         messages = []
         for row in rows:
             msg = dict(row)
-            if msg['images']:
-                msg['images'] = json.loads(msg['images'])
+            if msg.get('images'):
+                try:
+                    msg['images'] = json.loads(msg['images'])
+                except Exception:
+                    pass
+            if msg.get('metadata'):
+                try:
+                    msg['metadata'] = json.loads(msg['metadata'])
+                except Exception:
+                    pass
             messages.append(msg)
         return messages
 
-    def get_all_chats(self, document_id: str = None) -> List[Dict[str, Any]]:
-        """Get all chats, optionally filtered by document."""
+    def get_all_chats(self, user_id: Optional[str] = None, document_id: Optional[str] = None) -> List[Dict[str, Any]]:
+        """Get all chats, optionally filtered by user and document."""
         cursor = self.conn.cursor()
+        query = "SELECT * FROM chats WHERE 1=1"
+        params = []
+        if user_id:
+            query += " AND user_id = ?"
+            params.append(user_id)
         if document_id:
-            cursor.execute("""
-                SELECT * FROM chats WHERE document_id = ? ORDER BY updated_at DESC
-            """, (document_id,))
-        else:
-            cursor.execute("SELECT * FROM chats ORDER BY updated_at DESC")
+            query += " AND document_id = ?"
+            params.append(document_id)
+        query += " ORDER BY updated_at DESC"
+        cursor.execute(query, tuple(params))
         rows = cursor.fetchall()
         return [dict(row) for row in rows]
 
@@ -163,7 +246,7 @@ class OmniDocDB:
     def add_search_record(self, chat_id: str, query: str, chunks: List[str], answer: str):
         """Record a search for analytics."""
         cursor = self.conn.cursor()
-        chunks_json = json.dumps(chunks)
+        chunks_json = json.dumps(chunks, default=str)
         cursor.execute("""
             INSERT INTO search_history (chat_id, query, retrieved_chunks, answer)
             VALUES (?, ?, ?, ?)
@@ -177,6 +260,19 @@ class OmniDocDB:
         row = cursor.fetchone()
         return dict(row) if row else None
 
+    def get_all_documents(self) -> List[Dict[str, Any]]:
+        """Get all registered documents."""
+        cursor = self.conn.cursor()
+        cursor.execute("SELECT * FROM documents ORDER BY upload_date DESC")
+        rows = cursor.fetchall()
+        return [dict(row) for row in rows]
+
+    def delete_document(self, doc_id: str):
+        """Delete a document and cascade to its associated records."""
+        cursor = self.conn.cursor()
+        cursor.execute("DELETE FROM documents WHERE id = ?", (doc_id,))
+        self.conn.commit()
+
     def delete_chat(self, chat_id: str):
         """Delete a chat and all its messages."""
         cursor = self.conn.cursor()
@@ -185,5 +281,6 @@ class OmniDocDB:
 
     def close(self):
         """Close database connection."""
-        if self.conn:
-            self.conn.close()
+        if hasattr(self._local, "conn") and self._local.conn:
+            self._local.conn.close()
+            self._local.conn = None
