@@ -1,217 +1,121 @@
-# 🎓 OmniDoc — Enterprise Agentic Graph RAG & Document Intelligence
+# OmniDoc
 
-[![Python 3.9+](https://img.shields.io/badge/python-3.9+-blue.svg)](https://www.python.org/downloads/)
-[![LangGraph](https://img.shields.io/badge/orchestration-LangGraph-orange.svg)](https://github.com/langchain-ai/langgraph)
-[![Kùzu DB](https://img.shields.io/badge/graph-Kùzu_DB-purple.svg)](https://kuzudb.com)
-[![LanceDB](https://img.shields.io/badge/vectors-LanceDB-green.svg)](https://lancedb.com)
-[![Docling](https://img.shields.io/badge/parser-IBM_Docling-red.svg)](https://github.com/DS4SD/docling)
-[![Privacy-First](https://img.shields.io/badge/privacy-100%25_local_offline-success.svg)](#)
+OmniDoc is a local-first document intelligence workspace. Add PDFs, Word files, text or Markdown, then ask questions in plain language. A team of agents searches the documents, walks a knowledge graph built from them, reads their figures, runs exact calculations and writes an answer in which every claim cites the passage it came from. A verifier then checks the answer against those sources and says how well it is supported.
 
-**OmniDoc** is an advanced, local-first **Agentic Graph RAG (Retrieval-Augmented Generation)** and document intelligence platform. It transforms unstructured enterprise documents (PDFs, DOCX, complex financial reports, technical manuals) into structured knowledge graphs and hybrid vector indices, executing natural language queries through collaborative multi-agent reasoning, deterministic mathematical sandboxing, and strict groundedness guardrails.
+Everything runs on your machine through [Ollama](https://ollama.com). Documents, vectors, the graph and conversations stay in a local data folder.
 
----
+## What you can do
 
-## 🌟 Key Capabilities
+- **Ask with citations.** Answers cite numbered sources (`[1]`, `[2]`) that open the exact passage, page and section. Each answer shows a verification badge: supported, partly supported, or not verified.
+- **Watch the agents work.** Every step (understanding the question, planning, searching, reading figures, computing, writing, verifying) streams to the UI as it runs.
+- **Explore the knowledge globe.** Entities and relations extracted from your documents are laid out on an interactive 3D globe: communities cluster together, related entities sit near each other, and you can search, filter by document or category, inspect an entity and ask about it.
+- **Get charts and calculations from the evidence.** Charts are drawn only from numbers present in the sources, with a table view and CSV/SVG export. Calculations run in a restricted SymPy evaluator and show their formula, inputs and assumptions.
+- **Read figures.** Charts, diagrams and scanned images inside PDFs are read by a local vision model.
+- **Ask in Indian languages.** Answers can be written in Hindi, Marathi, Tamil, Telugu, Kannada, Assamese, Bengali or Gujarati, with voice input and read-aloud in the browser.
+- **Export reports.** Any conversation exports to PDF or Word, with sources, calculations and tables.
 
-- **Layout-Aware Document Parsing:** Employs **IBM Docling** to extract document layout ASTs, headers, hierarchical reading order, complex tables, and embedded figures.
-- **Dual-Engine Hybrid Storage:**
-  - **Knowledge Graph (Kùzu):** Embedded Cypher property graph modeling document hierarchy, chunks, and extracted entity-relation triples.
-  - **Hybrid Vector + Lexical Search (LanceDB):** Dense vector similarity (`nomic-embed-text`) + Tantivy BM25 full-text keyword retrieval.
-  - **Neural Cross-Encoder Reranker:** Re-scores and compresses top-k candidates before LLM ingestion.
-- **Collaborative Multi-Agent Architecture (LangGraph):**
-  - **Context & Memory Agent:** Multi-turn conversational context tracking and anaphora resolution (e.g., resolving pronouns like *"them"*, *"it"*, *"that"*).
-  - **Query Planner & Supervisor:** Decomposes complex user goals into dynamic DAG plan steps with dependency tracking.
-  - **Mathematical Reasoning Agent:** Sandboxed Python runtime (SymPy & NumPy) computing exact financial formulas (CAGR, margin changes, statistics) without LLM arithmetic hallucination.
-  - **Data Visualization Agent:** Synthesizes interactive Plotly chart specifications directly from document tables.
-  - **Conflict & Discrepancy Resolution:** Audits cross-document contradictions and reports discrepancies with explicit rationales.
-  - **Temporal Reasoning Agent:** Reconstructs chronological event timelines and handles versioned document facts.
-  - **Multilingual Agent:** Automatic language detection and cross-lingual translation.
-  - **Cited Synthesis Agent:** Generates grounded answers with strict citation superscripts and inline LaTeX equations.
-- **Enterprise Multi-Layer Guardrails:**
-  - **Zero-Keyword Semantic NLU:** Deep intent and constraint extraction without rigid keyword lists.
-  - **Input Scope & Adversarial Guard:** Blocks prompt injections, malicious jailbreaks, and off-topic requests.
-  - **Execution Budget Guard:** Enforces step and token limits to prevent infinite cyclic reflection loops.
-  - **Output Groundedness & NLI Guard:** Natural Language Inference verification scoring factual alignment between answer and evidence.
-- **Enterprise Persistence:** Dual PostgreSQL persistence with automatic zero-configuration SQLite fallback.
-
----
-
-## 🏛️ System Architecture
+## How a question is answered
 
 ```text
-                                  User Query
-                                      │
-                                      ▼
-                       ┌─────────────────────────────┐
-                       │  Input & Adversarial Guard  │
-                       └──────────────┬──────────────┘
-                                      ▼
-                       ┌─────────────────────────────┐
-                       │  Context & Memory Resolver  │ (Anaphora resolution)
-                       └──────────────┬──────────────┘
-                                      ▼
-                       ┌─────────────────────────────┐
-                       │     Dynamic DAG Planner     │
-                       └──────────────┬──────────────┘
-                                      ▼
-                    ┌───────────────────────────────────┐
-                    │    Supervisor Orchestrator        │
-                    └───┬─────────────┬─────────────┬───┘
-                        │             │             │
-        ┌───────────────┴────┐ ┌──────┴──────┐ ┌────┴────────────────┐
-        │  Hybrid Retrieval  │ │ Graph RAG   │ │ Multimodal Vision   │
-        │ (LanceDB + Tantivy)│ │ (Kùzu Graph)│ │ (MPS / GPU Fallback)│
-        └───────────────┬────┘ └──────┬──────┘ └────┬────────────────┘
-                        └─────────────┼─────────────┘
-                                      ▼
-                       ┌─────────────────────────────┐
-                       │ Neural Evidence Compression │
-                       └──────────────┬──────────────┘
-                                      ▼
-                        Specialized Reasoning Agents
-                        ├─ Mathematical Reasoning (SymPy / NumPy)
-                        ├─ Data Visualization (Interactive Plotly)
-                        ├─ Conflict & Discrepancy Resolution
-                        └─ Temporal Event Timeline Ordering
-                                      │
-                                      ▼
-                       ┌─────────────────────────────┐
-                       │    Cited Synthesis Agent    │ (Citations + LaTeX)
-                       └──────────────┬──────────────┘
-                                      ▼
-                       ┌─────────────────────────────┐
-                       │   NLI Output Guardrail      │ (Hallucination audit)
-                       └──────────────┬──────────────┘
-                                      ▼
-                           Streamlit Dashboard UI
+question
+  → input guard           blocks prompt injection and abuse, allows sensitive topics found in your documents
+  → context resolution    resolves "it", "that company", ... from the conversation
+  → understanding         entities, constraints, intent
+  → planner + supervisor  decide which agents the question needs
+  → entity resolution, query expansion
+  → retrieval             hybrid search (LanceDB vectors + BM25, reciprocal rank fusion, cross-encoder rerank)
+                          knowledge-graph neighbourhood (Kùzu)
+                          figure reading (local vision model)
+  → evidence selection    one numbered evidence list shared by every later step
+  → conflict check        flags sources that disagree
+  → math, charts          only from numbers in the evidence
+  → cited synthesis       answer with [n] citations
+  → output guard          claim-by-claim check against the evidence; one rewrite if claims are unsupported
 ```
 
----
+Documents are parsed with PyMuPDF (fast mode, used for uploads) or IBM Docling, chunked by section, embedded with `nomic-embed-text` and indexed. Knowledge-graph extraction runs in the background after upload, so documents are searchable immediately and the graph fills in over a few minutes.
 
-## 🗂️ Project Structure
+## Quick start
 
-```text
-OmniDoc/
-├── agents/                       # Specialized LangGraph task agents
-│   ├── context_memory_agent.py   # Multi-turn conversational memory & pronoun resolution
-│   ├── query_planner.py          # Dynamic DAG plan generator with step dependencies
-│   ├── supervisor.py             # DAG execution monitor and router
-│   ├── hybrid_agent.py           # LanceDB dense vector + BM25 retrieval agent
-│   ├── graph_agent.py            # Kùzu property graph Cypher traversal agent
-│   ├── math_agent.py             # Deterministic SymPy/NumPy math execution runtime
-│   ├── visualization_agent.py    # Plotly interactive chart synthesis agent
-│   ├── conflict_resolution_agent.py # Cross-source contradiction analysis agent
-│   ├── temporal_reasoning_agent.py  # Chronological ordering and timeline agent
-│   ├── evidence_selection_agent.py  # Neural compression and reranking agent
-│   ├── entity_resolution_agent.py   # Canonical entity linking agent
-│   ├── query_expansion_agent.py     # Sub-query and synonym expansion
-│   ├── structured_data_agent.py     # Read-only SQL and table extraction
-│   ├── vision_agent.py              # Multimodal image and figure analysis
-│   └── synthesis_agent.py           # Cited synthesis with LaTeX and chart links
-├── core/                         # Orchestration & State Contracts
-│   ├── state.py                  # Pydantic schemas, agent state, evidence packages
-│   ├── workflow.py               # LangGraph compiled cyclic state machine
-│   └── pipeline.py               # End-to-end coordinator (Ingestion + Querying)
-├── graph/                        # Embedded Property Graph
-│   ├── schema.py                 # Cypher DDL (Documents, Chunks, Entities, Triples)
-│   ├── store.py                  # Embedded Kùzu database client
-│   └── extractor.py              # LLM triple extraction pipeline
-├── retrieval/                    # Hybrid Retrieval Engine
-│   ├── lancedb_store.py          # LanceDB vector + Tantivy BM25 full-text store
-│   ├── reranker.py               # Neural cross-encoder chunk reranker
-│   └── embeddings.py             # Local embedding service (`nomic-embed-text`)
-├── guardrails/                   # Security, NLU & Verification
-│   ├── semantic_nlu.py           # Zero-keyword query intent & constraint extractor
-│   ├── input_guard.py            # Prompt injection and scope auditor
-│   ├── intent_classifier.py      # Multi-label capability mapper
-│   ├── execution_guard.py        # Loop budget and token guard
-│   └── output_guard.py           # NLI groundedness verifier & LaTeX repair
-├── parsing/                      # Layout-Aware Document Ingestion
-│   └── docling_parser.py         # IBM Docling AST parser & chunker
-├── db/                           # Persistence Layer
-│   └── connection.py             # PostgreSQL connection pool with SQLite fallback
-├── evaluation/                   # SOTA Benchmark Harness
-│   ├── eval_harness.py           # Automated evaluation harness
-│   ├── benchmark_dataset.json    # Standard benchmark query suite
-│   └── run_benchmarks.py         # Evaluation CLI runner
-├── tests/                        # Regression & Verification Test Suites
-│   ├── test_agentic_rag_full.py  # Unit and multi-agent capability tests
-│   └── test_full_pipeline_query.py # End-to-end workflow DAG query test
-├── app.py                        # Streamlit dashboard orchestrator
-├── chat_ui.py                    # Streamlit chat component
-├── requirements.txt              # Production dependency specifications
-└── PROJECT_AUDIT.md              # Technical audit and architectural capability matrix
-```
+**Requirements:** Python 3.9+, Node.js 20+, and Ollama.
 
----
-
-## ⚡ Quick Start
-
-### 1. Prerequisites
-- **Python 3.9+** (recommended: Python 3.11 / 3.12)
-- **[Ollama](https://ollama.ai)** installed and running locally
-
-### 2. Pull Required Models
 ```bash
-ollama serve
+# 1. Models
+ollama pull qwen2.5:7b-instruct      # reasoning and writing
+ollama pull nomic-embed-text         # embeddings
+ollama pull qwen3.5:9b               # optional: reads figures (gemma4:12b also works)
 
-# LLM for multi-agent reasoning & synthesis
-ollama pull qwen2.5:7b-instruct
-
-# High-performance local embedding model
-ollama pull nomic-embed-text
-```
-
-### 3. Installation
-Clone the repository and install dependencies:
-```bash
-git clone https://github.com/muditagrawal03/OmniDoc.git
-cd OmniDoc
-
-# Create and activate virtual environment
-python3 -m venv .venv
-source .venv/bin/activate
-
-# Install requirements
+# 2. Backend (http://127.0.0.1:8000)
+python3 -m venv .venv && source .venv/bin/activate
 pip install -r requirements.txt
+python server.py
+
+# 3. Frontend (http://localhost:5173)
+cd frontend
+npm install
+npm run dev
 ```
 
-### 4. Launch the Dashboard
+PDF export uses WeasyPrint, which needs Pango on macOS: `brew install pango`.
+
+The first run downloads the cross-encoder reranker (`cross-encoder/ms-marco-MiniLM-L-6-v2`) from Hugging Face; after that OmniDoc works offline.
+
+## Configuration
+
+| Variable | Default | Purpose |
+| --- | --- | --- |
+| `OMNIDOC_MODEL` | `qwen2.5:7b-instruct` | Ollama model for every reasoning step (also switchable in the app) |
+| `OMNIDOC_VISION_MODEL` | first installed of `qwen3.5:9b`, `gemma4:12b`, `qwen2.5vl:7b`, `llama3.2-vision:11b` | Model that reads figures |
+| `OMNIDOC_VISION_MAX_FIGURES` | `2` | Figures read per question |
+| `OMNIDOC_DATA_DIR` | `./.data` | Database, vectors, graph, uploads and figures |
+| `OMNIDOC_GRAPH_CHUNKS` | `40` | Sections per document used for graph extraction |
+| `OMNIDOC_NUM_CTX` | `8192` | Context window requested from Ollama |
+| `OMNIDOC_LLM_TIMEOUT` / `OMNIDOC_EMBED_TIMEOUT` | `300` / `120` | Request timeouts in seconds |
+| `OMNIDOC_RERANKER_MODEL` | `cross-encoder/ms-marco-MiniLM-L-6-v2` | Reranker |
+| `OMNIDOC_MAX_UPLOAD_MB` | `100` | Upload size limit |
+| `OMNIDOC_CORS_ORIGINS` | local Vite dev and preview origins | Browser origins allowed to call the API |
+| `OMNIDOC_HOST` / `OMNIDOC_PORT` | `127.0.0.1` / `8000` | API address |
+| `OMNIDOC_WARMUP` | `1` | Load models in the background when the server starts |
+| `OLLAMA_HOST` | `http://localhost:11434` | Ollama address |
+| `VITE_API_BASE` | same origin (Vite proxies `/api`) | API base URL for the frontend build |
+
+## Project layout
+
+```text
+server.py              FastAPI API: profiles and sessions, conversations, streaming queries, documents, graph, export
+db_store.py            SQLite persistence
+core/                  LangGraph workflow, shared state, pipeline (ingestion + querying)
+agents/                planner, supervisor, retrieval, graph, vision, evidence, conflict, math, charts, synthesis, citations
+guardrails/            input guard, intent, semantic NLU, execution budget, output verification
+retrieval/             LanceDB store, embeddings, reranker
+graph/                 Kùzu store, schema, triple extraction
+parsing/               Docling and PyMuPDF parsing, chunking, figure extraction
+export/                PDF (WeasyPrint) and Word (python-docx) reports
+frontend/              React 19 + TypeScript app: chat, library, knowledge globe (three.js), charts
+tests/                 API, export and agent tests
+evaluation/            small hand-written example harness
+```
+
+`app.py` is the earlier Streamlit prototype; the React app is the maintained interface.
+
+## Tests
+
 ```bash
-streamlit run app.py
-```
-Open your browser at `http://localhost:8501`.
-
----
-
-## 🧪 Testing & Evaluation
-
-### Run Multi-Agent Capability Tests
-```bash
-python -m unittest tests/test_agentic_rag_full.py
+pytest tests/test_grounding.py tests/test_server_endpoints.py tests/test_report_compiler.py   # fast, no model calls
+pytest tests/test_agentic_rag_full.py                                                     # calls the local model
+cd frontend && npx tsc -p tsconfig.app.json --noEmit && npx oxlint src && npm run build
 ```
 
-### Run End-to-End Pipeline DAG Query
-```bash
-python tests/test_full_pipeline_query.py
-```
+The API tests run against a temporary data folder and never touch `.data/`.
 
-### Run SOTA Benchmark Evaluation Harness
-```bash
-python evaluation/run_benchmarks.py
-```
-*Generates automated groundedness, faithfulness, latency (P50/P95), and guardrail rejection metrics saved to `evaluation/benchmark_report.json`.*
+## Evaluation
 
----
+`evaluation/` runs a few hand-written questions as a smoke test; its numbers are not benchmark results. Public benchmarks that fit OmniDoc include OmniDocBench and olmOCR-Bench (parsing), MultiHop-RAG and FinanceBench (cited QA), GraphRAG-Bench (graph retrieval), MMLongBench-Doc and UniDoc-Bench (long multimodal documents), ViDoRe v3 (visual retrieval) and RAGTruth (hallucination detection).
 
-## 🔒 Privacy & Security
+## Privacy
 
-OmniDoc is designed for enterprise confidentiality:
-- **Zero Third-Party Cloud Dependencies:** Embeddings, graph storage, vector indexing, and LLM inference operate strictly on your local machine or self-hosted server.
-- **Air-Gapped Compatible:** Can run completely offline without an active internet connection.
-- **Strict Data Sanitization:** Input guardrails strip prompt injections and dangerous execution sequences prior to agent reasoning.
+Inference, embeddings, figure reading, storage and export all run locally. The API accepts browser requests only from the local frontend origins, sessions use opaque tokens, and conversations are private to the profile that created them. Fonts and libraries are bundled with the frontend, so the app makes no third-party requests.
 
----
+## License
 
-## 📄 License
-This project is open-source under the MIT License.
+MIT
