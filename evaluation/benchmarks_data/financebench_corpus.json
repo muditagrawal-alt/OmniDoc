@@ -1,0 +1,60 @@
+[
+  {
+    "doc_id": "financebench_aapl_10k",
+    "title": "Apple Inc. Form 10-K Audited Consolidated Financial Statements",
+    "chunks": [
+      {
+        "chunk_id": "fb_aapl_c1",
+        "section": "Consolidated Statements of Operations (FY2021-FY2024)",
+        "page_number": 48,
+        "text": "Apple Inc. Consolidated Statements of Operations (in millions, except per share amounts):\n- Fiscal Year Ended Sept 25, 2021: Total Net Sales: $365,817; Cost of Sales: $212,981; Gross Margin: $152,836; Operating Expenses: $43,887; Operating Income: $108,949; Net Income: $94,680.\n- Fiscal Year Ended Sept 24, 2022: Total Net Sales: $394,328; Cost of Sales: $223,546; Gross Margin: $170,782; Operating Expenses: $51,345; Operating Income: $119,437; Net Income: $99,803.\n- Fiscal Year Ended Sept 30, 2023: Total Net Sales: $383,285; Cost of Sales: $214,137; Gross Margin: $169,148; Operating Expenses: $54,847; Operating Income: $114,301; Net Income: $96,995.\n- Fiscal Year Ended Sept 28, 2024: Total Net Sales: $391,035; Cost of Sales: $210,352; Gross Margin: $180,683; Operating Expenses: $57,467; Operating Income: $123,216; Net Income: $93,736.",
+        "entities": [
+          {"name": "Apple Inc.", "category": "Organization", "description": "Consumer electronics and technology company"},
+          {"name": "Net Sales", "category": "Metric", "description": "Total consolidated revenue"},
+          {"name": "Operating Income", "category": "Metric", "description": "Operating profit before taxes"},
+          {"name": "Gross Margin", "category": "Metric", "description": "Revenue minus cost of sales"}
+        ],
+        "relations": [
+          {"source": "Apple Inc.", "target": "Net Sales", "relation": "REPORTS", "description": "Reported $391,035M in FY2024 Net Sales"},
+          {"source": "Apple Inc.", "target": "Operating Income", "relation": "REPORTS", "description": "Reported $123,216M in FY2024 Operating Income"}
+        ]
+      },
+      {
+        "chunk_id": "fb_aapl_c2",
+        "section": "Segment Revenue Breakdown (Products and Services)",
+        "page_number": 51,
+        "text": "Apple Inc. Segment Revenue Summary (in millions):\n- iPhone Revenue: FY2022: $205,489; FY2023: $200,583; FY2024: $201,183.\n- Services Revenue (App Store, Cloud, Apple Pay, Apple Music): FY2022: $78,129; FY2023: $85,200; FY2024: $96,169.\n- Mac Revenue: FY2022: $40,177; FY2023: $29,357; FY2024: $29,984.\n- iPad Revenue: FY2022: $29,292; FY2023: $28,300; FY2024: $26,694.\n- Wearables, Home and Accessories: FY2022: $41,241; FY2023: $39,845; FY2024: $37,005.",
+        "entities": [
+          {"name": "Apple Inc.", "category": "Organization", "description": "Consumer electronics and technology company"},
+          {"name": "Services Segment", "category": "Component", "description": "High-margin digital services and subscriptions"},
+          {"name": "iPhone Segment", "category": "Component", "description": "Hardware smartphone product line"}
+        ],
+        "relations": [
+          {"source": "Apple Inc.", "target": "Services Segment", "relation": "OPERATES", "description": "Services revenue grew from $78,129M in FY22 to $96,169M in FY24"},
+          {"source": "Apple Inc.", "target": "iPhone Segment", "relation": "OPERATES", "description": "iPhone generated $201,183M in FY24"}
+        ]
+      }
+    ]
+  },
+  {
+    "doc_id": "financebench_msft_10k",
+    "title": "Microsoft Corp Form 10-K Audited Financial Statements",
+    "chunks": [
+      {
+        "chunk_id": "fb_msft_c1",
+        "section": "Income Statements and Cloud Margins",
+        "page_number": 62,
+        "text": "Microsoft Corp Financial Operations (in millions):\n- FY2022 (Ended June 30, 2022): Total Revenue: $198,270; Operating Income: $83,383; Net Income: $72,738; Intelligent Cloud Revenue: $75,251.\n- FY2023 (Ended June 30, 2023): Total Revenue: $211,915; Operating Income: $88,523; Net Income: $72,361; Intelligent Cloud Revenue: $87,907.\n- FY2024 (Ended June 30, 2024): Total Revenue: $245,122; Operating Income: $109,433; Net Income: $88,136; Intelligent Cloud Revenue: $105,362.",
+        "entities": [
+          {"name": "Microsoft Corp", "category": "Organization", "description": "Cloud and enterprise software company"},
+          {"name": "Intelligent Cloud", "category": "Component", "description": "Server products and Azure cloud services"},
+          {"name": "Operating Income", "category": "Metric", "description": "Operating profit"}
+        ],
+        "relations": [
+          {"source": "Microsoft Corp", "target": "Intelligent Cloud", "relation": "OPERATES", "description": "Intelligent Cloud grew to $105,362M in FY24"},
+          {"source": "Microsoft Corp", "target": "Operating Income", "relation": "REPORTS", "description": "Operating Income reached $109,433M in FY24"}
+        ]
+      }
+    ]
+  }
+]
