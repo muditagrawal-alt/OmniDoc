@@ -5,8 +5,9 @@ multi-label intent classification, dynamic DAG query planning, sandboxed mathema
 interactive Plotly visualizations, neural evidence selection, conflict audits, cited synthesis,
 and self-healing reflection loops.
 """
+import time
 import logging
-from typing import Dict, Any, Literal, List, Optional
+from typing import Dict, Any, Literal, List, Optional, Iterator, Tuple
 from langgraph.graph import StateGraph, END
 
 from core.state import (
@@ -38,6 +39,84 @@ from agents.visualization_agent import VisualizationAgent
 from agents.synthesis_agent import SynthesisAgent
 
 logger = logging.getLogger("OmniDoc.Workflow")
+
+# Human-readable names for each graph node, shown as live progress in the UI.
+NODE_LABELS: Dict[str, str] = {
+    "context_resolution": "Resolving conversation context",
+    "semantic_nlu": "Understanding the question",
+    "intent_classification": "Classifying intent",
+    "rejection_node": "Checking scope",
+    "query_planner": "Planning",
+    "supervisor": "Coordinating agents",
+    "entity_resolution": "Resolving entities",
+    "query_expansion": "Expanding the query",
+    "hybrid_retrieval": "Searching documents",
+    "graph_retrieval": "Traversing the knowledge graph",
+    "vision_retrieval": "Reading figures",
+    "evidence_selection": "Selecting evidence",
+    "conflict_resolution": "Checking for conflicting sources",
+    "math_reasoning": "Computing",
+    "visualization": "Building charts",
+    "synthesis_agent": "Writing the answer",
+    "output_guard": "Verifying against sources",
+    "reflection_node": "Revising unsupported claims",
+}
+
+
+def _plural(n: int, word: str) -> str:
+    if n == 1:
+        return f"1 {word}"
+    if word.endswith("y"):
+        return f"{n} {word[:-1]}ies"
+    return f"{n} {word}s"
+
+
+def describe_step(node: str, update: Optional[Dict[str, Any]]) -> str:
+    """Short factual summary of what a node produced (empty string if nothing notable)."""
+    if not update:
+        return ""
+    try:
+        if node == "semantic_nlu":
+            sq = update.get("semantic_query")
+            ents = list(getattr(sq, "entities", []) or [])[:4]
+            return ("Entities: " + ", ".join(ents)) if ents else ""
+        if node == "intent_classification":
+            ir = update.get("intent_result")
+            return str(getattr(ir, "primary_intent", "") or "").replace("_", " ")
+        if node == "query_planner":
+            plan = update.get("execution_plan")
+            steps = getattr(plan, "steps", None) or []
+            return _plural(len(steps), "step") if steps else ""
+        if node == "hybrid_retrieval":
+            return _plural(len(update.get("chunk_context") or []), "passage")
+        if node == "graph_retrieval":
+            subgraphs = update.get("graph_context") or []
+            nodes = sum(len(g.get("nodes", [])) for g in subgraphs if isinstance(g, dict))
+            edges = sum(len(g.get("edges", [])) for g in subgraphs if isinstance(g, dict))
+            return f"{_plural(nodes, 'entity')}, {_plural(edges, 'relation')}"
+        if node == "evidence_selection":
+            pkg = update.get("evidence_package")
+            items = getattr(pkg, "items", None) or []
+            return f"Kept {len(items)}" if items else ""
+        if node == "conflict_resolution":
+            n = len(update.get("conflicts") or [])
+            return _plural(n, "conflict") if n else "None found"
+        if node == "math_reasoning":
+            n = len(update.get("math_results") or [])
+            return _plural(n, "calculation") if n else ""
+        if node == "visualization":
+            n = len(update.get("visual_artifacts") or [])
+            return _plural(n, "chart") if n else ""
+        if node == "output_guard":
+            v = update.get("verification")
+            score = getattr(v, "faithfulness_score", None)
+            if score is not None and getattr(v, "cited_sources", None) is not None:
+                return f"Faithfulness {float(score):.2f}"
+        if node == "reflection_node":
+            return str(update.get("reflection_feedback") or "")[:160]
+    except Exception:  # descriptions are cosmetic; never break a run
+        return ""
+    return ""
 
 
 class OmniDocWorkflow:
@@ -160,8 +239,9 @@ class OmniDocWorkflow:
             }
         )
 
-        # 11. Reflection loop routes back to hybrid retrieval for context refinement
-        builder.add_edge("reflection_node", "hybrid_retrieval")
+        # 11. Reflection re-synthesizes with the verifier's feedback. (Re-running
+        # retrieval with an unchanged query only duplicated the accumulated evidence.)
+        builder.add_edge("reflection_node", "synthesis_agent")
 
         return builder.compile()
 
@@ -342,32 +422,35 @@ class OmniDocWorkflow:
 
     def _route_after_output_guard(self, state: AgentWorkflowState) -> Literal["accept", "reflect"]:
         verification = state.get("verification")
-        iter_count = state.get("iteration_count", 0)
-        max_iters = state.get("max_iterations", 2)
+        reflections = state.get("reflection_count", 0)
+        max_reflections = state.get("max_iterations", 1)
 
-        if not verification or verification.action == "accept" or iter_count >= max_iters:
+        if not verification or verification.action == "accept" or reflections >= max_reflections:
             return "accept"
         return "reflect"
 
     def _reflection_step(self, state: AgentWorkflowState) -> Dict[str, Any]:
         verification = state.get("verification")
-        feedback = verification.feedback if verification else "Insufficient citations or groundedness detected."
-        curr_iter = state.get("iteration_count", 0) + 1
-        logger.info(f"🔄 Reflection Loop Triggered (Iteration {curr_iter}): {feedback}")
+        feedback = verification.feedback if verification and verification.feedback else "Some claims were not supported by the cited evidence."
+        unsupported = list(getattr(verification, "unsupported_claims", []) or [])
+        if unsupported:
+            feedback = feedback + " Unsupported claims: " + "; ".join(unsupported[:6])
+        count = state.get("reflection_count", 0) + 1
+        logger.info(f"Reflection {count}: {feedback}")
         return {
-            "iteration_count": curr_iter,
+            "reflection_count": count,
+            "reflection_feedback": feedback,
             "errors": [f"Reflection triggered: {feedback}"]
         }
 
-    def execute(
+    def _initial_state(
         self,
         user_query: str,
-        document_ids: list = None,
+        document_ids: Optional[list] = None,
         session_id: str = "default_session",
-        conversation_history: list = None
-    ) -> Dict[str, Any]:
-        """Executes the compiled LangGraph workflow end-to-end."""
-        initial_state: AgentWorkflowState = {
+        conversation_history: Optional[list] = None
+    ) -> AgentWorkflowState:
+        return {
             "session_id": session_id,
             "user_query": user_query,
             "document_ids": document_ids or [],
@@ -387,13 +470,57 @@ class OmniDocWorkflow:
             "conflicts": [],
             "draft_response": "",
             "verified_response": "",
+            "sources": [],
             "verification": None,
             "iteration_count": 0,
             "max_iterations": 1,
+            "reflection_count": 0,
+            "reflection_feedback": None,
             "errors": [],
             "agent_traces": [],
             "conversation_history": conversation_history or [],
             "is_complete": False
         }
+
+    def execute(
+        self,
+        user_query: str,
+        document_ids: list = None,
+        session_id: str = "default_session",
+        conversation_history: list = None
+    ) -> Dict[str, Any]:
+        """Executes the compiled LangGraph workflow end-to-end."""
+        initial_state = self._initial_state(user_query, document_ids, session_id, conversation_history)
         return self.graph.invoke(initial_state, config={"recursion_limit": 50})
 
+    def execute_stream(
+        self,
+        user_query: str,
+        document_ids: list = None,
+        session_id: str = "default_session",
+        conversation_history: list = None
+    ) -> Iterator[Tuple[str, Dict[str, Any]]]:
+        """
+        Runs the workflow and yields ("step", {...}) after every node, then
+        ("result", final_state). Step dicts: node, label, detail, duration_ms, skipped.
+        """
+        initial_state = self._initial_state(user_query, document_ids, session_id, conversation_history)
+        final_state: Dict[str, Any] = dict(initial_state)
+        last = time.perf_counter()
+        for mode, chunk in self.graph.stream(
+            initial_state, config={"recursion_limit": 50}, stream_mode=["updates", "values"]
+        ):
+            if mode == "values":
+                final_state = chunk
+                continue
+            now = time.perf_counter()
+            for node, update in (chunk or {}).items():
+                yield "step", {
+                    "node": node,
+                    "label": NODE_LABELS.get(node, node.replace("_", " ").capitalize()),
+                    "detail": describe_step(node, update),
+                    "duration_ms": int((now - last) * 1000),
+                    "skipped": not update,
+                }
+            last = now
+        yield "result", final_state
