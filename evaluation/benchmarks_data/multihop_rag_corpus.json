@@ -1,0 +1,75 @@
+[
+  {
+    "doc_id": "multihop_doc_01",
+    "title": "DeepSeek AI Infrastructure and Founding Architecture",
+    "chunks": [
+      {
+        "chunk_id": "mh_c1_01",
+        "section": "Founding and Corporate Heritage",
+        "page_number": 1,
+        "text": "DeepSeek AI is an artificial intelligence research laboratory founded by Liang Wenfeng in Hangzhou, China. Prior to founding DeepSeek in 2023, Liang Wenfeng founded High-Flyer Quant (Zhejiang Jiuzhang Asset Management) in 2015, a quantitative hedge fund that pioneered algorithmic and deep learning strategies for financial markets.",
+        "entities": [
+          {"name": "DeepSeek AI", "category": "Organization", "description": "AI research lab founded in 2023"},
+          {"name": "Liang Wenfeng", "category": "Person", "description": "Founder of DeepSeek AI and High-Flyer Quant"},
+          {"name": "High-Flyer Quant", "category": "Organization", "description": "Quantitative hedge fund founded in 2015"}
+        ],
+        "relations": [
+          {"source": "Liang Wenfeng", "target": "DeepSeek AI", "relation": "FOUNDED", "description": "Founded DeepSeek AI in 2023"},
+          {"source": "Liang Wenfeng", "target": "High-Flyer Quant", "relation": "FOUNDED", "description": "Founded High-Flyer Quant in 2015"}
+        ]
+      },
+      {
+        "chunk_id": "mh_c1_02",
+        "section": "Supercomputing Infrastructure",
+        "page_number": 1,
+        "text": "To support intense computational requirements, High-Flyer Quant engineered and deployed the Fire-Flyer 2 supercomputing cluster. The Fire-Flyer 2 cluster integrates over 10,000 PCIe-connected GPUs interconnected with high-throughput 200 Gbps InfiniBand fabrics, providing the foundational compute backbone later leveraged by DeepSeek for distributed model training.",
+        "entities": [
+          {"name": "High-Flyer Quant", "category": "Organization", "description": "Quantitative hedge fund founded in 2015"},
+          {"name": "Fire-Flyer 2", "category": "Technology", "description": "Supercomputing cluster with over 10,000 GPUs"},
+          {"name": "InfiniBand", "category": "Technology", "description": "High-throughput 200 Gbps interconnect fabric"}
+        ],
+        "relations": [
+          {"source": "High-Flyer Quant", "target": "Fire-Flyer 2", "relation": "DEVELOPED", "description": "Engineered and deployed Fire-Flyer 2 cluster"},
+          {"source": "Fire-Flyer 2", "target": "InfiniBand", "relation": "USES", "description": "Interconnected with 200 Gbps InfiniBand"}
+        ]
+      }
+    ]
+  },
+  {
+    "doc_id": "multihop_doc_02",
+    "title": "DeepSeek Architecture Innovations: MLA and DualPipe",
+    "chunks": [
+      {
+        "chunk_id": "mh_c2_01",
+        "section": "Multi-Head Latent Attention",
+        "page_number": 2,
+        "text": "DeepSeek-V3 introduced Multi-Head Latent Attention (MLA), a compression architecture that projects Key-Value matrices into low-dimensional latent vectors during inference. By compressing the KV cache by over 93% compared to standard Multi-Head Attention, MLA allows DeepSeek-V3 to serve 128k context windows with dramatically reduced GPU memory footprints.",
+        "entities": [
+          {"name": "DeepSeek-V3", "category": "Model", "description": "671B parameter Mixture-of-Experts language model"},
+          {"name": "Multi-Head Latent Attention", "category": "Method", "description": "Low-rank KV cache compression mechanism"},
+          {"name": "KV Cache", "category": "Component", "description": "Key-value activation memory buffer"}
+        ],
+        "relations": [
+          {"source": "DeepSeek-V3", "target": "Multi-Head Latent Attention", "relation": "IMPLEMENTS", "description": "Introduced MLA to compress inference KV cache"},
+          {"source": "Multi-Head Latent Attention", "target": "KV Cache", "relation": "COMPRESSES", "description": "Compresses KV cache by over 93%"}
+        ]
+      },
+      {
+        "chunk_id": "mh_c2_02",
+        "section": "DualPipe Pipeline Parallelism",
+        "page_number": 2,
+        "text": "To achieve efficient distributed scaling across the Fire-Flyer 2 infrastructure, DeepSeek engineered DualPipe, an overlapping pipeline parallelism algorithm. DualPipe overlaps forward and backward computation bubbles with cross-node communication phases, slashing pipeline latency bubbles by 50% compared to 1F1B scheduling.",
+        "entities": [
+          {"name": "DualPipe", "category": "Method", "description": "Overlapping bidirectional pipeline parallelism algorithm"},
+          {"name": "Fire-Flyer 2", "category": "Technology", "description": "Supercomputing cluster with over 10,000 GPUs"},
+          {"name": "1F1B Scheduling", "category": "Method", "description": "One-Forward-One-Backward pipeline scheduling baseline"}
+        ],
+        "relations": [
+          {"source": "DeepSeek-V3", "target": "DualPipe", "relation": "USES", "description": "Engineered DualPipe for distributed execution"},
+          {"source": "DualPipe", "target": "Fire-Flyer 2", "relation": "RUNS_ON", "description": "Deployed across Fire-Flyer 2 infrastructure"},
+          {"source": "DualPipe", "target": "1F1B Scheduling", "relation": "OUTPERFORMS", "description": "Reduces pipeline bubbles by 50% versus 1F1B"}
+        ]
+      }
+    ]
+  }
+]
