@@ -134,6 +134,8 @@ class VoiceController {
     // Clean markdown symbols for cleaner speech
     const cleanText = text
       .replace(/\[(?:Chunk|kg_triple|Entity):[^\]]+\]/g, '')
+      .replace(/\[\d{1,3}\]/g, '')
+      .replace(/\$\$?[^$]*\$\$?/g, '')
       .replace(/`{1,3}[^`]*`{1,3}/g, '')
       .replace(/[*_#>`]/g, '')
       .slice(0, 800); // Speak first 800 chars for concise spoken summary
