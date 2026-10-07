@@ -191,11 +191,11 @@ class ConflictRecord(BaseModel):
 
 class MathExecutionResult(BaseModel):
     """Exact auditable output from the sandboxed Mathematical Reasoning Agent."""
-    task: str
+    task: str = "Calculation"
     inputs: Dict[str, Any] = Field(default_factory=dict)
-    formula: str
-    code_executed: str
-    exact_result: Any
+    formula: Optional[str] = ""
+    code_executed: Optional[str] = ""
+    exact_result: Any = None
     units: Optional[str] = None
     assumptions: List[str] = Field(default_factory=list)
     source_evidence_ids: List[str] = Field(default_factory=list)
@@ -252,10 +252,12 @@ class EntityNode(BaseModel):
 class RelationshipEdge(BaseModel):
     source_id: str
     target_id: str
+    source_name: Optional[str] = ""
+    target_name: Optional[str] = ""
     relation: str
     description: str = ""
     weight: float = 1.0
-    doc_id: str
+    doc_id: str = ""
 
 
 class GraphSubGraph(BaseModel):
