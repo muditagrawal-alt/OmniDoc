@@ -295,6 +295,10 @@ class VerificationResult(BaseModel):
     cited_sources: List[str] = Field(default_factory=list)
     action: str = "accept"
     feedback: str = ""
+    # Per-sentence citation checks (text, offsets, citations, verdict, reason, corrected_to)
+    sentences: List[Dict[str, Any]] = Field(default_factory=list)
+    # The answer with wrong citation numbers corrected (None when nothing changed)
+    corrected_answer: Optional[str] = None
 
 
 # ============================================================================
@@ -308,8 +312,17 @@ class AgentWorkflowState(TypedDict):
     accumulated multi-agent findings, evidence verification, and final outputs.
     """
     session_id: str
+    # One id per question: links streamed text, model usage and the execution budget to this run
+    run_id: str
     user_query: str
     document_ids: List[str]
+    # What the question needs (calculation, chart, figures, tables, graph, timeline, whole_documents, library)
+    needs: Dict[str, Any]
+    # Language to answer in (ISO code), and the time range the question limits itself to
+    answer_language: str
+    time_filter: Optional[Dict[str, Any]]
+    # Dated statements from the evidence in order (temporal reasoning), for the writer
+    timeline: List[Dict[str, Any]]
     
     # NLU & Planning
     semantic_query: Optional[SemanticQuery]
@@ -328,6 +341,9 @@ class AgentWorkflowState(TypedDict):
     web_context: Annotated[List[Dict[str, Any]], operator.add]
     math_results: Annotated[List[Dict[str, Any]], operator.add]
     visual_artifacts: Annotated[List[Dict[str, Any]], operator.add]
+    # SQL answers over document tables, and document / section summaries for collection questions
+    table_results: Annotated[List[Dict[str, Any]], operator.add]
+    summary_context: Annotated[List[Dict[str, Any]], operator.add]
     
     # Evidence & Verification
     evidence_package: Optional[EvidencePackage]
