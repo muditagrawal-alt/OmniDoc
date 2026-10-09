@@ -2,14 +2,62 @@ import { Fragment, useMemo, useState } from 'react';
 import type { ReactNode } from 'react';
 import katex from 'katex';
 import { Check, Copy } from 'lucide-react';
-import type { Source } from '../../api';
+import type { SentenceVerdict, Source } from '../../api';
 import { Citation } from './Citation';
 import styles from './Markdown.module.css';
+
+/** A sentence of the answer the citation check could not (fully) match to its sources. */
+export interface SentenceFlag {
+  text: string;
+  verdict: SentenceVerdict;
+  reason?: string;
+}
 
 interface MarkdownProps {
   text: string;
   sources?: Source[];
-  onCite?: (n: number) => void;
+  /** `claim` is the sentence the citation belongs to */
+  onCite?: (n: number, claim: string) => void;
+  flags?: SentenceFlag[];
+}
+
+interface InlineCtx {
+  sources?: Source[];
+  onCite?: (n: number, claim: string) => void;
+  flags?: SentenceFlag[];
+  /** The whole paragraph or list item, and where the text being rendered starts in it */
+  full?: string;
+  offset?: number;
+}
+
+const FLAG_LABEL: Partial<Record<SentenceVerdict, string>> = {
+  partial: 'Only partly supported by the cited sources',
+  unsupported: 'Not found in the cited sources',
+  contradicted: 'The cited sources say something different',
+};
+
+const SENTENCE_END_RE = /[.!?](?:\s*\[\d{1,3}\])*\s+(?=[A-Z0-9"'(*_[])/g;
+const ABBREVIATION_RE = /(?:\b[A-Z]|e\.g|i\.e|etc|vs|Dr|Mr|Mrs|Ms|Prof|No|Fig|Eq|approx|Inc|Ltd|Pvt|Co|Corp|LLC|Govt|Dept|St|Jr|Sr|Rs|Vol|al|Jan|Feb|Mar|Apr|Jun|Jul|Aug|Sep|Sept|Oct|Nov|Dec)\.$/;
+
+/** The sentence a citation at `index` of `text` belongs to, as plain text. */
+function claimAt(text: string, index: number): string {
+  // A citation written after the full stop ("turbines. [2]") belongs to the sentence before it.
+  const head = text.slice(0, index).replace(/(?:\s*\[\d{1,3}\])+\s*$/, '').replace(/\s+$/, '');
+  let start = 0;
+  for (const m of head.matchAll(new RegExp(SENTENCE_END_RE.source, 'g'))) {
+    const end = (m.index ?? 0) + m[0].length;
+    if (end >= head.length) break;
+    if (ABBREVIATION_RE.test(head.slice(Math.max(0, (m.index ?? 0) - 8), (m.index ?? 0) + 1))) continue;
+    start = end;
+  }
+  return head
+    .slice(start)
+    .replace(/\[\d{1,3}\]/g, '')
+    .replace(/(\*\*|__|`|~~)/g, '')
+    .replace(/(^|\s)[*_]|[*_](?=\s|$)/g, '$1')
+    .replace(/\s+/g, ' ')
+    .trim()
+    .slice(-600);
 }
 
 type Block =
@@ -178,10 +226,13 @@ function renderTex(tex: string, display: boolean): string | null {
 const INLINE_RE =
   /(\[\d{1,3}\](?:\[\d{1,3}\])*)|(`[^`]+`)|(\$(?!\s)[^$\n]+?(?<!\s)\$)|(\\\((.+?)\\\))|(\*\*[^*]+\*\*|__[^_]+__)|((?<![\w*])\*(?!\s)[^*\n]+?(?<!\s)\*(?![\w*])|(?<![\w_])_(?!\s)[^_\n]+?(?<!\s)_(?![\w_]))|(\[([^\]]+)\]\((https?:\/\/[^\s)]+)\))|(~~[^~]+~~)/g;
 
-function renderInline(text: string, ctx: { sources?: Source[]; onCite?: (n: number) => void }, keyBase = 'i'): ReactNode[] {
+function renderInline(text: string, ctx: InlineCtx, keyBase = 'i'): ReactNode[] {
   const out: ReactNode[] = [];
   let last = 0;
   let k = 0;
+  const full = ctx.full ?? text;
+  const offset = ctx.offset ?? 0;
+  const inner = (at: number): InlineCtx => ({ ...ctx, full, offset: offset + at });
   // A fresh regex per call: bold/italic recurse, and a shared /g regex would have its
   // lastIndex reset by the inner call, re-matching the same token forever.
   const re = new RegExp(INLINE_RE.source, 'g');
@@ -191,10 +242,12 @@ function renderInline(text: string, ctx: { sources?: Source[]; onCite?: (n: numb
     const [token] = m;
     if (m[1]) {
       const nums = [...token.matchAll(/\[(\d{1,3})\]/g)].map((x) => parseInt(x[1], 10));
+      const at = offset + m.index;
+      const onCite = ctx.onCite ? (n: number) => ctx.onCite?.(n, claimAt(full, at)) : undefined;
       out.push(
         <span key={key} className={styles.citeGroup}>
           {nums.map((n) => (
-            <Citation key={n} n={n} source={ctx.sources?.find((s) => s.n === n)} onCite={ctx.onCite} />
+            <Citation key={n} n={n} source={ctx.sources?.find((s) => s.n === n)} onCite={onCite} />
           ))}
         </span>,
       );
@@ -211,9 +264,9 @@ function renderInline(text: string, ctx: { sources?: Source[]; onCite?: (n: numb
         ),
       );
     } else if (m[6]) {
-      out.push(<strong key={key}>{renderInline(token.slice(2, -2), ctx, key)}</strong>);
+      out.push(<strong key={key}>{renderInline(token.slice(2, -2), inner(m.index + 2), key)}</strong>);
     } else if (m[7]) {
-      out.push(<em key={key}>{renderInline(token.slice(1, -1), ctx, key)}</em>);
+      out.push(<em key={key}>{renderInline(token.slice(1, -1), inner(m.index + 1), key)}</em>);
     } else if (m[8]) {
       out.push(
         <a key={key} href={m[10]} target="_blank" rel="noreferrer noopener">
@@ -226,6 +279,35 @@ function renderInline(text: string, ctx: { sources?: Source[]; onCite?: (n: numb
     last = m.index + token.length;
   }
   if (last < text.length) out.push(text.slice(last));
+  return out;
+}
+
+/**
+ * A paragraph or list item. Sentences the citation check flagged are underlined, with the
+ * reason on hover; citations inside them still work.
+ */
+function renderText(text: string, ctx: InlineCtx, key: string): ReactNode[] {
+  const base: InlineCtx = { ...ctx, full: text, offset: 0 };
+  const spans = (ctx.flags ?? [])
+    .map((f) => ({ f, start: f.text ? text.indexOf(f.text) : -1 }))
+    .filter((x) => x.start >= 0)
+    .sort((a, b) => a.start - b.start);
+  if (!spans.length) return renderInline(text, base, key);
+  const out: ReactNode[] = [];
+  let pos = 0;
+  spans.forEach(({ f, start }, i) => {
+    if (start < pos) return;
+    const end = start + f.text.length;
+    if (start > pos) out.push(...renderInline(text.slice(pos, start), { ...base, offset: pos }, `${key}-t${i}`));
+    const label = FLAG_LABEL[f.verdict] ?? 'Check this sentence against the sources';
+    out.push(
+      <span key={`${key}-f${i}`} className={styles.flagged} data-verdict={f.verdict} title={f.reason ? `${label}: ${f.reason}` : label}>
+        {renderInline(text.slice(start, end), { ...base, offset: start }, `${key}-f${i}`)}
+      </span>,
+    );
+    pos = end;
+  });
+  if (pos < text.length) out.push(...renderInline(text.slice(pos), { ...base, offset: pos }, `${key}-end`));
   return out;
 }
 
@@ -256,9 +338,9 @@ function CodeBlock({ lang, code }: { lang: string; code: string }) {
   );
 }
 
-export function Markdown({ text, sources, onCite }: MarkdownProps) {
+export function Markdown({ text, sources, onCite, flags }: MarkdownProps) {
   const blocks = useMemo(() => parseBlocks(text || ''), [text]);
-  const ctx = { sources, onCite };
+  const ctx: InlineCtx = { sources, onCite, flags };
 
   const renderBlock = (b: Block, i: number | string): ReactNode => {
     const key = `b-${i}`;
@@ -268,11 +350,11 @@ export function Markdown({ text, sources, onCite }: MarkdownProps) {
         return <Tag key={key}>{renderInline(b.text, ctx, key)}</Tag>;
       }
       case 'paragraph':
-        return <p key={key}>{renderInline(b.text, ctx, key)}</p>;
+        return <p key={key}>{renderText(b.text, ctx, key)}</p>;
       case 'list': {
         const items = b.items.map((it, j) => (
           <li key={j}>
-            {renderInline(it.text, ctx, `${key}-${j}`)}
+            {renderText(it.text, ctx, `${key}-${j}`)}
             {it.children.map((c, ci) => renderBlock(c, `${i}-${j}-${ci}`))}
           </li>
         ));
