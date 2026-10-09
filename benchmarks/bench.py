@@ -72,9 +72,9 @@ PORT = 8011
 DEFAULTS = {
     "provider": "nvidia",
     "model": "nvidia:nvidia/nemotron-3-super-120b-a12b",
-    "vision": "gemini:gemini-3.5-flash",
+    "vision": "gemini:gemini-3.5-flash-lite",
     "embed": "nomic-embed-text",
-    "judge": "gemini:gemini-3.5-flash",
+    "judge": "groq:openai/gpt-oss-120b",
 }
 # Files whose changes alter what ingestion stores: the index is rebuilt when they change.
 INDEX_FILES = ("parsing/*.py", "retrieval/*.py", "core/pipeline.py", "agents/summary_agent.py",
