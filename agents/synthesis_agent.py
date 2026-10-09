@@ -9,7 +9,8 @@ import logging
 from typing import Dict, Any, List
 
 from core.state import AgentWorkflowState
-from agents.llm_utils import chat, trace
+from core import streaming
+from agents.llm_utils import chat, chat_stream, trace
 from agents.citations import (
     sources_from_state,
     public_sources,
@@ -62,8 +63,25 @@ class SynthesisAgent:
     def __init__(self, model_name: str = "qwen2.5:7b-instruct"):
         self.model_name = model_name
 
+    @staticmethod
+    def _timeline_block(state: AgentWorkflowState, sources: List[Dict[str, Any]]) -> List[str]:
+        """Dated statements in order (temporal reasoning), each with the number of the passage it came from."""
+        by_chunk = {s.get("chunk_id"): s["n"] for s in sources if s.get("chunk_id")}
+        lines = []
+        for e in state.get("timeline") or []:
+            n = by_chunk.get(e.get("chunk_id"))
+            if n:
+                lines.append(f"- {e['written']} ({e['date']}): {e['text'][:220]} [{n}]")
+        return ["", "DATED STATEMENTS FROM THE EVIDENCE, IN ORDER:"] + lines if lines else []
+
     def _build_user_prompt(self, state: AgentWorkflowState, query: str, sources: List[Dict[str, Any]]) -> str:
         parts = [f"NUMBERED EVIDENCE ({len(sources)} items):", format_evidence_block(sources), "", "USER QUESTION:", query]
+        semantic_q = state.get("semantic_query")
+        subs = [q for q in (getattr(semantic_q, "sub_questions", None) or []) if isinstance(q, str) and q.strip()]
+        if len(subs) > 1:
+            parts += ["", "The question has these parts; answer each one (or say which the evidence does not cover):"]
+            parts += [f"{i}. {q}" for i, q in enumerate(subs[:5], 1)]
+        parts += self._timeline_block(state, sources)
 
         charts = [va for va in (state.get("visual_artifacts") or []) if isinstance(va, dict) and va.get("title")]
         if charts:
@@ -71,10 +89,11 @@ class SynthesisAgent:
             parts += ["", f"NOTE: The interface displays chart(s) built from this evidence ({titles}). "
                           "You may refer to the chart, but cite the evidence numbers for any figure you state."]
 
-        semantic_q = state.get("semantic_query")
-        language = getattr(semantic_q, "language", "en") or "en"
+        language = state.get("answer_language") or getattr(semantic_q, "language", "en") or "en"
         if language.lower() not in ("en", "eng", "english"):
-            parts += ["", f"Write the answer in the language of the question (language code: {language})."]
+            from agents.multilingual_agent import LANGUAGE_NAMES
+            parts += ["", f"Write the whole answer in {LANGUAGE_NAMES.get(language, language)}, keeping numbers, formulas, "
+                          "names and the [n] citations exactly as they are."]
 
         feedback = state.get("reflection_feedback")
         if feedback:
@@ -107,14 +126,19 @@ class SynthesisAgent:
 
         system = SYNTHESIS_SYSTEM_PROMPT.format(n=len(sources), refusal=REFUSAL_SENTENCE)
         user = self._build_user_prompt(state, effective_query, sources)
+        messages = [{"role": "system", "content": system}, {"role": "user", "content": user}]
+        run_id = state.get("run_id") or ""
 
         try:
-            raw = chat(
-                self.model_name,
-                [{"role": "system", "content": system}, {"role": "user", "content": user}],
-                temperature=0.2,
-                num_predict=1500,
-            )
+            if streaming.listening(run_id):
+                # Stream the draft to the client while it is written; a revision replaces it.
+                streaming.emit(run_id, "reset" if state.get("reflection_feedback") else "sources", public)
+                raw = chat_stream(self.model_name, messages,
+                                  lambda piece: streaming.emit(run_id, "delta", piece),
+                                  on_reset=lambda: streaming.emit(run_id, "reset", public),
+                                  temperature=0.2, num_predict=1500)
+            else:
+                raw = chat(self.model_name, messages, temperature=0.2, num_predict=1500)
             draft = normalize_citations(raw, len(sources))
             if not draft:
                 raise ValueError("model returned an empty answer")
