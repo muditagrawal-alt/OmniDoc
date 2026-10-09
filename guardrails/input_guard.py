@@ -33,6 +33,22 @@ class InputGuardrail:
         self.nlu_engine = SemanticNLUEngine(model_name)
         self.intent_classifier = MultiLabelIntentClassifier(model_name)
 
+    @staticmethod
+    def screen(query: str) -> Optional[str]:
+        """
+        The first step of every question, without a model call: rejects empty or oversized
+        input and explicit instruction-override (prompt-injection) commands. Returns the
+        reason, or None when the question may proceed.
+        """
+        text = (query or "").strip()
+        if not text:
+            return "The question is empty."
+        if len(text) > MAX_QUERY_CHARS:
+            return f"The question is too long ({len(text)} characters; the limit is {MAX_QUERY_CHARS})."
+        if len(set(text)) <= 2 and len(text) > 50:
+            return "The question has no readable content."
+        return detect_prompt_injection(text)
+
     def check_prompt_injection(self, query: str) -> Optional[str]:
         """Detects adversarial jailbreak / instruction-override commands."""
         return detect_prompt_injection(query or "")
