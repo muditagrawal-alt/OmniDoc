@@ -294,17 +294,32 @@ def index_fingerprint(embed: str) -> str:
     return h.hexdigest()[:12]
 
 
-def ensure_index(bench: str, manifest: Dict[str, Any], settings: Dict[str, str], reingest: bool) -> Dict[str, Any]:
+def ensure_index(bench: str, manifest: Dict[str, Any], settings: Dict[str, str], reingest: bool,
+                 wait: bool = False) -> Dict[str, Any]:
     """
     The documents of a benchmark indexed in its own data folder. Ingestion is reused while the
     parsing / indexing code and the embedding model are unchanged, and redone otherwise.
+    ``wait`` waits for an index another process (``bench.py index``) is building instead.
     """
     state_path = WORK / bench / "index.json"
     fingerprint = index_fingerprint(settings["embed"])
-    state = json.loads(state_path.read_text()) if state_path.exists() else {}
-    if state.get("fingerprint") == fingerprint and not reingest and set(state.get("docs", {})) >= set(manifest["documents"]):
+
+    def current() -> Dict[str, Any]:
+        state = json.loads(state_path.read_text()) if state_path.exists() else {}
+        ok = state.get("fingerprint") == fingerprint and set(state.get("docs", {})) >= set(manifest["documents"])
+        return state if ok else {}
+
+    if wait and not reingest and not current():
+        log(f"{bench}: waiting for the index being built by another process ({fingerprint})")
+        deadline = time.time() + 6 * 3600
+        while not current() and time.time() < deadline:
+            time.sleep(60)
+    state = current()
+    if state and not reingest:
         log(f"{bench}: reusing the index built by {state.get('commit')} ({fingerprint})")
         return state
+    if wait:
+        raise SystemExit(f"{bench}: no finished index with fingerprint {fingerprint} appeared")
     if (WORK / bench / "data").exists():
         log(f"{bench}: indexing code changed (or --reingest): rebuilding the index")
         shutil.rmtree(WORK / bench / "data")
@@ -422,7 +437,7 @@ def run(args: argparse.Namespace) -> None:
         manifest = json.loads((MANIFESTS / f"{bench}.json").read_text())
         questions = load_questions(bench)
         server = Server(bench, settings, args.port)
-        state = ensure_index(bench, manifest, settings, args.reingest)
+        state = ensure_index(bench, manifest, settings, args.reingest, args.wait_index)
         server.start()
         try:
             state = ingest(server, bench, manifest, state)
@@ -754,6 +769,7 @@ def main() -> None:
     r.add_argument("--reingest", action="store_true", help="rebuild the index even if the indexing code is unchanged")
     r.add_argument("--resume", default="", help="continue an interrupted run in this run folder")
     r.add_argument("--no-judge", action="store_true")
+    r.add_argument("--wait-index", action="store_true", help="wait for an index that `bench.py index` is building")
     ix = sub.add_parser("index", help="ingest the documents only (a later run reuses the index)")
     ix.add_argument("--bench", default="financebench,mmlongbench")
     ix.add_argument("--reingest", action="store_true")
