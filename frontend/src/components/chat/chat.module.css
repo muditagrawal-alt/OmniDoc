@@ -333,6 +333,12 @@
   margin-left: -6px;
 }
 
+.verify {
+  display: flex;
+  align-items: center;
+  gap: var(--space-1);
+}
+
 .badge {
   display: inline-flex;
   align-items: center;
@@ -609,6 +615,15 @@
   white-space: nowrap;
 }
 
+.sourceOpen {
+  flex: none;
+  margin: -4px -6px -4px 0;
+}
+
+.sourceTitle + .sourceOpen {
+  margin-left: auto;
+}
+
 .sourceSection {
   overflow: hidden;
   color: var(--text-3);
@@ -676,5 +691,30 @@
 
   .jump {
     bottom: 132px;
+  }
+}
+
+/* The answer while it is being written: a caret after the last line */
+.streaming > :global(*):last-child > :global(*):last-child::after {
+  content: '';
+  display: inline-block;
+  width: 0.5em;
+  height: 1.05em;
+  margin-left: 2px;
+  vertical-align: -0.15em;
+  border-radius: 1px;
+  background: var(--accent);
+  animation: caret 1s steps(2, start) infinite;
+}
+
+@keyframes caret {
+  to {
+    visibility: hidden;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .streaming > :global(*):last-child > :global(*):last-child::after {
+    animation: none;
   }
 }
