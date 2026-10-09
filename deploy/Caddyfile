@@ -1,0 +1,9 @@
+# HTTPS in front of OmniDoc. Replace the address with your domain (or <ip>.sslip.io).
+# Caddy obtains and renews the certificate automatically.
+{$OMNIDOC_DOMAIN:omnidoc.example.com} {
+	encode zstd gzip
+	reverse_proxy omnidoc:8000 {
+		# Answers stream token by token: never buffer them.
+		flush_interval -1
+	}
+}
