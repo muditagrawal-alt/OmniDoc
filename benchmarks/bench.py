@@ -79,7 +79,9 @@ DEFAULTS = {
 # Files whose changes alter what ingestion stores: the index is rebuilt when they change.
 INDEX_FILES = ("parsing/*.py", "retrieval/*.py", "core/pipeline.py", "agents/summary_agent.py",
                "graph/extractor.py", "agents/extraction_agent.py", "agents/doc_classifier.py")
-DECLINE_HINT = "declined"
+# An answer that is the pipeline's error message (a model was rate-limited or unavailable):
+# retried like a network error, and counted as a robustness problem.
+PIPELINE_ERROR = re.compile(r"(^Error during \w+|No language model could answer|The agent pipeline failed)", re.I)
 
 
 # --------------------------------------------------------------------------- utils
@@ -400,6 +402,8 @@ def ask(server: Server, doc_id: str, question: str) -> Dict[str, Any]:
     if not result:
         return {"error": error or "no result"}
     answer = result.get("answer") or ""
+    if PIPELINE_ERROR.search(answer):
+        error = f"pipeline error: {answer[:200]}"
     return {
         "answer": answer,
         "sources": [{k: s.get(k) for k in ("n", "kind", "doc_id", "page", "section")} for s in result.get("sources") or []],
@@ -432,7 +436,8 @@ def run(args: argparse.Namespace) -> None:
             "notes": args.notes or "",
         }, indent=1) + "\n")
     results_path = run_dir / "results.jsonl"
-    done = {r["id"] for r in read_jsonl(results_path) if not r.get("error")}
+    previous = {r["id"]: r for r in latest_rows(results_path)}
+    done = {i for i, r in previous.items() if not r.get("error") and not PIPELINE_ERROR.search(r.get("answer") or "")}
     for bench in benches:
         manifest = json.loads((MANIFESTS / f"{bench}.json").read_text())
         questions = load_questions(bench)
@@ -447,6 +452,7 @@ def run(args: argparse.Namespace) -> None:
                 gold = questions[q["id"]]
                 doc = state["docs"][q["doc"]]
                 out: Dict[str, Any] = {}
+                failures: List[str] = []
                 for attempt in range(1, 4):
                     try:
                         out = ask(server, doc["doc_id"], gold["question"])
@@ -454,11 +460,15 @@ def run(args: argparse.Namespace) -> None:
                         out = {"error": f"{type(e).__name__}: {e}"}
                     if not out.get("error") and out.get("answer"):
                         break
-                    log(f"  {q['id']}: {out.get('error') or 'empty answer'}; retrying in 30s")
-                    time.sleep(30)
+                    failures.append(out.get("error") or "empty answer")
+                    if attempt < 3:
+                        log(f"  {q['id']}: {failures[-1][:120]}; retrying in 30s")
+                        time.sleep(30)
                 reference = {("answer_gold" if k == "answer" else k): v for k, v in gold.items()}
                 row = {"id": q["id"], "benchmark": bench, "doc": q["doc"], "doc_id": doc["doc_id"], **reference,
-                       **out, "attempts": attempt}
+                       **out, "attempts": attempt, "failed_attempts": failures}
+                if q["id"] in previous:  # asked again on --resume: keep why the first answer failed
+                    row["retried_after"] = previous[q["id"]].get("error") or (previous[q["id"]].get("answer") or "")[:200]
                 append_jsonl(results_path, row)
                 log(f"  [{i}/{len(todo)}] {q['id']} {row.get('total_s', '-')}s {'ERROR ' + row['error'] if row.get('error') else ''}")
         finally:
@@ -513,6 +523,11 @@ Decide two things.
 Return JSON only: {{"declined": true or false, "correct": true or false, "reason": "<one short sentence>"}}"""
 
 
+def answer_key(row: Dict[str, Any]) -> str:
+    """Fingerprint of the answer a verdict was given for (an answer asked again is graded again)."""
+    return hashlib.sha1((row.get("answer") or row.get("error") or "").encode()).hexdigest()[:12]
+
+
 def grade(judge_spec: str, row: Dict[str, Any]) -> Dict[str, Any]:
     from agents import llm_providers as P
     provider, model = P.parse_spec(judge_spec)
@@ -545,16 +560,23 @@ def judge(args: argparse.Namespace) -> None:
         path.unlink()
     graded = {j["id"]: j for j in read_jsonl(path) if j.get("correct") is not None}
     answers = latest_rows(run_dir / "results.jsonl")
-    # Grade answers not graded yet, and answers that replaced a failed attempt.
-    rows = [r for r in answers if r["id"] not in graded or (graded[r["id"]].get("reason", "").startswith("no answer")
-                                                           and not r.get("error"))]
+
+    def stale(r: Dict[str, Any]) -> bool:
+        j = graded.get(r["id"])
+        if j is None:
+            return True
+        if "answer_key" in j:
+            return j["answer_key"] != answer_key(r)
+        # Verdicts written before fingerprints: grade again when the answer was asked again.
+        return bool(r.get("retried_after")) or (j.get("reason", "").startswith("no answer") and not r.get("error"))
+    rows = [r for r in answers if stale(r)]
     log(f"grading {len(rows)} answers with {judge_spec}")
     for r in rows:
         if r.get("error") or not r.get("answer"):
             verdict = {"declined": True, "correct": False, "reason": f"no answer ({r.get('error') or 'empty'})"}
         else:
             verdict = grade(judge_spec, r)
-        append_jsonl(path, {"id": r["id"], "judge": judge_spec, **verdict})
+        append_jsonl(path, {"id": r["id"], "judge": judge_spec, "answer_key": answer_key(r), **verdict})
 
 
 # --------------------------------------------------------------------------- report
@@ -616,6 +638,7 @@ def summarize(rows: List[Dict[str, Any]]) -> Dict[str, Any]:
         "model_calls_mean": statistics.mean([u.get("calls", 0) for u in usage]) if usage else None,
         "tokens_mean": statistics.mean([u.get("prompt_tokens", 0) + u.get("completion_tokens", 0) for u in usage]) if usage else None,
         "errors": sum(1 for r in rows if r.get("error")),
+        "retried": sum(1 for r in rows if r.get("failed_attempts") or r.get("retried_after")),
         "verified_mean": statistics.mean([r["verification"]["score"] for r in ok
                                           if (r.get("verification") or {}).get("score") is not None] or [0]),
     }
@@ -700,7 +723,8 @@ def render_report(summary: Dict[str, Any], rows: List[Dict[str, Any]]) -> str:
                 f"| Full answer, median / p90 | {fmt_s(s['answer_p50_s'])} / {fmt_s(s['answer_p90_s'])} |",
                 f"| Model calls per question | {s['model_calls_mean']:.1f} |" if s.get("model_calls_mean") is not None else "| Model calls per question | - |",
                 f"| Tokens per question | {s['tokens_mean']:.0f} |" if s.get("tokens_mean") is not None else "| Tokens per question | - |",
-                f"| Answers with errors | {s['errors']} |"]
+                f"| Answers with errors | {s['errors']} |",
+                f"| Answers that needed a retry (rate limit or model error) | {s.get('retried', 0)} |"]
         if s.get("ingestion"):
             ing = s["ingestion"]
             out.append(f"| Ingestion | {ing['documents']} documents, {ing['chunks']} chunks; upload {ing['upload_s']}s, "
