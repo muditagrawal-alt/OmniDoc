@@ -54,6 +54,7 @@ Rules:
 
 
 KNOWN_AGENTS = {
+    "structured_data_agent", "corpus_summary_agent",
     "entity_resolution_agent", "temporal_reasoning_agent", "query_expansion_agent",
     "advanced_hybrid_retrieval", "knowledge_graph_agent", "document_intelligence_agent",
     "vision_agent", "math_agent", "visualization_agent", "evidence_selection_agent",
@@ -139,6 +140,42 @@ INTENT RESULT:
         except Exception as e:
             logger.warning(f"Planner LLM failed ({e}). Generating robust default DAG.")
             return self._build_robust_default_dag(semantic_query, intent_result)
+
+    @staticmethod
+    def plan_from_needs(semantic_query: SemanticQuery, needs: Dict[str, Any]) -> QueryExecutionPlan:
+        """
+        The execution plan, built from what the question needs without a model call. Every
+        step names an agent the workflow really runs.
+        """
+        steps: List[PlanStep] = []
+
+        def add(agent: str, description: str, depends: List[str]) -> str:
+            step_id = f"step_{len(steps) + 1}_{agent}"
+            steps.append(PlanStep(id=step_id, agent=agent, description=description, depends_on=depends))
+            return step_id
+
+        retrieval = [add("advanced_hybrid_retrieval", "Dense + BM25 search, reranked; a second pass for uncovered parts", [])]
+        retrieval.append(add("document_intelligence_agent", "Follow references (tables, figures, pages) and add neighbouring passages", retrieval[:1]))
+        if needs.get("graph") or semantic_query.entities:
+            retrieval.append(add("knowledge_graph_agent", "Relations around the question's entities", []))
+        if needs.get("figures"):
+            retrieval.append(add("vision_agent", "Read the relevant figures", retrieval[:1]))
+        if needs.get("tables") or needs.get("library"):
+            retrieval.append(add("structured_data_agent", "SQL over document tables and library records", []))
+        if needs.get("whole_documents"):
+            retrieval.append(add("corpus_summary_agent", "Document and section summaries", []))
+        if needs.get("timeline") or semantic_query.temporal_constraints:
+            retrieval.append(add("temporal_reasoning_agent", "Date the evidence, apply the time range, order events", retrieval[:1]))
+        last = [add("evidence_selection_agent", "Rank, deduplicate and compress the evidence", retrieval)]
+        last = [add("evidence_verification_agent", "Check sources for contradictions (model call only if suspected)", last)]
+        if needs.get("calculation"):
+            last = [add("math_agent", "Exact calculation from quoted figures", last)]
+        if needs.get("chart"):
+            last.append(add("visualization_agent", "Chart from figures in the evidence", last))
+        synth = add("synthesis_agent", "Cited answer, streamed", last)
+        add("output_groundedness_agent", "Sentence-level citation check", [synth])
+        complexity = "low" if len(steps) <= 5 else "medium" if len(steps) <= 8 else "high"
+        return QueryExecutionPlan(goal=semantic_query.goal, execution_mode="dag", estimated_complexity=complexity, steps=steps)
 
     @staticmethod
     def _wants_chart(semantic_query: SemanticQuery, intent_result: IntentClassificationResult) -> bool:
