@@ -14,6 +14,7 @@ from core.state import AgentWorkflowState, EvidenceItem, EvidencePackage
 from retrieval.reranker import ChunkReranker
 from agents.citations import is_real_chunk
 from agents.llm_utils import trace
+from agents.hybrid_agent import WHOLE_DOCUMENT_CHUNKS
 
 logger = logging.getLogger("OmniDoc.EvidenceSelection")
 
@@ -120,6 +121,10 @@ class EvidenceSelectionAgent:
         query = getattr(semantic_q, "resolved_query", None) or state.get("user_query", "")
 
         chunks = self._dedupe_chunks(state.get("chunk_context", []) or [])
+        # Passages whose dates all fall outside the question's time range (temporal reasoning).
+        excluded = set((state.get("time_filter") or {}).get("exclude_chunk_ids") or [])
+        if excluded and len([c for c in chunks if str(c["chunk_id"]) not in excluded]) >= 2:
+            chunks = [c for c in chunks if str(c["chunk_id"]) not in excluded]
         triples = self._collect_triples(state.get("graph_context", []) or [])
 
         chunk_scores = self.reranker.score_pairs(query, [c["text"] for c in chunks]) if chunks else []
@@ -128,8 +133,10 @@ class EvidenceSelectionAgent:
         chunk_items: List[EvidenceItem] = []
         for ch, score in zip(chunks, chunk_scores):
             # Keep the better of retrieval-time (multi-query) and query-time relevance.
+            # Passages added for a reference ("Table 3") or as the continuation of a top passage
+            # keep the relevance they were given.
             prior = ch.get("score")
-            if ch.get("retrieval_method") in ("neural_reranked", "lexical_reranked") and prior is not None:
+            if ch.get("retrieval_method") in ("neural_reranked", "lexical_reranked", "reference", "layout_context") and prior is not None:
                 score = max(float(score), float(prior))
             cid = str(ch["chunk_id"])
             page = ch.get("page_number")
@@ -178,7 +185,9 @@ class EvidenceSelectionAgent:
 
         chunk_items.sort(key=lambda x: x.relevance_score, reverse=True)
         triple_items.sort(key=lambda x: x.relevance_score, reverse=True)
-        selected = chunk_items[:MAX_CHUNKS] + triple_items[:MAX_TRIPLES]
+        # A short document read whole keeps every passage; otherwise the best MAX_CHUNKS.
+        whole = any(c.get("retrieval_method") == "whole_document" for c in chunks)
+        selected = chunk_items[:WHOLE_DOCUMENT_CHUNKS if whole else MAX_CHUNKS] + triple_items[:MAX_TRIPLES]
         total = len(chunks) + len(triples)
 
         package = EvidencePackage(
