@@ -26,9 +26,9 @@ so the baseline and every later run answer exactly the same questions.
    | Role | Model |
    |---|---|
    | Answers and internal steps | NVIDIA NIM `nvidia/nemotron-3-super-120b-a12b` |
-   | Figures and charts | Gemini `gemini-3.5-flash` |
+   | Figures and charts | Gemini `gemini-3.5-flash-lite` (500 free requests/day; 3.5 Flash allows only 20) |
    | Embeddings | `nomic-embed-text` (local Ollama) |
-   | Grading | Gemini `gemini-3.5-flash` (another model family than the answers) |
+   | Grading | Groq `openai/gpt-oss-120b` (another model family than the answers) |
 
 5. The judge compares every answer with the reference answer and decides whether it is correct
    and whether OmniDoc declined to answer. Figures may differ in rounding or scale
@@ -58,7 +58,7 @@ so the baseline and every later run answer exactly the same questions.
 .venv/bin/python -I benchmarks/bench.py report                      # rebuild every report and HISTORY.md
 ```
 
-The NVIDIA and Gemini keys come from `.env`. Other models can be pinned with
+The NVIDIA, Gemini and Groq keys come from `.env`. Other models can be pinned with
 `--provider`, `--model`, `--vision`, `--embed` and `--judge`. A first run of both benchmarks
 ingests about 4,000 pages (roughly 700 model calls in the background) and asks 89 questions.
 
