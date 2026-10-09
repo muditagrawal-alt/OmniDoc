@@ -7,7 +7,7 @@ retrieval agent; nothing is written into ``chunk_context`` (which holds real pas
 import json
 import time
 import logging
-from typing import Dict, Any
+from typing import Dict, Any, List
 
 from core.state import AgentWorkflowState
 from agents.llm_utils import chat_json, as_str_list, trace
@@ -34,6 +34,29 @@ class QueryExpansionAgent:
 
     def __init__(self, model_name: str = "qwen2.5:7b-instruct"):
         self.model_name = model_name
+
+    @staticmethod
+    def variants_from(understanding: Dict[str, Any], resolved_query: str, canonical_names: List[str]) -> List[str]:
+        """
+        Retrieval variants without a model call: the English search queries of the
+        understanding step (cross-lingual search for questions in other languages), a
+        keyword query, and the question with entity mentions replaced by the graph's names.
+        """
+        from agents.understanding_agent import content_words
+        variants = [q for q in understanding.get("search_queries") or [] if isinstance(q, str)]
+        words = content_words(" ".join([resolved_query] + variants[:1]))
+        if len(words) >= 3:
+            variants.append(" ".join(dict.fromkeys(w.lower() for w in words))[:200])
+        extra = [n for n in canonical_names if n.lower() not in resolved_query.lower()]
+        if extra:
+            variants.append(resolved_query + " " + " ".join(extra[:3]))
+        seen, out = {resolved_query.strip().lower()}, []
+        for v in variants:
+            key = v.strip().lower()
+            if key and key not in seen:
+                seen.add(key)
+                out.append(v.strip())
+        return out[:4]
 
     def run(self, state: AgentWorkflowState) -> Dict[str, Any]:
         """Expands the query into retrieval variants."""
