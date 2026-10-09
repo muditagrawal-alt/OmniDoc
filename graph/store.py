@@ -289,6 +289,26 @@ class KuzuGraphStore:
             logger.error(f"Error fetching all graph: {e}")
         return results
 
+    def entity_names(self, doc_ids: Optional[List[str]] = None, limit: int = 20000) -> List[str]:
+        """Distinct entity names (of the given documents, or all)."""
+        if not self.conn:
+            return []
+        try:
+            if doc_ids:
+                cursor = self._exec("MATCH (e:Entity) WHERE list_contains($ids, e.doc_id) RETURN DISTINCT e.name LIMIT $n",
+                                    {"ids": list(doc_ids), "n": limit})
+            else:
+                cursor = self._exec("MATCH (e:Entity) RETURN DISTINCT e.name LIMIT $n", {"n": limit})
+            names = []
+            while cursor.has_next():
+                (name,) = cursor.get_next()
+                if name:
+                    names.append(str(name))
+            return names
+        except Exception as e:
+            logger.warning(f"Could not list entity names: {e}")
+            return []
+
     def entity_counts_by_document(self) -> Dict[str, int]:
         """Number of extracted entities per document id."""
         counts: Dict[str, int] = {}
