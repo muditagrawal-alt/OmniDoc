@@ -153,7 +153,7 @@ def test_output_guard_flags_numbers_found_nowhere():
 def test_output_guard_accepts_page_numbers_from_source_metadata():
     from guardrails.output_guard import OutputGuardrail
     guard = OutputGuardrail()
-    guard._judge = lambda prompt: {"claims": [{"claim": "The plan is described on page 47", "verdict": "supported"}]}
+    guard._judge = lambda prompt: {"sentences": [{"id": "S1", "verdict": "supported", "supported_by": [1]}]}
     sources = [{"n": 1, "kind": "chunk", "page": 47, "title": "The plan", "section": "", "snippet": PLAN, "chunk_id": "c1"}]
     result = guard.verify("Where is the plan?", "The plan is described on page 47 [1].", sources=sources)
     assert result.unsupported_claims == []
