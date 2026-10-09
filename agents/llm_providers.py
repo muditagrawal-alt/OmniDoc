@@ -92,7 +92,7 @@ def build_registry() -> Dict[str, Provider]:
     """Known OpenAI-compatible providers. Defaults are free-tier models; override with <NAME>_MODEL etc."""
     providers = [
         _provider("gemini", "Google Gemini", "https://generativelanguage.googleapis.com/v1beta/openai", "GEMINI_API_KEY",
-                  "gemini-2.5-flash", "gemini-2.5-flash-lite", vision_model="gemini-2.5-flash",
+                  "gemini-3.5-flash", "gemini-3.5-flash-lite", vision_model="gemini-3.5-flash",
                   embed_model="gemini-embedding-001", rpm=10, tpm=250_000, reasoning="gemini",
                   free_note="Free tier in Google AI Studio; prompts may be used to improve Google's models outside the EEA, UK and Switzerland.",
                   sign_up="https://aistudio.google.com/apikey"),
