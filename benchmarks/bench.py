@@ -52,7 +52,8 @@ sys.path.insert(0, str(ROOT))
 
 BENCH = ROOT / "benchmarks"
 DATASETS = BENCH / "datasets"   # downloads (git-ignored)
-WORK = BENCH / "work"           # server data folders and logs (git-ignored)
+WORK = BENCH / "work"           # server data folders and logs (git-ignored); --work changes it
+CODE = ROOT                     # the OmniDoc code the servers run; --code changes it
 MANIFESTS = BENCH / "manifests"
 RESULTS = BENCH / "results"
 PYTHON = ROOT / ".venv" / "bin" / "python"
@@ -246,6 +247,13 @@ class Server:
 
     def env(self) -> Dict[str, str]:
         env = {k: v for k, v in os.environ.items() if not k.startswith("OMNIDOC_")}
+        # API keys from the project's .env, also when the server runs from another code folder.
+        try:
+            from dotenv import dotenv_values
+            env.update({k: v for k, v in dotenv_values(ROOT / ".env").items()
+                        if v and k not in env and not k.startswith("OMNIDOC_")})
+        except Exception:
+            pass
         env.update({
             "OMNIDOC_DATA_DIR": str(self.dir / "data"),
             "OMNIDOC_PORT": str(self.port),
@@ -261,7 +269,7 @@ class Server:
         import httpx
         self.dir.mkdir(parents=True, exist_ok=True)
         log_file = open(self.dir / "server.log", "a")
-        self.proc = subprocess.Popen([str(PYTHON), "server.py"], cwd=ROOT, env=self.env(),
+        self.proc = subprocess.Popen([str(PYTHON), "server.py"], cwd=CODE, env=self.env(),
                                      stdout=log_file, stderr=subprocess.STDOUT)
         for _ in range(180):
             if self.proc.poll() is not None:
@@ -290,7 +298,7 @@ class Server:
 def index_fingerprint(embed: str) -> str:
     h = hashlib.sha1(embed.encode())
     for pattern in INDEX_FILES:
-        for f in sorted(ROOT.glob(pattern)):
+        for f in sorted(CODE.glob(pattern)):
             h.update(f.name.encode())
             h.update(f.read_bytes())
     return h.hexdigest()[:12]
@@ -325,7 +333,8 @@ def ensure_index(bench: str, manifest: Dict[str, Any], settings: Dict[str, str],
     if (WORK / bench / "data").exists():
         log(f"{bench}: indexing code changed (or --reingest): rebuilding the index")
         shutil.rmtree(WORK / bench / "data")
-    return {"fingerprint": fingerprint, "commit": git("rev-parse", "--short", "HEAD"), "docs": {}, "pending": True}
+    return {"fingerprint": fingerprint, "commit": git("rev-parse", "--short", "HEAD"), "docs": {}, "pending": True,
+            **({"code": str(CODE)} if CODE != ROOT else {})}
 
 
 def ingest(server: Server, bench: str, manifest: Dict[str, Any], state: Dict[str, Any]) -> Dict[str, Any]:
@@ -432,6 +441,7 @@ def run(args: argparse.Namespace) -> None:
         config_path.write_text(json.dumps({
             "label": args.label, "started": dt.datetime.now().isoformat(timespec="seconds"),
             "commit": commit, "uncommitted_changes": dirty, "benchmarks": benches, "settings": settings,
+            "work": str(WORK), **({"code": str(CODE)} if CODE != ROOT else {}),
             "scope": "each question is asked about its own document (document_ids = [doc]); web search off",
             "notes": args.notes or "",
         }, indent=1) + "\n")
@@ -799,6 +809,8 @@ def main() -> None:
     ix.add_argument("--reingest", action="store_true")
     for cmd in (r, ix):
         cmd.add_argument("--port", type=int, default=PORT)
+        cmd.add_argument("--work", default="", help="data folder for the indexes (default benchmarks/work)")
+        cmd.add_argument("--code", default="", help="OmniDoc code folder the servers run (default this checkout)")
         for k in DEFAULTS:
             cmd.add_argument(f"--{k}", default="", help=f"default {DEFAULTS[k]}")
     j = sub.add_parser("judge", help="grade a run")
@@ -808,6 +820,11 @@ def main() -> None:
     rep = sub.add_parser("report", help="rebuild summaries and HISTORY.md")
     rep.add_argument("run_dir", nargs="?", default="")
     args = parser.parse_args()
+    global WORK, CODE
+    if getattr(args, "work", ""):
+        WORK = Path(args.work).resolve()
+    if getattr(args, "code", ""):
+        CODE = Path(args.code).resolve()
     {"fetch": fetch, "run": run, "index": build_index, "judge": judge, "report": report}[args.command](args)
 
 
