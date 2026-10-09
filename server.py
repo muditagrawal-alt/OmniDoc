@@ -6,9 +6,12 @@ Serves the React frontend's API:
 2. Conversation sessions and message history (SQLite)
 3. The multi-agent Graph RAG pipeline (LangGraph + LanceDB + Kùzu + Ollama),
    with Server-Sent Events streaming of per-agent progress
-4. Document ingestion (Docling) with background knowledge-graph extraction
-5. Knowledge-graph export for the 3D globe
-6. PDF (WeasyPrint) and DOCX (python-docx) report export
+4. Document ingestion (PDF, scans and images with OCR, Word, text, spreadsheets) with
+   background summaries and knowledge-graph extraction
+5. The document viewer: page images, citation highlights, document text and summaries
+6. Schema extraction: fill a set of fields from documents, with a checked citation per value
+7. Knowledge-graph export for the 3D globe
+8. PDF (WeasyPrint) and DOCX (python-docx) report export
 """
 import os
 import re
@@ -17,6 +20,7 @@ import sys
 import json
 import time
 import uuid
+import queue
 import hashlib
 import logging
 import threading
@@ -35,21 +39,46 @@ sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 from pydantic import BaseModel, Field
 from fastapi import FastAPI, HTTPException, UploadFile, File, Header, Depends
 from fastapi.middleware.cors import CORSMiddleware
-from fastapi.responses import StreamingResponse
+from fastapi.responses import StreamingResponse, FileResponse
 
 from db_store import OmniDocDB, LOCAL_USER_ID, DATA_DIR
 from export.report_compiler import ReportCompiler
 from core.pipeline import AgenticGraphRAGPipeline
+from agents import llm_providers
 
 logging.basicConfig(level=logging.INFO, format="%(asctime)s [%(levelname)s] %(name)s: %(message)s")
 logger = logging.getLogger("OmniDoc.Server")
 
-VERSION = "2.1.0"
+VERSION = "2.2.0"
 OLLAMA_URL = os.environ.get("OLLAMA_HOST", "http://localhost:11434").rstrip("/")
-DEFAULT_MODEL = os.environ.get("OMNIDOC_MODEL", "qwen2.5:7b-instruct")
+# A hosted free-tier model when an API key is configured (see .env.example), else local Ollama.
+DEFAULT_MODEL = llm_providers.default_spec()
 MAX_UPLOAD_BYTES = int(os.environ.get("OMNIDOC_MAX_UPLOAD_MB", "100")) * 1024 * 1024
-ALLOWED_EXTENSIONS = {"pdf", "docx", "txt", "md"}
+IMAGE_TYPES = {"png", "jpg", "jpeg", "tif", "tiff", "webp", "bmp"}
+MEDIA_FILE_TYPES = {"mp3", "wav", "m4a", "ogg", "flac", "webm", "mp4", "mov", "mpeg", "mpga", "aac"}
+# Shown as page images in the viewer (with highlights); other types are shown as text.
+PAGED_TYPES = {"pdf"} | IMAGE_TYPES
+ALLOWED_EXTENSIONS = ({"pdf", "docx", "txt", "md", "csv", "tsv", "xlsx", "pptx", "eml", "epub", "html", "htm"}
+                      | IMAGE_TYPES | MEDIA_FILE_TYPES)
+MEDIA_TYPES = {
+    "pdf": "application/pdf", "png": "image/png", "jpg": "image/jpeg", "jpeg": "image/jpeg",
+    "tif": "image/tiff", "tiff": "image/tiff", "webp": "image/webp", "bmp": "image/bmp",
+    "txt": "text/plain; charset=utf-8", "md": "text/markdown; charset=utf-8", "csv": "text/csv; charset=utf-8",
+    "tsv": "text/tab-separated-values; charset=utf-8",
+    "docx": "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+    "xlsx": "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+    "pptx": "application/vnd.openxmlformats-officedocument.presentationml.presentation",
+    "eml": "message/rfc822", "epub": "application/epub+zip", "html": "text/html; charset=utf-8", "htm": "text/html; charset=utf-8",
+    "mp3": "audio/mpeg", "wav": "audio/wav", "m4a": "audio/mp4", "ogg": "audio/ogg", "flac": "audio/flac", "aac": "audio/aac",
+    "webm": "video/webm", "mp4": "video/mp4", "mov": "video/quicktime", "mpeg": "video/mpeg", "mpga": "audio/mpeg",
+}
 UPLOAD_DIR = DATA_DIR / "uploads"
+# Written by the pipeline at upload; read directly so listing documents never waits for the models.
+LAYOUT_DIR = DATA_DIR / "layout"
+SUMMARY_DIR = DATA_DIR / "summaries"
+PAGE_CACHE_DIR = DATA_DIR / "page_cache"
+PAGE_WIDTHS = (400, 700, 1000, 1400, 2000)
+MAX_PAGE_PIXELS = 24_000_000
 SETTINGS_PATH = DATA_DIR / "settings.json"
 DOC_ID_RE = re.compile(r"^[A-Za-z0-9_.\-]{1,128}$")
 NEW_CHAT_TITLE = "New conversation"
@@ -84,8 +113,31 @@ app.add_middleware(
     allow_origins=CORS_ORIGINS,
     allow_credentials=False,
     allow_methods=["GET", "POST", "PATCH", "PUT", "DELETE", "OPTIONS"],
-    allow_headers=["Authorization", "Content-Type", "Accept"],
+    allow_headers=["Authorization", "X-OmniDoc-Token", "Content-Type", "Accept"],
 )
+
+# Optional password gate for deployments: OMNIDOC_AUTH="user:password" asks every visitor for it
+# (HTTP basic auth; serve over HTTPS). /api/health stays open for health checks.
+_GATE = os.environ.get("OMNIDOC_AUTH", "").strip()
+if _GATE:
+    import base64
+    import secrets
+    from starlette.responses import Response as _PlainResponse
+
+    @app.middleware("http")
+    async def password_gate(request, call_next):
+        if request.url.path == "/api/health" or request.method == "OPTIONS":
+            return await call_next(request)
+        header = request.headers.get("authorization", "")
+        given = ""
+        if header.startswith("Basic "):
+            try:
+                given = base64.b64decode(header[6:]).decode("utf-8", errors="ignore")
+            except ValueError:
+                given = ""
+        if not secrets.compare_digest(given.encode(), _GATE.encode()):
+            return _PlainResponse(status_code=401, headers={"WWW-Authenticate": 'Basic realm="OmniDoc", charset="UTF-8"'})
+        return await call_next(request)
 
 db = OmniDocDB()
 report_compiler = ReportCompiler()
@@ -118,7 +170,15 @@ def get_pipeline() -> AgenticGraphRAGPipeline:
             if _pipeline is None:
                 model = _load_settings().get("model") or DEFAULT_MODEL
                 logger.info(f"Initializing agentic pipeline with model {model}...")
-                _pipeline = AgenticGraphRAGPipeline(data_dir=str(DATA_DIR), model_name=model)
+                pipeline = AgenticGraphRAGPipeline(data_dir=str(DATA_DIR), model_name=model)
+                pipeline.doc_title_provider = _doc_titles  # library names for summaries and citations
+                pipeline.doc_list_provider = db.get_all_documents
+                try:
+                    pipeline.backfill_types()
+                except Exception as e:
+                    logger.warning(f"Type detection for earlier documents failed: {e}")
+                pipeline.refresh_records()
+                _pipeline = pipeline
     return _pipeline
 
 
@@ -126,6 +186,19 @@ def current_model() -> str:
     if _pipeline is not None:
         return _pipeline.model_name
     return _load_settings().get("model") or DEFAULT_MODEL
+
+
+def available_models() -> List[Dict[str, Any]]:
+    """Models that can answer: the configured hosted providers' models, then local Ollama models."""
+    models: List[Dict[str, Any]] = []
+    for p in llm_providers.chat_providers():
+        for name, tier in ((p.model, "smart"), (p.fast_model, "fast")):
+            if name and not any(m["name"] == f"{p.name}:{name}" for m in models):
+                models.append({"name": f"{p.name}:{name}", "label": name.split("/")[-1], "provider": p.name,
+                               "provider_label": p.label, "hosted": True, "tier": tier, "size_gb": None, "parameter_size": None})
+    for m in ollama_models(timeout=1.0) or []:
+        models.append({**m, "label": m["name"], "provider": "ollama", "provider_label": "Ollama (this computer)", "hosted": False})
+    return models
 
 
 def ollama_models(timeout: float = 2.0) -> Optional[List[Dict[str, Any]]]:
@@ -173,6 +246,8 @@ class QueryRequest(BaseModel):
     document_ids: Optional[List[str]] = None
     session_id: Optional[str] = None
     language: Optional[str] = "en"
+    # "auto": search the web when the question needs it or the documents do not answer it
+    web: Optional[str] = Field("auto", pattern="^(auto|on|off)$")
 
 
 class ModelRequest(BaseModel):
@@ -189,15 +264,18 @@ class ExportRequest(BaseModel):
 # ---------------------------------------------------------------------------
 # Auth: opaque session tokens; requests without one act as the local user
 # ---------------------------------------------------------------------------
-def _bearer(authorization: Optional[str]) -> Optional[str]:
+def _bearer(authorization: Optional[str], omnidoc_token: Optional[str] = None) -> Optional[str]:
+    """The profile token: X-OmniDoc-Token (used by the app, so a password gate can use Authorization), or a Bearer header."""
+    if omnidoc_token and omnidoc_token.strip():
+        return omnidoc_token.strip()
     if authorization and authorization.startswith("Bearer "):
         token = authorization[len("Bearer "):].strip()
         return token or None
     return None
 
 
-def current_user_id(authorization: Optional[str] = Header(None)) -> str:
-    token = _bearer(authorization)
+def current_user_id(authorization: Optional[str] = Header(None), x_omnidoc_token: Optional[str] = Header(None)) -> str:
+    token = _bearer(authorization, x_omnidoc_token)
     if not token:
         return LOCAL_USER_ID
     user_id = db.get_session_user_id(token)
@@ -234,8 +312,8 @@ def login(req: LoginRequest):
 
 
 @app.get("/api/auth/me")
-def get_current_user(authorization: Optional[str] = Header(None)):
-    token = _bearer(authorization)
+def get_current_user(authorization: Optional[str] = Header(None), x_omnidoc_token: Optional[str] = Header(None)):
+    token = _bearer(authorization, x_omnidoc_token)
     if not token:
         raise HTTPException(status_code=401, detail="Not signed in")
     user_id = db.get_session_user_id(token)
@@ -247,8 +325,8 @@ def get_current_user(authorization: Optional[str] = Header(None)):
 
 
 @app.post("/api/auth/logout")
-def logout(authorization: Optional[str] = Header(None)):
-    token = _bearer(authorization)
+def logout(authorization: Optional[str] = Header(None), x_omnidoc_token: Optional[str] = Header(None)):
+    token = _bearer(authorization, x_omnidoc_token)
     if token:
         db.delete_session(token)
     return {"status": "success"}
@@ -276,6 +354,7 @@ def health_check():
         "version": VERSION,
         "model": current_model(),
         "ollama": ollama_models(timeout=1.0) is not None,
+        "providers": [p.name for p in llm_providers.chat_providers()],
         "stores": stores,
         "timestamp": time.time(),
     }
@@ -283,25 +362,38 @@ def health_check():
 
 @app.get("/api/models")
 def list_models():
-    models = ollama_models()
-    if models is None:
-        raise HTTPException(status_code=503, detail="Ollama is not reachable at " + OLLAMA_URL)
+    models = available_models()
+    if not models:
+        raise HTTPException(status_code=503, detail="No model is available: add a free API key to .env (see .env.example) or start Ollama.")
     return {"models": models, "current": current_model()}
 
 
 @app.put("/api/models/current")
 def set_model(req: ModelRequest):
-    models = ollama_models()
-    if models is None:
-        raise HTTPException(status_code=503, detail="Ollama is not reachable")
-    if req.model not in {m["name"] for m in models}:
-        raise HTTPException(status_code=404, detail=f"Model {req.model} is not installed in Ollama")
+    names = {m["name"] for m in available_models()}
+    if req.model not in names:
+        raise HTTPException(status_code=404, detail=f"Model {req.model} is not available (configure its API key or install it in Ollama)")
     settings = _load_settings()
     settings["model"] = req.model
     _save_settings(settings)
     if _pipeline is not None:
         _pipeline.set_model(req.model)
     return {"current": req.model}
+
+
+@app.get("/api/providers")
+def list_providers():
+    """Which hosted model, embedding and web-search providers are configured, with their free-tier notes."""
+    from agents.web_search_agent import search_providers
+    pipeline = _pipeline
+    return {
+        "llm": llm_providers.provider_status(),
+        "search": [{k: v for k, v in p.items() if k != "fn"} for p in search_providers()],
+        "embedding_model": pipeline.embed_service.model_name if pipeline else None,
+        "reindex": pipeline.reindex_status if pipeline else None,
+        "ollama": ollama_models(timeout=1.0) is not None,
+        "current_model": current_model(),
+    }
 
 
 # ---------------------------------------------------------------------------
@@ -373,6 +465,14 @@ def _doc_titles() -> Dict[str, str]:
     return {d["id"]: d.get("filename") or d["id"] for d in db.get_all_documents()}
 
 
+def _with_titles(sources: List[Dict[str, Any]]) -> List[Dict[str, Any]]:
+    titles = _doc_titles()
+    for s in sources:
+        if isinstance(s, dict) and s.get("doc_id") and not s.get("doc_title"):
+            s["doc_title"] = titles.get(s["doc_id"], s["doc_id"])
+    return sources
+
+
 def build_sources(state: Dict[str, Any]) -> List[Dict[str, Any]]:
     """Numbered sources matching the [n] citations in the answer."""
     titles = _doc_titles()
@@ -424,6 +524,7 @@ def build_verification(state: Dict[str, Any]) -> Dict[str, Any]:
     supported = len(getattr(v, "supported_claims", []) or [])
     unsupported = len(getattr(v, "unsupported_claims", []) or [])
     feedback = getattr(v, "feedback", "") or ""
+    sentences = to_jsonable(getattr(v, "sentences", None) or [])
     if score is None or (score == 0 and supported == 0 and unsupported == 0):
         status = "unverified"
         score = None
@@ -432,7 +533,10 @@ def build_verification(state: Dict[str, Any]) -> Dict[str, Any]:
     else:
         status = "partial"
     return {"status": status, "score": None if score is None else round(float(score), 3),
-            "supported": supported, "unsupported": unsupported, "feedback": feedback}
+            "supported": supported, "unsupported": unsupported, "feedback": feedback,
+            "partial": sum(1 for s in sentences if s.get("verdict") == "partial"),
+            "corrected": sum(1 for s in sentences if s.get("corrected_to")),
+            "sentences": sentences}
 
 
 def build_graph(state: Dict[str, Any]) -> Dict[str, Any]:
@@ -470,6 +574,7 @@ def build_answer(state: Dict[str, Any], steps: List[Dict[str, Any]], doc_ids: Li
         "answer": answer,
         "sources": build_sources(state),
         "math_results": to_jsonable(state.get("math_results") or []),
+        "table_results": to_jsonable(state.get("table_results") or []),
         "visual_artifacts": to_jsonable(state.get("visual_artifacts") or []),
         "conflicts": to_jsonable(state.get("conflicts") or []),
         "graph": build_graph(state),
@@ -478,6 +583,8 @@ def build_answer(state: Dict[str, Any], steps: List[Dict[str, Any]], doc_ids: Li
         "model": current_model(),
         "elapsed_ms": elapsed_ms,
         "document_ids": doc_ids,
+        # Model calls, tokens and the models that answered (from the execution budget)
+        "usage": to_jsonable(state.get("usage") or {}),
     }
 
 
@@ -521,11 +628,12 @@ def execute_chat_query(chat_id: str, req: QueryRequest, user_id: str = Depends(c
     state: Dict[str, Any] = {}
     try:
         for kind, data in get_pipeline().query_stream(
-            user_query=query_text, document_ids=doc_ids, session_id=chat_id, conversation_history=history
+            user_query=query_text, document_ids=doc_ids, session_id=chat_id, conversation_history=history,
+            web_mode=req.web or "auto",
         ):
             if kind == "step":
                 steps.append(data)
-            else:
+            elif kind == "result":
                 state = data
     except Exception as e:
         logger.error(f"Pipeline failed for chat {chat_id}: {e}", exc_info=True)
@@ -551,20 +659,28 @@ def stream_chat_query(chat_id: str, req: QueryRequest, user_id: str = Depends(cu
         state: Dict[str, Any] = {}
         try:
             for kind, data in get_pipeline().query_stream(
-                user_query=query_text, document_ids=doc_ids, session_id=chat_id, conversation_history=history
+                user_query=query_text, document_ids=doc_ids, session_id=chat_id, conversation_history=history,
+                web_mode=req.web or "auto",
             ):
                 if kind == "step":
                     steps.append(data)
                     if not data.get("skipped"):
                         yield _sse("step", {k: data[k] for k in ("node", "label", "detail", "duration_ms")})
-                else:
+                    continue
+                if kind in ("sources", "reset"):
+                    yield _sse(kind, _with_titles(to_jsonable(data or [])))
+                    continue
+                if kind == "delta":
+                    yield _sse("delta", {"text": data})
+                    continue
+                if kind == "result":
                     state = data
             payload = build_answer(state, steps, doc_ids, int((time.perf_counter() - started) * 1000))
             msg_id = _persist_turn(chat, req.query.strip(), payload, first_turn=not history)
             yield _sse("result", {"status": "success", "message_id": msg_id, **payload})
         except Exception as e:
             logger.error(f"Streaming pipeline failed for chat {chat_id}: {e}", exc_info=True)
-            yield _sse("error", {"message": "The agent pipeline failed. Check that Ollama is running and try again."})
+            yield _sse("error", {"message": "The agent pipeline failed. Check that a model is available (an API key in .env, or Ollama running) and try again."})
 
     return StreamingResponse(
         events(),
@@ -583,10 +699,11 @@ def standalone_query(req: QueryRequest):
     for kind, data in get_pipeline().query_stream(
         user_query=req.query, document_ids=doc_ids,
         session_id=req.session_id or f"session_{uuid.uuid4().hex[:8]}",
+        web_mode=req.web or "auto",
     ):
         if kind == "step":
             steps.append(data)
-        else:
+        elif kind == "result":
             state = data
     return {"status": "success", **build_answer(state, steps, doc_ids, int((time.perf_counter() - started) * 1000))}
 
@@ -599,6 +716,26 @@ def _graph_status(doc_id: str) -> Optional[Dict[str, Any]]:
         return None
     job = _pipeline.graph_jobs.get(doc_id)
     return dict(job) if job else None
+
+
+def _record_summary(doc_id: str) -> Optional[Dict[str, Any]]:
+    """Fields found and failed checks of a document's extracted record (None when it has none)."""
+    try:
+        rec = json.loads((DATA_DIR / "records" / f"{doc_id}.json").read_text())
+    except (OSError, ValueError):
+        return None
+    fields = rec.get("fields") or []
+    checks = rec.get("validation") or []
+    return {"found": sum(1 for f in fields if f.get("status") == "found"), "total": len(fields),
+            "failed_checks": sum(1 for c in checks if c.get("status") == "fail"), "template": rec.get("template")}
+
+
+def _doc_meta(doc_id: str) -> Dict[str, Any]:
+    """Pages, OCR and table counts recorded at upload (empty for documents uploaded earlier)."""
+    try:
+        return json.loads((LAYOUT_DIR / f"{doc_id}.meta.json").read_text())
+    except (OSError, ValueError):
+        return {}
 
 
 @app.get("/api/documents")
@@ -614,24 +751,24 @@ def list_documents():
         if status is not None and _pipeline is not None:
             status["entities"] = counts.get(d["id"], 0)
         d["graph_status"] = status
+        meta = _doc_meta(d["id"])
+        d["pages"] = meta.get("pages")
+        d["ocr_pages"] = len(meta.get("ocr_pages") or [])
+        d["ocr_languages"] = meta.get("ocr_languages") or []
+        d["table_count"] = meta.get("tables", 0)
+        d["has_summary"] = (SUMMARY_DIR / f"{d['id']}.json").is_file()
+        d["doc_type"] = meta.get("doc_type") or None
+        d["doc_type_label"] = meta.get("doc_type_label") or None
+        d["record"] = _record_summary(d["id"])
+        d["viewer"] = "pages" if (d.get("file_type") or "").lower() in PAGED_TYPES else "text"
         docs.append(d)
     return {"documents": docs}
 
 
-@app.post("/api/documents/upload")
-def upload_document(file: UploadFile = File(...)):
-    """Stores and indexes a document. Knowledge-graph extraction continues in the background."""
-    original_name = Path(file.filename or "document").name or "document"
-    ext = original_name.rsplit(".", 1)[-1].lower() if "." in original_name else ""
-    if ext not in ALLOWED_EXTENSIONS:
-        raise HTTPException(status_code=415, detail=f"Unsupported file type. Upload {', '.join(sorted(ALLOWED_EXTENSIONS))}.")
-
-    contents = file.file.read(MAX_UPLOAD_BYTES + 1)
-    if len(contents) > MAX_UPLOAD_BYTES:
-        raise HTTPException(status_code=413, detail=f"File is larger than {MAX_UPLOAD_BYTES // (1024 * 1024)} MB")
+def _ingest_bytes(contents: bytes, original_name: str, ext: str) -> Dict[str, Any]:
+    """Stores and indexes a document's bytes (shared by uploads and URL imports)."""
     if not contents:
         raise HTTPException(status_code=400, detail="The file is empty")
-
     file_hash = hashlib.sha256(contents).hexdigest()
     existing = db.get_document_by_hash(file_hash)
     if existing:
@@ -643,22 +780,73 @@ def upload_document(file: UploadFile = File(...)):
     saved_path = UPLOAD_DIR / f"{doc_id}.{ext}"  # never trust the client filename in a path
     saved_path.write_bytes(contents)
 
+    from parsing.transcribe import TranscriptionUnavailable
     try:
         parsed = get_pipeline().ingest_document(
             file_path=str(saved_path), doc_id=doc_id, doc_hash=file_hash,
             fast_mode=True, background_graph=True, title=original_name,
         )
+    except TranscriptionUnavailable as e:
+        saved_path.unlink(missing_ok=True)
+        raise HTTPException(status_code=422, detail=str(e))
     except Exception as e:
         logger.error(f"Ingestion failed for {original_name}: {e}", exc_info=True)
         saved_path.unlink(missing_ok=True)
-        raise HTTPException(status_code=422, detail="Could not read this document. It may be scanned, encrypted or corrupted.")
+        raise HTTPException(status_code=422, detail="Could not read this document. It may be encrypted or corrupted.")
 
     chunk_count = len(parsed.chunks)
     db.add_document(doc_id=doc_id, filename=original_name, file_hash=file_hash,
                     size_bytes=len(contents), file_type=ext, chunk_count=chunk_count)
-    return {"status": "success", "doc_id": doc_id, "filename": original_name,
-            "chunk_count": chunk_count, "duplicate": False,
-            "visual_element_count": len(getattr(parsed, "visual_elements", []) or [])}
+    get_pipeline().refresh_records()
+    result = {"status": "success", "doc_id": doc_id, "filename": original_name,
+              "chunk_count": chunk_count, "duplicate": False,
+              "visual_element_count": len(getattr(parsed, "visual_elements", []) or []),
+              "ocr_pages": len(getattr(parsed, "ocr_pages", []) or []),
+              "table_count": len(getattr(parsed, "tables", []) or [])}
+    if chunk_count == 0:
+        from parsing import ocr
+        result["warning"] = ("No text was found in this file." if ocr.tesseract_available() else
+                             "No text was found. Install Tesseract (brew install tesseract) to read scanned pages and images.")
+    return result
+
+
+@app.post("/api/documents/upload")
+def upload_document(file: UploadFile = File(...)):
+    """Stores and indexes a document. Summaries, field extraction and the knowledge graph continue in the background."""
+    original_name = Path(file.filename or "document").name or "document"
+    ext = original_name.rsplit(".", 1)[-1].lower() if "." in original_name else ""
+    if ext not in ALLOWED_EXTENSIONS:
+        raise HTTPException(status_code=415, detail=f"Unsupported file type. Upload {', '.join(sorted(ALLOWED_EXTENSIONS))}.")
+    contents = file.file.read(MAX_UPLOAD_BYTES + 1)
+    if len(contents) > MAX_UPLOAD_BYTES:
+        raise HTTPException(status_code=413, detail=f"File is larger than {MAX_UPLOAD_BYTES // (1024 * 1024)} MB")
+    return _ingest_bytes(contents, original_name, ext)
+
+
+class ImportUrlRequest(BaseModel):
+    url: str = Field(..., min_length=8, max_length=2000)
+
+
+@app.post("/api/documents/import-url")
+def import_url(req: ImportUrlRequest):
+    """Adds a web page or an online PDF to the library (public addresses only)."""
+    from parsing.web import safe_get, readable, FetchError
+    try:
+        body, ctype, final_url = safe_get(req.url.strip(), max_bytes=MAX_UPLOAD_BYTES)
+    except FetchError as e:
+        raise HTTPException(status_code=422, detail=str(e))
+    except Exception as e:
+        logger.warning(f"Import of {req.url} failed: {e}")
+        raise HTTPException(status_code=502, detail="Could not download that address.")
+    path_name = Path(urllib.parse.urlparse(final_url).path).name
+    if ctype == "application/pdf" or body[:5] == b"%PDF-":
+        name = path_name if path_name.lower().endswith(".pdf") else (path_name or "document") + ".pdf"
+        return {**_ingest_bytes(body, name, "pdf"), "url": final_url}
+    if ctype.startswith("text/plain"):
+        return {**_ingest_bytes(body, (path_name or "page") + ".txt", "txt"), "url": final_url}
+    title = readable(body.decode("utf-8", errors="replace"), final_url).get("title") or final_url
+    safe_title = re.sub(r"[\\/:*?\"<>|]+", " ", title).strip()[:90] or "Web page"
+    return {**_ingest_bytes(body, f"{safe_title}.html", "html"), "url": final_url}
 
 
 @app.delete("/api/documents/{doc_id}")
@@ -670,6 +858,7 @@ def delete_document(doc_id: str):
     try:
         get_pipeline().delete_document(doc_id)
         db.delete_document(doc_id)
+        get_pipeline().refresh_records()
         if doc:
             for path in UPLOAD_DIR.glob(f"{doc_id}*"):
                 path.unlink(missing_ok=True)
@@ -677,6 +866,449 @@ def delete_document(doc_id: str):
         logger.error(f"Failed to delete document {doc_id}: {e}", exc_info=True)
         raise HTTPException(status_code=500, detail="Could not delete the document")
     return {"status": "success", "deleted_doc_id": doc_id}
+
+
+class SummariesRequest(BaseModel):
+    document_ids: Optional[List[str]] = Field(None, max_length=500)
+
+
+@app.post("/api/documents/summaries")
+def summarize_documents(req: Optional[SummariesRequest] = None):
+    """Writes summaries, in the background, for documents (all by default) that have none yet."""
+    doc_ids = [d for d in (req.document_ids or []) if DOC_ID_RE.match(d)] if req and req.document_ids else None
+    queued = get_pipeline().summarize_missing(doc_ids)
+    return {"status": "success", "queued": queued}
+
+
+# ---------------------------------------------------------------------------
+# Document viewer: the original file, page images, citation highlights, text, summary
+# ---------------------------------------------------------------------------
+_render_lock = threading.Lock()
+
+
+def _stored_document(doc_id: str):
+    """The library record and the stored upload of a document (404 when either is missing)."""
+    if not DOC_ID_RE.match(doc_id):
+        raise HTTPException(status_code=400, detail="Invalid document id")
+    doc = db.get_document(doc_id)
+    if not doc:
+        raise HTTPException(status_code=404, detail="Document not found")
+    ext = (doc.get("file_type") or "").lower()
+    path = UPLOAD_DIR / f"{doc_id}.{ext}"
+    if not path.is_file():
+        # Older versions stored uploads as "<doc_id>_<original name>".
+        matches = sorted(p for p in UPLOAD_DIR.glob(f"{doc_id}*") if p.is_file())
+        if not matches:
+            raise HTTPException(status_code=404, detail="The original file is no longer on disk")
+        path = matches[0]
+    return doc, path
+
+
+def _file_type(path: Path) -> str:
+    return path.suffix.lower().lstrip(".")
+
+
+@app.get("/api/documents/{doc_id}/file")
+def document_file(doc_id: str):
+    """The original uploaded file, shown inline by the browser where it can."""
+    doc, path = _stored_document(doc_id)
+    name = doc.get("filename") or path.name
+    disposition = _attachment(name.rsplit(".", 1)[0], _file_type(path))["Content-Disposition"].replace("attachment", "inline", 1)
+    return FileResponse(path, media_type=MEDIA_TYPES.get(_file_type(path), "application/octet-stream"),
+                        headers={"Content-Disposition": disposition})
+
+
+@app.get("/api/documents/{doc_id}/info")
+def document_info(doc_id: str):
+    """What the viewer needs: page sizes (with OCR language per page), tables and summary state."""
+    doc, path = _stored_document(doc_id)
+    ftype = _file_type(path)
+    pipeline = get_pipeline()
+    layout = pipeline.layout(doc_id)
+    pages = [{"w": p.get("w"), "h": p.get("h"), "ocr": bool(p.get("ocr")), "lang": p.get("lang")}
+             for p in layout.get("pages", [])]
+    if ftype in PAGED_TYPES and not pages:
+        # Uploaded before layouts were stored: read the page sizes from the file.
+        from parsing import ocr
+        with _render_lock:
+            with ocr.open_as_pdf(str(path)) as pdf:
+                pages = [{"w": round(pg.rect.width, 1), "h": round(pg.rect.height, 1), "ocr": False, "lang": None}
+                         for pg in pdf]
+    meta = _doc_meta(doc_id)
+    tables = [{"table": t["table"], "title": t["title"], "page": t["page"], "n_rows": t["n_rows"],
+               "columns": [c["name"] for c in t["columns"]]} for t in pipeline.table_store.tables_for([doc_id])]
+    return {
+        "id": doc_id,
+        "filename": doc.get("filename") or path.name,
+        "file_type": ftype,
+        "media": layout.get("media") if ftype in MEDIA_FILE_TYPES else None,
+        "attachments": layout.get("attachments") or [],
+        "size_bytes": doc.get("size_bytes"),
+        "viewer": "pages" if ftype in PAGED_TYPES else "text",
+        "pages": pages,
+        "ocr_pages": meta.get("ocr_pages") or [p for p, info in enumerate(pages, 1) if info["ocr"]],
+        "ocr_languages": meta.get("ocr_languages") or [],
+        "tables": tables,
+        "has_summary": pipeline.summarizer.has(doc_id),
+    }
+
+
+@app.get("/api/documents/{doc_id}/pages/{page_no}")
+def document_page(doc_id: str, page_no: int, width: int = 1000):
+    """One page as a PNG at the nearest standard width (cached on disk; ids are content hashes)."""
+    _, path = _stored_document(doc_id)
+    if _file_type(path) not in PAGED_TYPES:
+        raise HTTPException(status_code=404, detail="This document has no page images")
+    width = min(PAGE_WIDTHS, key=lambda w: abs(w - width))
+    cache = PAGE_CACHE_DIR / doc_id / f"p{page_no}_w{width}.png"
+    if not cache.is_file():
+        import fitz
+        from parsing import ocr
+        with _render_lock:
+            with ocr.open_as_pdf(str(path)) as pdf:
+                if not 1 <= page_no <= len(pdf):
+                    raise HTTPException(status_code=404, detail="Page not found")
+                page = pdf[page_no - 1]
+                zoom = width / (float(page.rect.width) or 1.0)
+                # Very tall pages (receipts, long scans): cap the pixel count.
+                zoom = min(zoom, (MAX_PAGE_PIXELS / max(1.0, page.rect.width * page.rect.height)) ** 0.5)
+                png = page.get_pixmap(matrix=fitz.Matrix(zoom, zoom), alpha=False).tobytes("png")
+        cache.parent.mkdir(parents=True, exist_ok=True)
+        tmp = cache.with_name(cache.name + ".part")
+        tmp.write_bytes(png)
+        os.replace(tmp, cache)
+    return FileResponse(cache, media_type="image/png", headers={"Cache-Control": "private, max-age=604800"})
+
+
+class LocateRequest(BaseModel):
+    page: Optional[int] = Field(None, ge=1, le=100000)
+    chunk_id: Optional[str] = Field(None, max_length=200)
+    claim: Optional[str] = Field(None, max_length=4000)
+    passage: Optional[str] = Field(None, max_length=12000)
+    table: Optional[str] = Field(None, max_length=200)
+    exact: bool = False
+
+
+@app.post("/api/documents/{doc_id}/locate")
+def locate_citation(doc_id: str, req: LocateRequest):
+    """
+    Where a cited passage, and the sentence of it that supports the claim, sits in the
+    document: normalised rectangles on a page for PDFs and images, or the chunk and quote to
+    mark in the text of other documents.
+    """
+    from parsing.locate import locate, best_sentence
+    _, path = _stored_document(doc_id)
+    pipeline = get_pipeline()
+    passage, page_no, chunk_id = req.passage or "", req.page, ""
+    if req.chunk_id and DOC_ID_RE.match(req.chunk_id):
+        chunk = pipeline.lance_store.get_chunk(req.chunk_id)
+        if chunk is not None and chunk.doc_id == doc_id:
+            # The full passage, not the shortened snippet the client has.
+            passage, chunk_id = chunk.text, chunk.chunk_id
+            page_no = page_no or chunk.page_number
+    table_box = None
+    if req.table:
+        entry = next((t for t in pipeline.table_store.tables_for([doc_id])
+                      if req.table in (t["table"], t["table_id"])), None)
+        if entry and entry.get("bbox") and entry.get("page"):
+            table_box, page_no = entry["bbox"], entry["page"]
+    claim = (req.claim or "").strip()
+
+    if _file_type(path) not in PAGED_TYPES:
+        quote = (claim if req.exact else best_sentence(passage, claim)) if claim and passage else ""
+        return {"page": page_no, "rects": [], "quote": quote, "method": "text", "chunk_id": chunk_id}
+
+    from parsing import ocr
+    with _render_lock:
+        with ocr.open_as_pdf(str(path)) as pdf:
+            result = locate(pdf, pipeline.layout(doc_id), page_no or 1, passage=passage, claim=claim,
+                            chunk_id=chunk_id, table=table_box, exact=req.exact)
+    result["chunk_id"] = chunk_id
+    return result
+
+
+def _strip_overlap(previous: str, text: str, max_words: int = 80) -> str:
+    """Drops the words a chunk repeats from the end of the one before it (chunks overlap)."""
+    prev_words, words = previous.split(), text.split()
+    for k in range(min(max_words, len(prev_words), len(words) - 1), 4, -1):
+        if prev_words[-k:] == words[:k]:
+            return " ".join(words[k:])
+    return text
+
+
+@app.get("/api/documents/{doc_id}/text")
+def document_text(doc_id: str):
+    """The document's text in reading order, as its indexed passages (overlaps removed)."""
+    doc, _ = _stored_document(doc_id)
+    chunks = get_pipeline().lance_store.get_document_chunks(doc_id)
+    out, previous = [], ""
+    for c in chunks:
+        out.append({"chunk_id": c.chunk_id, "page": c.page_number, "section": c.section_title,
+                    "text": _strip_overlap(previous, c.text) if previous else c.text})
+        previous = c.text
+    return {"doc_id": doc_id, "title": doc.get("filename") or doc_id, "chunks": out}
+
+
+@app.get("/api/documents/{doc_id}/tables/{table}")
+def document_table(doc_id: str, table: str, limit: int = 200):
+    """Rows of one extracted table (for the viewer of spreadsheets and table citations)."""
+    _stored_document(doc_id)
+    store = get_pipeline().table_store
+    entry = next((t for t in store.tables_for([doc_id]) if table in (t["table"], t["table_id"])), None)
+    if entry is None:
+        raise HTTPException(status_code=404, detail="Table not found")
+    limit = min(max(1, limit), 1000)
+    try:
+        result = store.run_select(f'SELECT * FROM "{entry["table"]}"', [entry["table"]], max_rows=limit)
+    except ValueError as e:
+        raise HTTPException(status_code=400, detail=str(e))
+    return {"table": entry["table"], "title": entry["title"], "page": entry["page"], "n_rows": entry["n_rows"],
+            "columns": [c["name"] for c in entry["columns"]], "rows": result["rows"],
+            "truncated": result["truncated"]}
+
+
+@app.get("/api/documents/{doc_id}/summary")
+def document_summary(doc_id: str):
+    _stored_document(doc_id)
+    summary = get_pipeline().summarizer.load(doc_id)
+    if summary is not None:
+        return {"status": "ready", "summary": summary}
+    job = _graph_status(doc_id) or {}
+    pending = job.get("stage") == "summary" and job.get("status") in ("queued", "running")
+    return {"status": "pending" if pending else "missing", "summary": None,
+            "progress": {"processed": job.get("processed", 0), "total": job.get("total", 0)} if pending else None}
+
+
+class RecordRequest(BaseModel):
+    doc_type: Optional[str] = Field(None, max_length=40)
+
+
+@app.get("/api/documents/{doc_id}/record")
+def document_record(doc_id: str):
+    """The document's detected type and the fields extracted from it, with consistency checks."""
+    _stored_document(doc_id)
+    meta = _doc_meta(doc_id)
+    job = _graph_status(doc_id) or {}
+    return {
+        "doc_type": meta.get("doc_type") or "other",
+        "label": meta.get("doc_type_label") or "Document",
+        "confidence": meta.get("doc_type_confidence"),
+        "record": get_pipeline().records.load(doc_id),
+        "pending": job.get("stage") == "extract" and job.get("status") in ("queued", "running"),
+    }
+
+
+@app.post("/api/documents/{doc_id}/record")
+def extract_record(doc_id: str, req: RecordRequest):
+    """(Re-)extracts the fields of the document's type; ``doc_type`` corrects a wrong detection."""
+    from agents.extraction_agent import TYPE_PRESETS
+    from agents.doc_classifier import LABELS
+    doc, _ = _stored_document(doc_id)
+    pipeline = get_pipeline()
+    meta_path = LAYOUT_DIR / f"{doc_id}.meta.json"
+    meta = _doc_meta(doc_id)
+    if req.doc_type:
+        if req.doc_type not in TYPE_PRESETS:
+            raise HTTPException(status_code=400, detail=f"No template for {req.doc_type}")
+        meta.update(doc_type=req.doc_type, doc_type_label=LABELS.get(req.doc_type, req.doc_type), doc_type_confidence=1.0)
+        meta_path.write_text(json.dumps(meta))
+    if not TYPE_PRESETS.get(meta.get("doc_type") or ""):
+        raise HTTPException(status_code=400, detail="This document type has no extraction template; choose a type first.")
+    pipeline.records.delete(doc_id)
+    pipeline._auto_extract(doc_id, doc.get("filename") or doc_id)
+    return document_record(doc_id)
+
+
+def _pii_findings(doc_id: str, path: Path, kinds: Optional[List[str]] = None) -> List[Dict[str, Any]]:
+    from parsing import pii
+    if _file_type(path) in PAGED_TYPES:
+        from parsing import ocr
+        with _render_lock:
+            with ocr.open_as_pdf(str(path)) as pdf:
+                return pii.find_in_document(pdf, get_pipeline().layout(doc_id), kinds)
+    findings = []
+    for c in document_text(doc_id)["chunks"]:
+        for f in pii.find_in_text(c["text"], kinds):
+            findings.append({**f, "page": c["page"], "chunk_id": c["chunk_id"], "rects": [],
+                             "context": c["text"][max(0, f["start"] - 50):f["end"] + 50].replace(f["value"], f["masked"])})
+    return findings
+
+
+@app.get("/api/documents/{doc_id}/sensitive")
+def sensitive_data(doc_id: str):
+    """Personal and financial identifiers found in the document (values masked), with where they are."""
+    _, path = _stored_document(doc_id)
+    findings = _pii_findings(doc_id, path)
+    counts: Dict[str, int] = {}
+    for f in findings:
+        counts[f["label"]] = counts.get(f["label"], 0) + 1
+    public = [{k: f[k] for k in ("type", "label", "masked", "page", "rects", "context") if k in f} | {"chunk_id": f.get("chunk_id")}
+              for f in findings]
+    return {"findings": public, "counts": counts}
+
+
+class RedactRequest(BaseModel):
+    types: Optional[List[str]] = Field(None, max_length=20)
+
+
+@app.post("/api/documents/{doc_id}/redact")
+def redact_document(doc_id: str, req: RedactRequest):
+    """A copy with the sensitive values removed: real PDF redactions for PDFs and scans, blacked-out text otherwise."""
+    from parsing import pii
+    doc, path = _stored_document(doc_id)
+    kinds = [k for k in (req.types or []) if k in pii.LABELS] or None
+    base = (doc.get("filename") or doc_id).rsplit(".", 1)[0] + " (redacted)"
+    if _file_type(path) in PAGED_TYPES:
+        from parsing import ocr
+        findings = _pii_findings(doc_id, path, kinds)
+        with _render_lock:
+            with ocr.open_as_pdf(str(path)) as pdf:
+                data = pii.redact_pdf(pdf, findings)
+        return StreamingResponse(io.BytesIO(data), media_type="application/pdf", headers=_attachment(base, "pdf"))
+    text = "\n\n".join(c["text"] for c in document_text(doc_id)["chunks"])
+    redacted, _ = pii.redact_text(text, kinds)
+    return StreamingResponse(io.BytesIO(redacted.encode("utf-8")), media_type="text/plain; charset=utf-8",
+                             headers=_attachment(base, "txt"))
+
+
+class CompareRequest(BaseModel):
+    a: str = Field(..., max_length=128)
+    b: str = Field(..., max_length=128)
+    summarize: bool = False
+
+
+@app.post("/api/compare")
+def compare_documents(req: CompareRequest):
+    """Sentence-level comparison of two documents (modified, added, removed, changed figures); optional summary."""
+    from agents.compare_agent import compare, summarize
+    doc_a, _ = _stored_document(req.a)
+    doc_b, _ = _stored_document(req.b)
+    store = get_pipeline().lance_store
+    result = compare(store.get_document_chunks(req.a), store.get_document_chunks(req.b))
+    result["a"] = {"id": req.a, "title": doc_a.get("filename") or req.a}
+    result["b"] = {"id": req.b, "title": doc_b.get("filename") or req.b}
+    if req.summarize and result["changes"]:
+        try:
+            result["summary"] = summarize(current_model(), result["a"]["title"], result["b"]["title"], result["changes"])
+        except Exception as e:
+            logger.warning(f"Change summary failed: {e}")
+            result["summary_error"] = "The summary could not be written (no model answered)."
+    return result
+
+
+class SearchRequest(BaseModel):
+    query: str = Field(..., min_length=1, max_length=2000)
+    document_ids: Optional[List[str]] = None
+    top_k: int = Field(8, ge=1, le=30)
+
+
+@app.post("/api/search")
+def search_documents(req: SearchRequest):
+    """Hybrid search (vectors + BM25, reranked) without a model call: the passages, with their document and page."""
+    doc_ids = [d for d in (req.document_ids or []) if DOC_ID_RE.match(d)] or None
+    hits, pool = get_pipeline().hybrid_agent.search([req.query], doc_ids, top_k=req.top_k)
+    titles = _doc_titles()
+    return {"candidates": pool, "results": [{
+        "doc_id": h.doc_id, "title": titles.get(h.doc_id, h.doc_id), "chunk_id": h.chunk_id, "page": h.page_number,
+        "section": h.section_title, "score": h.score, "text": h.text} for h in hits]}
+
+
+@app.get("/api/web/page")
+def web_page(url: str, passage: str = "", claim: str = ""):
+    """
+    A web page cited in an answer, read on the server (public addresses only) and returned as
+    clean paragraphs, with the paragraph and sentence to highlight.
+    """
+    from parsing.web import read_page, FetchError
+    from parsing.locate import best_sentence, norm_tokens
+    try:
+        page = read_page(url, cache_dir=str(DATA_DIR / "web_cache"))
+    except FetchError as e:
+        raise HTTPException(status_code=422, detail=str(e))
+    except Exception as e:
+        logger.warning(f"Could not read {url}: {e}")
+        raise HTTPException(status_code=502, detail="Could not read that page.")
+    target = set(norm_tokens(passage or claim))
+    best_i, best_score = None, 0.0
+    for i, para in enumerate(page.get("paragraphs") or []):
+        tokens = set(norm_tokens(para))
+        score = len(tokens & target) / max(1, len(target))
+        if score > best_score:
+            best_i, best_score = i, score
+    quote = ""
+    if best_i is not None and claim:
+        quote = best_sentence(page["paragraphs"][best_i], claim)
+    return {**page, "highlight": {"paragraph": best_i if best_score >= 0.3 else None, "quote": quote}}
+
+
+# ---------------------------------------------------------------------------
+# Schema extraction
+# ---------------------------------------------------------------------------
+class ExtractRequest(BaseModel):
+    document_ids: List[str] = Field(..., min_length=1, max_length=50)
+    fields: List[Dict[str, Any]] = Field(default_factory=list, max_length=30)
+    preset: Optional[str] = Field(None, max_length=40)
+
+
+@app.get("/api/extract/presets")
+def extract_presets():
+    from agents.extraction_agent import presets_payload, FIELD_TYPES
+    return {"presets": presets_payload(), "types": list(FIELD_TYPES)}
+
+
+@app.post("/api/extract/stream")
+def extract_stream(req: ExtractRequest):
+    """
+    Fills the fields from each document, streaming `start`, then per document `doc_start`,
+    `progress` and `doc_result` (or `doc_error`), and finally `done` with CSV rows.
+    """
+    from agents.extraction_agent import PRESETS, normalise_fields, results_to_csv_rows
+    fields = normalise_fields(req.fields or (PRESETS.get(req.preset or "") or {}).get("fields") or [])
+    if not fields:
+        raise HTTPException(status_code=400, detail="Add at least one field to extract")
+    titles = _doc_titles()
+    doc_ids = [d for d in dict.fromkeys(req.document_ids) if DOC_ID_RE.match(d) and d in titles]
+    if not doc_ids:
+        raise HTTPException(status_code=404, detail="None of the selected documents exist")
+    agent = get_pipeline().extraction_agent
+
+    def run_one(doc_id: str, updates: "queue.Queue") -> None:
+        try:
+            result = agent.extract(doc_id, titles[doc_id], fields,
+                                   progress=lambda done, total: updates.put(("progress", {"doc_id": doc_id, "done": done, "total": total})))
+            for f in result["fields"]:
+                f.pop("_text", None)
+            updates.put(("doc_result", result))
+        except Exception as e:
+            logger.error(f"Extraction failed for {doc_id}: {e}", exc_info=True)
+            updates.put(("doc_error", {"doc_id": doc_id, "title": titles[doc_id], "message": "Extraction failed for this document."}))
+        finally:
+            updates.put(("finished", None))
+
+    def events() -> Iterator[str]:
+        started = time.perf_counter()
+        results: List[Dict[str, Any]] = []
+        yield _sse("start", {"documents": len(doc_ids), "fields": fields})
+        for i, doc_id in enumerate(doc_ids, 1):
+            yield _sse("doc_start", {"doc_id": doc_id, "title": titles[doc_id], "index": i, "total": len(doc_ids)})
+            updates: "queue.Queue" = queue.Queue()
+            threading.Thread(target=run_one, args=(doc_id, updates), name=f"extract-{doc_id}", daemon=True).start()
+            while True:
+                try:
+                    kind, data = updates.get(timeout=15)
+                except queue.Empty:
+                    yield ": keep-alive\n\n"  # local models can take a while per batch
+                    continue
+                if kind == "finished":
+                    break
+                if kind == "doc_result":
+                    results.append(data)
+                yield _sse(kind, data)
+        yield _sse("done", {"elapsed_ms": int((time.perf_counter() - started) * 1000),
+                            "csv_rows": results_to_csv_rows(results)})
+
+    return StreamingResponse(events(), media_type="text/event-stream",
+                             headers={"Cache-Control": "no-cache", "X-Accel-Buffering": "no"})
 
 
 # ---------------------------------------------------------------------------
@@ -774,6 +1406,22 @@ def export_docx(req: ExportRequest, user_id: str = Depends(current_user_id)):
         media_type="application/vnd.openxmlformats-officedocument.wordprocessingml.document",
         headers=_attachment(title, "docx"),
     )
+
+
+# ---------------------------------------------------------------------------
+# The built web app (frontend/dist), served from the same address as the API
+# ---------------------------------------------------------------------------
+STATIC_DIR = Path(os.environ.get("OMNIDOC_STATIC_DIR") or Path(__file__).resolve().parent / "frontend" / "dist")
+if (STATIC_DIR / "index.html").is_file():
+    @app.get("/{path:path}", include_in_schema=False)
+    def web_app(path: str):
+        if path.startswith("api/") or path == "api":
+            raise HTTPException(status_code=404, detail="Not found")
+        target = (STATIC_DIR / path).resolve()
+        if path and target.is_file() and STATIC_DIR.resolve() in target.parents:
+            cache = "public, max-age=31536000, immutable" if path.startswith("assets/") else "no-cache"
+            return FileResponse(target, headers={"Cache-Control": cache})
+        return FileResponse(STATIC_DIR / "index.html", headers={"Cache-Control": "no-cache"})
 
 
 if __name__ == "__main__":
