@@ -243,3 +243,20 @@
   -webkit-box-orient: vertical;
   overflow: hidden;
 }
+
+/* Sentences the citation check could not match to their sources */
+.flagged {
+  text-decoration-line: underline;
+  text-decoration-style: wavy;
+  text-decoration-color: color-mix(in srgb, var(--bad) 70%, transparent);
+  text-decoration-thickness: 1px;
+  text-underline-offset: 4px;
+  text-decoration-skip-ink: none;
+  cursor: help;
+}
+
+.flagged[data-verdict='partial'] {
+  text-decoration-style: dotted;
+  text-decoration-color: var(--warn);
+  text-decoration-thickness: 2px;
+}
