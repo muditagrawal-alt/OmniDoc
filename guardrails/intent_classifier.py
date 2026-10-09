@@ -190,6 +190,46 @@ class MultiLabelIntentClassifier:
             logger.warning(f"Intent classification fallback triggered ({e}).")
             return self._fallback(semantic_query)
 
+    @staticmethod
+    def from_understanding(semantic_query: SemanticQuery, u: Dict[str, Any]) -> IntentClassificationResult:
+        """
+        Intents and required capabilities from the understanding step (no model call).
+        Prompt-injection instructions are still rejected here.
+        """
+        injection = detect_prompt_injection(semantic_query.raw_query or semantic_query.resolved_query or "")
+        if injection:
+            return IntentClassificationResult(primary_intent="prompt_injection", confidence_scores={"prompt_injection": 1.0},
+                                              is_in_scope=False, rejection_reason=injection, confidence=1.0)
+        needs = u.get("needs") or {}
+        primary = {"factual": "factual_retrieval", "comparison": "comparison", "summary": "summarization",
+                   "calculation": "numerical_calculation", "timeline": "temporal_reasoning", "table": "structured_data_analysis",
+                   "relationship": "multi_hop_reasoning", "exploration": "exploratory_research",
+                   "library": "structured_data_analysis"}.get(u.get("intent") or "factual", "factual_retrieval")
+        secondary, reqs = [], ["advanced_hybrid_retrieval", "document_intelligence_agent"]
+        for need, intent, agent in (("calculation", "numerical_calculation", "mathematics_agent"),
+                                    ("chart", "visualization", "visualization_agent"),
+                                    ("figures", "multimodal_analysis", "vision_agent"),
+                                    ("tables", "structured_data_analysis", "structured_data_agent"),
+                                    ("library", "structured_data_analysis", "structured_data_agent"),
+                                    ("graph", "graph_traversal", "knowledge_graph_agent"),
+                                    ("timeline", "temporal_reasoning", "temporal_reasoning_agent"),
+                                    ("whole_documents", "summarization", "corpus_summary_agent")):
+            if needs.get(need):
+                if intent != primary:
+                    secondary.append(intent)
+                reqs.append(agent)
+        if (u.get("language") or "en") != "en":
+            secondary.append("multilingual_query")
+            reqs.append("multilingual_agent")
+        confidence = 0.9 if u.get("used_model") else 0.75
+        return IntentClassificationResult(
+            primary_intent=primary,
+            secondary_intents=list(dict.fromkeys(secondary)),
+            confidence_scores={primary: confidence},
+            detected_requirements=list(dict.fromkeys(reqs)),
+            confidence=confidence,
+        )
+
     # Convenience alias
     classify = classify_intent
 
