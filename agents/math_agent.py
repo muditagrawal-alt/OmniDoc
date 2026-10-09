@@ -314,6 +314,7 @@ class MathematicsAgent:
             chunk_context=state.get("chunk_context", []),
             graph_context=state.get("graph_context", []),
             max_evidence=8,
+            table_results=state.get("table_results", []),
         )
         return format_evidence_block(sources), sources
 
