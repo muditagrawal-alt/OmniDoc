@@ -1,7 +1,7 @@
 import { useEffect, useLayoutEffect, useRef, useState } from 'react';
 import type { DragEvent, FormEvent, KeyboardEvent } from 'react';
-import { ArrowUp, Check, FileText, Languages, Library, Mic, Paperclip, Square } from 'lucide-react';
-import type { DocumentItem } from '../../api';
+import { ArrowUp, Check, FileText, Globe2, Languages, Library, Mic, Paperclip, Square } from 'lucide-react';
+import type { DocumentItem, WebMode } from '../../api';
 import { SUPPORTED_LANGUAGES, voiceController } from '../../utils/voice';
 import { Menu } from '../ui/Menu';
 import styles from './chat.module.css';
@@ -18,13 +18,22 @@ export interface ComposerProps {
   uploading: boolean;
   language: string;
   onLanguageChange: (code: string) => void;
+  /** When answers may use web search: when needed, always, or never */
+  webMode: WebMode;
+  onWebModeChange: (mode: WebMode) => void;
   variant?: 'dock' | 'hero';
   autoFocus?: boolean;
   /** Text to place into the composer (e.g. a suggestion); consumed once. */
   draft?: { text: string; nonce: number } | null;
 }
 
-const ACCEPT = '.pdf,.docx,.txt,.md';
+const WEB_MODES: Array<{ key: WebMode; label: string; hint: string }> = [
+  { key: 'auto', label: 'When needed', hint: 'recent or not in documents' },
+  { key: 'on', label: 'Always', hint: 'documents + web' },
+  { key: 'off', label: 'Never', hint: 'documents only' },
+];
+
+const ACCEPT = '.pdf,.docx,.txt,.md,.csv,.tsv,.xlsx,.pptx,.eml,.epub,.html,.htm,.png,.jpg,.jpeg,.tif,.tiff,.webp,.bmp,.mp3,.wav,.m4a,.ogg,.flac,.webm,.mp4';
 
 export function Composer(props: ComposerProps) {
   const {
@@ -39,6 +48,8 @@ export function Composer(props: ComposerProps) {
     uploading,
     language,
     onLanguageChange,
+    webMode,
+    onWebModeChange,
     variant = 'dock',
     autoFocus,
     draft,
@@ -180,7 +191,7 @@ export function Composer(props: ComposerProps) {
             onClick={() => fileRef.current?.click()}
             disabled={uploading}
             aria-label="Add documents"
-            title="Add documents (PDF, DOCX, TXT, MD)"
+            title="Add documents (PDF, scans, images, Word, spreadsheets, slides, email, text)"
           >
             {uploading ? <span className="spinner" /> : <Paperclip size={17} strokeWidth={1.75} />}
           </button>
@@ -224,6 +235,46 @@ export function Composer(props: ComposerProps) {
                 })}
                 {!documents.length && <div className="menu-label">No documents yet. Attach one to begin.</div>}
               </div>
+            )}
+          </Menu>
+          <Menu
+            label="Web search"
+            side="top"
+            align="start"
+            trigger={(p) => (
+              <button
+                type="button"
+                className={`chip ${styles.scopeChip}`}
+                data-active={webMode === 'on'}
+                title="Web search"
+                aria-label={`Web search: ${WEB_MODES.find((m) => m.key === webMode)?.label}`}
+                {...p}
+              >
+                <Globe2 size={14} strokeWidth={1.75} />
+                <span className={styles.scopeText}>{webMode === 'on' ? 'Web' : webMode === 'off' ? 'No web' : 'Web: auto'}</span>
+              </button>
+            )}
+          >
+            {(close) => (
+              <>
+                <div className="menu-label">Search the web</div>
+                {WEB_MODES.map((m) => (
+                  <button
+                    key={m.key}
+                    type="button"
+                    role="menuitemradio"
+                    aria-checked={webMode === m.key}
+                    className="menu-item"
+                    onClick={() => {
+                      onWebModeChange(m.key);
+                      close();
+                    }}
+                  >
+                    <span>{m.label}</span>
+                    <span className="menu-hint">{webMode === m.key ? <Check size={15} strokeWidth={2} /> : m.hint}</span>
+                  </button>
+                ))}
+              </>
             )}
           </Menu>
         </div>
