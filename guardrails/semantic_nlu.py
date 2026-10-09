@@ -202,6 +202,42 @@ class SemanticNLUEngine:
             sub_questions=[effective_query]
         )
 
+    @staticmethod
+    def from_understanding(raw_query: str, u: Dict[str, Any]) -> SemanticQuery:
+        """The structured query representation, from the understanding step (no model call)."""
+        needs = u.get("needs") or {}
+        intent = u.get("intent") or "factual"
+        operations = ["retrieve"]
+        if needs.get("calculation"):
+            operations.append("calculate")
+        if intent == "comparison":
+            operations.append("compare")
+        if needs.get("chart"):
+            operations.append("visualize")
+        if intent == "summary" or needs.get("whole_documents"):
+            operations.append("summarize")
+        modality = ["text"] + (["visual"] if needs.get("figures") else []) + (["tabular"] if needs.get("tables") else [])
+        task_map = {"factual": "factual_lookup", "comparison": "comparison", "summary": "summarization",
+                    "calculation": "mathematical_analysis", "timeline": "temporal_reasoning", "table": "table_analysis",
+                    "relationship": "multi_hop_relational", "exploration": "exploratory_research", "library": "structured_data_query"}
+        tr = u.get("time_range") or None
+        entities = _str_list(u.get("entities"))[:12]
+        return SemanticQuery(
+            raw_query=raw_query,
+            resolved_query=u.get("resolved_query") or raw_query,
+            goal=(u.get("sub_questions") or [raw_query])[0][:300],
+            task_types=[task_map.get(intent, "factual_lookup")] + (["temporal_reasoning"] if needs.get("timeline") and intent != "timeline" else []),
+            entities=entities,
+            entity_types={e: "Concept" for e in entities},
+            constraints={"retrieval_variants": _str_list(u.get("search_queries"))[1:4]},
+            temporal_constraints={"start": tr.get("start"), "end": tr.get("end")} if tr else None,
+            operations=operations,
+            output_requirements=["narrative", "citations"] + (["chart"] if needs.get("chart") else []),
+            modality_requirements=modality,
+            language=u.get("language") or "en",
+            sub_questions=_str_list(u.get("sub_questions"))[:6] or [raw_query],
+        )
+
     # Convenience alias
     analyze = understand_query
 
