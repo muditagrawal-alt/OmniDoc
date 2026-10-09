@@ -1,0 +1,26 @@
+# docker compose up -d   ->  http://localhost:8000
+# Put API keys (and OMNIDOC_AUTH=user:password when the server is reachable from the internet) in .env.
+services:
+  omnidoc:
+    build: .
+    image: omnidoc:latest
+    restart: unless-stopped
+    env_file: .env
+    ports:
+      - "8000:8000"
+    volumes:
+      - omnidoc-data:/data
+
+  # Optional: local models instead of (or as a fallback to) free APIs.
+  #   docker compose --profile local up -d
+  #   docker compose exec ollama ollama pull qwen2.5:7b-instruct && docker compose exec ollama ollama pull nomic-embed-text
+  ollama:
+    image: ollama/ollama:latest
+    profiles: ["local"]
+    restart: unless-stopped
+    volumes:
+      - ollama-models:/root/.ollama
+
+volumes:
+  omnidoc-data:
+  ollama-models:
