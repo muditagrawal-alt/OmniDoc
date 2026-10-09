@@ -29,3 +29,7 @@ extracted_images/
 
 # Template for API keys (the real .env stays private)
 !.env.example
+
+# Benchmark downloads and working data (results are kept)
+benchmarks/datasets/
+benchmarks/work/
