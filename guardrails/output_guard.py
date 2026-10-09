@@ -1,12 +1,14 @@
 """
 Output Guardrail and Groundedness Verifier.
 
-An LLM judge splits the draft answer into factual claims and labels each one supported /
-unsupported / contradicted against the SAME numbered evidence list the synthesis agent
-cited. ``faithfulness_score`` = supported claims / checked claims. If verification cannot be
-performed (LLM unavailable, unparseable output, no claims extracted) the result is
-``action="accept"``, ``faithfulness_score=0.0``, ``is_grounded=False`` and the feedback says
-the answer is unverified, so the UI can label it honestly instead of showing a made-up score.
+Checks the draft answer sentence by sentence against the SAME numbered evidence list the
+synthesis agent cited (see guardrails/citation_checker.py): every sentence is judged against
+the passages it cites, figures must appear in a cited passage, and citations that point at
+the wrong passage are corrected. ``faithfulness_score`` is the share of claim-making
+sentences that are supported (partial support counts half). If verification cannot be
+performed (LLM unavailable, unparseable output) the result is ``action="accept"``,
+``faithfulness_score=0.0``, ``is_grounded=False`` and the feedback says the answer is
+unverified, so the UI can label it honestly instead of showing a made-up score.
 """
 import re
 import logging
@@ -16,7 +18,6 @@ from core.state import VerificationResult, EvidencePackage
 
 logger = logging.getLogger("OmniDoc.OutputGuard")
 
-MAX_CLAIMS = 12
 REFUSAL_MARKERS = (
     "not found in provided sources",
     "does not contain verifiable records",
@@ -24,29 +25,7 @@ REFUSAL_MARKERS = (
 )
 
 JUDGE_SYSTEM_PROMPT = """You are an impartial fact-checker for a document question-answering system.
-You decide, claim by claim, whether an ANSWER is supported by the NUMBERED EVIDENCE. Use only the evidence; ignore your own knowledge."""
-
-JUDGE_PROMPT = """QUESTION:
-{query}
-
-ANSWER TO CHECK:
-<<<
-{answer}
->>>
-
-NUMBERED EVIDENCE:
-{evidence}
-
-Instructions:
-1. List the factual claims made IN THE ANSWER above (between <<< and >>>), at most {max_claims}. Take claims only from the answer, never from the evidence. Merge closely related statements; skip headings, transitions and statements that some information is missing.
-2. For each claim give a verdict against the evidence:
-   - "supported": the evidence states it (paraphrases, unit formatting and simple arithmetic on evidence numbers are fine),
-   - "unsupported": the evidence does not state it,
-   - "contradicted": the evidence says something different.
-3. Give the evidence numbers that support each supported claim.
-
-Return JSON only:
-{{"claims": [{{"claim": "claim as worded in the answer", "verdict": "supported", "evidence": [1]}}], "feedback": "one sentence summary"}}"""
+You decide, sentence by sentence, whether an answer is supported by the numbered evidence it cites. Use only the evidence; ignore your own knowledge."""
 
 _WORD_RE = re.compile(r"[a-z0-9]+(?:[.,][0-9]+)*")
 _STOP = {"the", "and", "that", "this", "with", "from", "for", "are", "was", "were", "has", "have", "its", "their",
@@ -122,7 +101,7 @@ class OutputGuardrail:
 
     def _judge(self, prompt: str) -> Any:
         from agents.llm_utils import chat_json  # local import keeps guardrails importable standalone
-        return chat_json(self.model_name, prompt, system=JUDGE_SYSTEM_PROMPT, num_predict=1200)
+        return chat_json(self.model_name, prompt, system=JUDGE_SYSTEM_PROMPT, num_predict=1500)
 
     def verify(
         self,
@@ -137,13 +116,15 @@ class OutputGuardrail:
         sources: Optional[List[Dict[str, Any]]] = None,
         visual_context: Optional[List[Dict[str, Any]]] = None,
         web_context: Optional[List[Dict[str, Any]]] = None,
+        table_results: Optional[List[Dict[str, Any]]] = None,
+        summary_context: Optional[List[Dict[str, Any]]] = None,
     ) -> VerificationResult:
         """
-        Claim-level groundedness check of ``draft_answer`` against the numbered evidence.
+        Sentence-level groundedness check of ``draft_answer`` against the numbered evidence.
         ``sources`` (the synthesis agent's list) is preferred; otherwise the identical list is
         rebuilt from the evidence inputs.
         """
-        from agents.citations import build_sources, format_evidence_block, cited_numbers
+        from agents.citations import build_sources, cited_numbers
 
         draft_answer = draft_answer or ""
         cited = [str(n) for n in cited_numbers(draft_answer)]
@@ -172,6 +153,8 @@ class OutputGuardrail:
             conflicts=conflicts or [],
             visual_context=visual_context or [],
             web_context=web_context or [],
+            table_results=table_results or [],
+            summary_context=summary_context or [],
         )
         if sources:
             # Use the synthesis agent's numbering; take full text from the rebuilt list when it matches.
@@ -189,80 +172,51 @@ class OutputGuardrail:
                 is_grounded=False, faithfulness_score=0.0, unsupported_claims=["No supporting context was retrieved"],
                 cited_sources=cited, action="refuse", feedback="Context was empty; the answer cannot be grounded.")
 
-        prompt = JUDGE_PROMPT.format(
-            evidence=format_evidence_block(numbered)[:14000],
-            query=query,
-            answer=draft_answer[:6000],
-            max_claims=MAX_CLAIMS,
-        )
-        try:
-            parsed = self._judge(prompt)
-        except Exception as e:
-            logger.warning(f"Groundedness verification failed: {e}")
-            return _unverified(f"verifier error: {str(e)[:120]}", cited)
+        from guardrails.citation_checker import check_sentences, summarise
 
-        claims = parsed.get("claims") if isinstance(parsed, dict) else parsed
-        if not isinstance(claims, list):
-            return _unverified("verifier returned no claim list", cited)
+        checks, corrected = check_sentences(draft_answer, query, numbered, judge=self._judge)
+        counts = summarise(checks)
+        sentences = [{k: c.get(k) for k in ("id", "text", "start", "end", "citations", "verdict", "supported_by",
+                                            "reason", "corrected_to")} for c in checks]
+        judged = [c for c in checks if c["verdict"] != "unchecked"]
+        if not judged:
+            result = _unverified("the verifier did not respond", cited)
+            result.sentences = sentences
+            return result
 
-        supported, unsupported, contradicted = [], [], []
-        answer_words = _content_words(draft_answer)
-        off_target = 0
-        for c in claims[:MAX_CLAIMS]:
-            if not isinstance(c, dict):
-                continue
-            text = str(c.get("claim") or "").strip()
-            verdict = str(c.get("verdict") or "").strip().lower()
-            if not text or verdict not in ("supported", "unsupported", "contradicted"):
-                continue
-            if not _anchored(text, answer_words):
-                # Small judges sometimes list claims from the evidence instead of the answer.
-                off_target += 1
-                continue
-            if verdict == "supported":
-                supported.append(text[:300])
-            elif verdict == "contradicted":
-                contradicted.append(text[:300])
-            else:
-                unsupported.append(text[:300])
-
-        # Deterministic net for arithmetic and copying slips the judge lets through.
-        evidence_text = "\n".join(
-            " ".join(str(x) for x in (s.get("_text") or s.get("snippet") or "", s.get("title") or "",
-                                      s.get("section") or "", f"page {s['page']}" if s.get("page") else "") if x)
-            for s in numbered
-        ) + "\n" + (query or "")
-        for token in stray_numbers(draft_answer, evidence_text):
-            unsupported.append(f"The number {token} does not appear in the sources or in a verified calculation.")
-
-        checked = len(supported) + len(unsupported) + len(contradicted)
+        supported = [c["text"][:300] for c in checks if c["verdict"] == "supported"]
+        problems = [c["text"][:300] + (f" ({c['reason']})" if c.get("reason") else "")
+                    for c in checks if c["verdict"] in ("unsupported", "contradicted")]
+        contradicted = any(c["verdict"] == "contradicted" for c in checks)
+        checked = counts["checked"]
         if checked == 0:
-            reason = "the verifier did not check the answer's own claims" if off_target else "no checkable claims were extracted"
-            return _unverified(reason, cited)
-        if off_target:
-            logger.info(f"Output guard ignored {off_target} claim(s) not taken from the answer.")
+            return VerificationResult(
+                is_grounded=True, faithfulness_score=1.0, supported_claims=[], unsupported_claims=[],
+                cited_sources=cited, action="accept", feedback="The answer makes no factual claims to verify.",
+                sentences=sentences)
 
-        score = round(len(supported) / checked, 3)
-        problems = unsupported + [f"(contradicted) {c}" for c in contradicted]
+        score = counts["score"] if counts["score"] is not None else 0.0
         grounded = score >= self.threshold and not contradicted
-        action = "accept" if grounded and not unsupported else "refine_search"
-
-        judge_note = str(parsed.get("feedback") or "").strip() if isinstance(parsed, dict) else ""
+        action = "accept" if not problems else "refine_search"
         if problems:
-            feedback = f"{len(problems)} of {checked} claims are not supported by the cited evidence."
+            feedback = f"{len(problems)} of {checked} sentences are not supported by the passages they cite."
         else:
-            feedback = f"All {checked} checked claims are supported by the evidence."
+            feedback = f"All {checked} checked sentences are supported by the passages they cite."
+        if counts["partial"]:
+            feedback += f" {counts['partial']} only partly."
+        if counts["corrected"]:
+            feedback += f" Corrected the citation of {counts['corrected']} sentence(s)."
         if not cited:
             feedback += " The answer contains no [n] citations."
-        if judge_note:
-            feedback += f" Verifier note: {judge_note[:300]}"
 
         return VerificationResult(
             is_grounded=grounded,
             faithfulness_score=score,
             supported_claims=supported,
             unsupported_claims=problems,
-            cited_sources=cited,
+            cited_sources=[str(n) for n in sorted({n for c in checks for n in c["citations"]})] or cited,
             action=action,
             feedback=feedback,
+            sentences=sentences,
+            corrected_answer=corrected if corrected != draft_answer else None,
         )
