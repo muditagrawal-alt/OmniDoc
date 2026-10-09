@@ -26,3 +26,6 @@ models/
 
 #Images extracted from documents
 extracted_images/
+
+# Template for API keys (the real .env stays private)
+!.env.example
