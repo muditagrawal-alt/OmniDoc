@@ -11,7 +11,7 @@ evidence keys and quotes used for the audit.
 import re
 import time
 import logging
-from typing import Dict, Any, List, Optional
+from typing import Dict, Any, List, Optional, Tuple
 
 from core.state import AgentWorkflowState, ConflictRecord, EvidencePackage, EvidenceItem
 from agents.llm_utils import chat_json, as_list, trace
@@ -54,6 +54,65 @@ def _quote_in(quote: str, content: str) -> bool:
         return True
     words = [w for w in q.split() if len(w) > 2]
     return bool(words) and sum(1 for w in words if w in c) / len(words) >= 0.8
+
+
+_STOP = {"the", "and", "for", "with", "that", "this", "from", "are", "was", "were", "which", "have", "has", "will",
+         "would", "their", "they", "about", "into", "than", "more", "also", "such", "been", "its", "per"}
+
+
+def numeric_facts(text: str) -> List[Tuple[frozenset, str, float]]:
+    """(content words around a figure in its sentence, its unit, the figure) for each figure in a text."""
+    facts = []
+    for sentence in re.split(r"(?<=[.!?])\s+", text or ""):
+        tokens = re.findall(r"[A-Za-z]{3,}|\d[\d,]*(?:\.\d+)?%?", sentence)
+        for i, tok in enumerate(tokens):
+            if not tok[0].isdigit():
+                continue
+            try:
+                value = float(tok.rstrip("%").replace(",", ""))
+            except ValueError:
+                continue
+            if 1800 <= value <= 2100 and "." not in tok and "," not in tok:
+                continue  # years are dates, not quantities
+            nxt = tokens[i + 1].lower() if i + 1 < len(tokens) and not tokens[i + 1][0].isdigit() else ""
+            unit = "percent" if tok.endswith("%") or nxt in ("percent", "per") else nxt
+            window = tokens[max(0, i - 3):i] + tokens[i + 1:i + 3]
+            words = frozenset(w.lower() for w in window if not w[0].isdigit() and w.lower() not in _STOP)
+            if len(words) >= 2:
+                facts.append((words, unit, value))
+    return facts
+
+
+def _same_quantity(a: Tuple[frozenset, str, float], b: Tuple[frozenset, str, float]) -> bool:
+    (words_a, unit_a, _), (words_b, unit_b, _) = a, b
+    if unit_a and unit_b and unit_a != unit_b:
+        return False
+    return len(words_a & words_b) >= 2
+
+
+def suspected_conflicts(items: List[EvidenceItem]) -> int:
+    """
+    Figures from different documents that describe the same thing (at least two of the
+    words right around them match) but differ by more than rounding. Only when there are
+    some is the model asked to audit the evidence, which saves a call on almost every
+    question.
+    """
+    by_source: Dict[str, List[Tuple[frozenset, str, float]]] = {}
+    for it in items:
+        by_source.setdefault(_source_key(it), []).extend(numeric_facts(it.content or ""))
+    sources = list(by_source.values())
+    count = 0
+    for i, facts_a in enumerate(sources):
+        values_a = {f[2] for f in facts_a}
+        for facts_b in sources[i + 1:]:
+            values_b = {f[2] for f in facts_b}
+            for fa in facts_a:
+                for fb in facts_b:
+                    va, vb = fa[2], fb[2]
+                    if _same_quantity(fa, fb) and abs(va - vb) > 0.01 * max(abs(va), abs(vb), 1e-9) \
+                            and va not in values_b and vb not in values_a:
+                        count += 1
+    return count
 
 
 def _source_key(item: EvidenceItem) -> str:
@@ -113,6 +172,11 @@ class ConflictResolutionAgent:
             return {"conflicts": [], "agent_traces": [trace("conflict_resolution", "skipped", "Fewer than two evidence items.", started)]}
         if len({_source_key(it) for it in items}) < 2:
             return {"conflicts": [], "agent_traces": [trace("conflict_resolution", "skipped", "All evidence comes from one document.", started)]}
+
+        suspects = suspected_conflicts(items)
+        if not suspects:
+            return {"conflicts": [], "agent_traces": [trace("conflict_resolution", "skipped",
+                                                             "No differing figures about the same thing across documents.", started)]}
 
         keyed = {f"E{i}": it for i, it in enumerate(items, 1)}
         ev_text = "\n\n".join(f"[{k}] ({it.provenance.get('doc_id', '') if it.provenance else ''}): {it.content[:1200]}"
