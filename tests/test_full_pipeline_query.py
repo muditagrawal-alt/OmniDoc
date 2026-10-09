@@ -5,6 +5,10 @@ Tests full pipeline query with mock document chunks and execution plan.
 import sys
 import os
 import json
+import tempfile
+
+# Never touch the real library: the pipeline caches embeddings and web pages in its data folder.
+os.environ.setdefault("OMNIDOC_DATA_DIR", tempfile.mkdtemp(prefix="omnidoc-e2e-test-"))
 
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
