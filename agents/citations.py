@@ -3,8 +3,9 @@ Numbered evidence list shared by the synthesis, visualization, math and verifica
 
 Every consumer builds the list with :func:`build_sources` from the same workflow state, so a
 citation ``[n]`` refers to the same evidence item in the answer, in charts and in the
-groundedness check. Order: retrieved evidence (chunks, then graph triples) -> calculations
--> conflict notes -> figure analyses -> web results.
+groundedness check. Order: retrieved evidence (chunks, then graph triples) -> SQL results
+over tables -> document summaries -> calculations -> conflict notes -> figure analyses ->
+web results.
 """
 import re
 import json
@@ -28,6 +29,8 @@ KIND_BY_SOURCE_TYPE = {
 KIND_LABELS = {
     "chunk": "document passage",
     "graph": "knowledge-graph relation",
+    "table": "table query result",
+    "summary": "document summary",
     "math": "verified calculation",
     "visual": "figure analysis",
     "web": "web result",
@@ -202,17 +205,49 @@ def _visual_sources(visual_context: List[Dict[str, Any]]) -> List[Dict[str, Any]
     return out
 
 
+def _table_sources(table_results: List[Dict[str, Any]]) -> List[Dict[str, Any]]:
+    from agents.table_agent import table_evidence_text
+    out = []
+    for r in table_results or []:
+        if not isinstance(r, dict) or not r.get("sql"):
+            continue
+        src = _new_source("table", table_evidence_text(r), doc_id=r.get("doc_id", ""), page=_page(r.get("page")),
+                          title=(f"Table: {r.get('title') or 'table'}"
+                                 + (" (all rows)" if r.get("purpose") == "all rows" else ""))[:120])
+        src["table"] = r.get("table")
+        out.append(src)
+    return out
+
+
+def _summary_sources(summary_context: List[Dict[str, Any]]) -> List[Dict[str, Any]]:
+    out = []
+    for c in summary_context or []:
+        if not isinstance(c, dict) or not c.get("text"):
+            continue
+        src = _new_source("summary", c["text"], doc_id=c.get("doc_id", ""), page=_page(c.get("page")),
+                          section=c.get("title", "") if c.get("kind") == "section" else "",
+                          title=str(c.get("title") or "Summary")[:120])
+        if c.get("chunk_ids"):
+            src["chunk_id"] = str(c["chunk_ids"][0])
+        out.append(src)
+    return out
+
+
 def _web_sources(web_context: List[Dict[str, Any]]) -> List[Dict[str, Any]]:
     out = []
     for w in web_context or []:
         if not isinstance(w, dict):
             continue
-        text = str(w.get("snippet") or w.get("content") or "")
+        text = str(w.get("content") or w.get("snippet") or "")
         if not text:
             continue
-        src = _new_source("web", text, title=str(w.get("title") or w.get("url") or "Web result")[:120])
+        src = _new_source("web", text, title=str(w.get("title") or w.get("url") or "Web result")[:120],
+                          score=w.get("score"))
         if w.get("url"):
             src["url"] = str(w["url"])
+        for extra in ("site", "published"):
+            if w.get(extra):
+                src[extra] = str(w[extra])[:120]
         out.append(src)
     return out
 
@@ -226,6 +261,8 @@ def build_sources(
     visual_context: Optional[List[Dict[str, Any]]] = None,
     web_context: Optional[List[Dict[str, Any]]] = None,
     max_evidence: int = MAX_EVIDENCE_ITEMS,
+    table_results: Optional[List[Dict[str, Any]]] = None,
+    summary_context: Optional[List[Dict[str, Any]]] = None,
 ) -> List[Dict[str, Any]]:
     """
     Builds the ordered, numbered evidence list. Each entry carries the public source keys
@@ -240,6 +277,8 @@ def build_sources(
         chunk_srcs = _chunk_sources(chunk_context or [], limit=max_evidence)
         sources.extend(chunk_srcs)
         sources.extend(_graph_sources(graph_context or [], limit=max(0, min(4, max_evidence - len(chunk_srcs)))))
+    sources.extend(_table_sources(table_results or []))
+    sources.extend(_summary_sources(summary_context or []))
     sources.extend(_math_sources(math_results or []))
     sources.extend(_conflict_sources(conflicts or []))
     sources.extend(_visual_sources(visual_context or []))
@@ -258,6 +297,8 @@ def sources_from_state(state: Dict[str, Any]) -> List[Dict[str, Any]]:
         conflicts=state.get("conflicts", []),
         visual_context=state.get("visual_context", []),
         web_context=state.get("web_context", []),
+        table_results=state.get("table_results", []),
+        summary_context=state.get("summary_context", []),
     )
 
 
@@ -267,8 +308,9 @@ def public_sources(sources: List[Dict[str, Any]]) -> List[Dict[str, Any]]:
     out = []
     for s in sources:
         d = {k: s.get(k) for k in keys}
-        if s.get("url"):
-            d["url"] = s["url"]
+        for extra in ("url", "table", "site", "published"):
+            if s.get(extra):
+                d[extra] = s[extra]
         out.append(d)
     return out
 
@@ -282,6 +324,8 @@ def format_evidence_block(sources: List[Dict[str, Any]], kinds: Optional[Tuple[s
         meta = [KIND_LABELS.get(s["kind"], s["kind"])]
         if s.get("doc_id"):
             meta.append(s["doc_id"])
+        if s.get("site"):
+            meta.append(s["site"] + (f", {s['published'][:10]}" if s.get("published") else ""))
         if s.get("page"):
             meta.append(f"p. {s['page']}")
         if s.get("section") and s["kind"] in ("chunk", "graph") and s["section"].lower() not in _GENERIC_SECTIONS:
