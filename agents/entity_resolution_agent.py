@@ -7,10 +7,12 @@ that is wrong must not hide the literal mention from graph lookups). Output:
 ``semantic_query`` (copy with the merged entity list) and one ``graph_context`` record
 ``{"source": "entity_resolution", "resolved_entities": [...], "nodes": [], "edges": []}``.
 """
+import re
 import json
 import time
+import difflib
 import logging
-from typing import Dict, Any, List
+from typing import Dict, Any, List, Optional
 
 from core.state import AgentWorkflowState
 from agents.llm_utils import chat_json, as_list, as_str_list, trace
@@ -37,8 +39,36 @@ QUERY:
 class EntityResolutionAgent:
     """Disambiguates and links entity mentions to canonical references."""
 
-    def __init__(self, model_name: str = "qwen2.5:7b-instruct"):
+    def __init__(self, model_name: str = "qwen2.5:7b-instruct", graph_store: Any = None):
         self.model_name = model_name
+        self.graph_store = graph_store
+
+    def resolve_against_graph(self, entities: List[str], doc_ids: Optional[List[str]] = None) -> List[Dict[str, Any]]:
+        """
+        Links each mention to the knowledge graph's names without a model call: exact or
+        case-insensitive matches first, then the closest name above a similarity threshold
+        ("US EPA" -> "U.S. Environmental Protection Agency" is left to the graph's own
+        CONTAINS search; acronyms of multi-word names are matched here).
+        """
+        names = self.graph_store.entity_names(doc_ids or None) if self.graph_store is not None else []
+        by_lower = {n.lower(): n for n in names}
+        resolved = []
+        for mention in entities:
+            m = mention.strip()
+            if not m:
+                continue
+            key = m.lower()
+            canonical, how = by_lower.get(key), "exact"
+            if canonical is None and names:
+                acronym = {"".join(w[0] for w in re.findall(r"[A-Za-z]+", n) if w[0].isupper()).lower(): n
+                           for n in names if len(n.split()) > 1}
+                canonical, how = acronym.get(key) if m.isupper() and len(m) >= 2 else None, "acronym"
+                if canonical is None:
+                    close = difflib.get_close_matches(key, list(by_lower), n=1, cutoff=0.86)
+                    canonical, how = (by_lower[close[0]], "similar") if close else (None, "")
+            resolved.append({"mention": m[:120], "canonical_name": (canonical or m)[:120], "category": "Concept",
+                             "aliases": [], "matched": how if canonical else "none"})
+        return resolved
 
     def run(self, state: AgentWorkflowState) -> Dict[str, Any]:
         """Resolves entities in the semantic query."""
