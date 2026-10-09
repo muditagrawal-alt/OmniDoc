@@ -1,12 +1,14 @@
 import { lazy, Suspense, useCallback, useEffect, useRef, useState } from 'react';
 import { api, ApiError } from './api';
-import type { AgentStep, ChatMessage, ChatSession, DocumentItem, User } from './api';
+import type { AgentStep, ChatMessage, ChatSession, DocumentItem, Source, User, WebMode } from './api';
 import { payloadToMetadata } from './lib/normalize';
 import { Sidebar } from './components/Sidebar';
 import type { View } from './components/Sidebar';
 import { ChatView } from './components/chat/ChatView';
 import { LibraryView } from './components/library/LibraryView';
 import type { UploadItem } from './components/library/LibraryView';
+import { ExtractView } from './components/extract/ExtractView';
+import { CompareView } from './components/compare/CompareView';
 import { ProfileDialog } from './components/ProfileDialog';
 import { ToastProvider, useToast } from './components/ui/Toast';
 import styles from './App.module.css';
@@ -15,7 +17,7 @@ const MOBILE_QUERY = '(max-width: 900px)';
 
 // The globe pulls in three.js; load it only when the knowledge view opens.
 const KnowledgeView = lazy(() => import('./components/knowledge/KnowledgeView').then((m) => ({ default: m.KnowledgeView })));
-const VIEWS: View[] = ['chat', 'library', 'knowledge'];
+const VIEWS: View[] = ['chat', 'library', 'extract', 'compare', 'knowledge'];
 
 function viewFromHash(): View {
   const v = window.location.hash.replace(/^#\/?/, '').split('/')[0] as View;
@@ -64,8 +66,27 @@ function Shell() {
   const [uploads, setUploads] = useState<UploadItem[]>([]);
   const [selectedDocIds, setSelectedDocIds] = useState<string[]>([]);
   const [language, setLanguage] = useState('en');
+  const [webMode, setWebModeState] = useState<WebMode>(() => {
+    try {
+      const v = localStorage.getItem('omnidoc_web_mode');
+      return v === 'on' || v === 'off' ? v : 'auto';
+    } catch {
+      return 'auto';
+    }
+  });
+  const setWebMode = (mode: WebMode) => {
+    setWebModeState(mode);
+    try {
+      localStorage.setItem('omnidoc_web_mode', mode);
+    } catch {
+      /* storage unavailable */
+    }
+  };
   const [exporting, setExporting] = useState<'pdf' | 'docx' | null>(null);
   const [globeFocus, setGlobeFocus] = useState<string[] | undefined>(undefined);
+  // The Extract view stays mounted once opened, so a running extraction and its results survive navigation.
+  const [extractOpened, setExtractOpened] = useState(() => viewFromHash() === 'extract');
+  if (view === 'extract' && !extractOpened) setExtractOpened(true);
 
   activeChatRef.current = activeChatId;
 
@@ -120,7 +141,7 @@ function Shell() {
     loadDocuments();
   }, [loadChats, loadDocuments]);
 
-  // Poll while knowledge-graph extraction is running in the background
+  // Poll while summaries or knowledge-graph extraction run in the background
   const extracting = documents.some((d) => d.graph_status && ['queued', 'running'].includes(d.graph_status.status));
   useEffect(() => {
     if (!extracting) return;
@@ -133,6 +154,9 @@ function Shell() {
       setMessages([]);
       return;
     }
+    // A chat created by send() is being answered right now: its messages live here, and the
+    // server has nothing newer (loading would replace the streaming answer).
+    if (inflightRef.current?.chatId === activeChatId) return;
     let cancelled = false;
     setLoadingMessages(true);
     api
@@ -225,29 +249,56 @@ function Shell() {
       const pending: ChatMessage = { role: 'assistant', content: '', pending: true };
       setMessages((ms) => [...ms, { role: 'user', content: query }, pending]);
 
-      const replacePending = (msg: ChatMessage) => {
+      const updatePending = (change: (m: ChatMessage) => ChatMessage) => {
         if (activeChatRef.current !== chatId) return;
         setMessages((ms) => {
           const idx = ms.findIndex((m) => m.pending);
           if (idx === -1) return ms;
           const copy = ms.slice();
-          copy[idx] = msg;
+          copy[idx] = change(copy[idx]);
           return copy;
         });
       };
+      const replacePending = (msg: ChatMessage) => updatePending(() => msg);
+
+      // Streamed text arrives in many small pieces; apply them once per frame.
+      let buffered = '';
+      let frame = 0;
+      const flush = () => {
+        frame = 0;
+        const piece = buffered;
+        buffered = '';
+        if (piece) updatePending((m) => ({ ...m, content: m.content + piece }));
+      };
+      const withSources = (sources: Source[]) => (m: ChatMessage): ChatMessage => ({
+        ...m,
+        metadata: { ...(m.metadata ?? {}), sources },
+      });
 
       try {
         const result = await api.streamQuery(
           chatId,
-          { query, document_ids: opts?.docIds ?? selectedDocIds, language },
+          { query, document_ids: opts?.docIds ?? selectedDocIds, language, web: webMode },
           {
             signal: controller.signal,
             onStep: (step) => {
               flight.steps = [...flight.steps, step];
               setInflight({ ...flight });
             },
+            onSources: (sources) => updatePending(withSources(sources)),
+            onDelta: (text) => {
+              buffered += text;
+              if (!frame) frame = requestAnimationFrame(flush);
+            },
+            onReset: (sources) => {
+              buffered = '';
+              if (frame) cancelAnimationFrame(frame);
+              frame = 0;
+              updatePending((m) => ({ ...withSources(sources)(m), content: '' }));
+            },
           },
         );
+        if (frame) cancelAnimationFrame(frame);
         replacePending({
           id: result.message_id,
           role: 'assistant',
@@ -264,7 +315,7 @@ function Shell() {
         setInflight(null);
       }
     },
-    [language, loadChats, selectedDocIds, toast],
+    [language, loadChats, selectedDocIds, toast, webMode],
   );
 
   const stop = () => inflightRef.current?.controller.abort();
@@ -295,20 +346,41 @@ function Shell() {
         setUploads((u) => [...u.filter((x) => x.id !== id), { id, name: file.name, status: 'uploading' }]);
         try {
           const res = await api.uploadDocument(file);
+          const parts = [`${res.chunk_count} sections indexed`];
+          if (res.ocr_pages) parts.push(`${res.ocr_pages} ${res.ocr_pages === 1 ? 'page' : 'pages'} read with OCR`);
+          if (res.table_count) parts.push(`${res.table_count} ${res.table_count === 1 ? 'table' : 'tables'}`);
           setUploads((u) =>
             u.map((x) =>
               x.id === id
-                ? { ...x, status: res.duplicate ? 'duplicate' : 'done', message: `${res.chunk_count} sections indexed` }
+                ? { ...x, status: res.duplicate ? 'duplicate' : res.warning ? 'error' : 'done', message: res.warning || parts.join(' · ') }
                 : x,
             ),
           );
-          if (!res.duplicate) toast(`${file.name} is ready to ask about`, 'good');
+          if (res.warning) toast(`${file.name}: ${res.warning}`, 'bad');
+          else if (!res.duplicate) toast(`${file.name} is ready to ask about`, 'good');
         } catch (e) {
           setUploads((u) => u.map((x) => (x.id === id ? { ...x, status: 'error', message: (e as Error).message } : x)));
           toast(`${file.name}: ${(e as Error).message}`, 'bad');
         }
         loadDocuments();
       }
+    },
+    [loadDocuments, toast],
+  );
+
+  const importUrl = useCallback(
+    async (url: string) => {
+      const id = `url-${url}`;
+      setUploads((u) => [...u.filter((x) => x.id !== id), { id, name: url, status: 'uploading' }]);
+      try {
+        const res = await api.importUrl(url);
+        setUploads((u) => u.map((x) => (x.id === id ? { ...x, name: res.filename, status: res.duplicate ? 'duplicate' : 'done', message: `${res.chunk_count} sections indexed` } : x)));
+        if (!res.duplicate) toast(`${res.filename} is ready to ask about`, 'good');
+      } catch (e) {
+        setUploads((u) => u.map((x) => (x.id === id ? { ...x, status: 'error', message: (e as Error).message } : x)));
+        toast((e as Error).message, 'bad');
+      }
+      loadDocuments();
     },
     [loadDocuments, toast],
   );
@@ -407,6 +479,8 @@ function Shell() {
             uploading={uploads.some((u) => u.status === 'uploading')}
             language={language}
             onLanguageChange={setLanguage}
+            webMode={webMode}
+            onWebModeChange={setWebMode}
           />
         )}
         {view === 'library' && (
@@ -416,6 +490,7 @@ function Shell() {
             error={docsError}
             onReload={loadDocuments}
             onUpload={upload}
+            onImportUrl={importUrl}
             uploads={uploads}
             onDismissUploads={() => setUploads([])}
             onDelete={deleteDocument}
@@ -426,6 +501,22 @@ function Shell() {
             sidebarOpen={sidebarOpen}
             onOpenSidebar={() => setSidebarOpen(true)}
           />
+        )}
+        {extractOpened && (
+          <div className={styles.extract} hidden={view !== 'extract'}>
+            <ExtractView
+              documents={documents}
+              selectedDocIds={selectedDocIds}
+              sidebarOpen={sidebarOpen}
+              onOpenSidebar={() => setSidebarOpen(true)}
+              onOpenLibrary={() => navigate('library')}
+            />
+          </div>
+        )}
+        {view === 'compare' && (
+          <div className={styles.extract}>
+            <CompareView documents={documents} sidebarOpen={sidebarOpen} onOpenSidebar={() => setSidebarOpen(true)} />
+          </div>
         )}
         {view === 'knowledge' && (
           <div className={styles.knowledge}>
