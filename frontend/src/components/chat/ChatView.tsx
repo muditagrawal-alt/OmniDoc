@@ -4,6 +4,8 @@ import type { AgentStep, ChatMessage, ChatSession, DocumentItem, User } from '..
 import { ArtifactPanel } from '../artifacts';
 import type { Artifact } from '../artifacts';
 import { Menu } from '../ui/Menu';
+import { SourceViewer } from '../viewer/SourceViewer';
+import type { ViewerTarget } from '../viewer/SourceViewer';
 import { AssistantMessage, UserMessage } from './Message';
 import { Composer } from './Composer';
 import type { ComposerProps } from './Composer';
@@ -64,7 +66,8 @@ export function ChatView(props: ChatViewProps) {
     user,
     ...composer
   } = props;
-  const [artifact, setArtifact] = useState<Artifact | null>(null);
+  // The side panel shows a chart at full size or a cited passage in its document.
+  const [panel, setPanel] = useState<{ kind: 'artifact'; artifact: Artifact } | { kind: 'source'; target: ViewerTarget } | null>(null);
   const [draft, setDraft] = useState<{ text: string; nonce: number } | null>(null);
   const [atBottom, setAtBottom] = useState(true);
   const scrollRef = useRef<HTMLDivElement>(null);
@@ -74,8 +77,8 @@ export function ChatView(props: ChatViewProps) {
   const busy = composer.busy;
   const suggestions = useMemo(() => suggestionsFor(composer.documents), [composer.documents]);
 
-  // Close the artifact panel when switching conversations
-  useEffect(() => setArtifact(null), [chat?.id]);
+  // Close the panel when switching conversations
+  useEffect(() => setPanel(null), [chat?.id]);
 
   // Follow new content only when the reader is already at the bottom
   useEffect(() => {
@@ -136,7 +139,7 @@ export function ChatView(props: ChatViewProps) {
   );
 
   return (
-    <div className={styles.chatLayout} data-panel={!!artifact}>
+    <div className={styles.chatLayout} data-panel={!!panel}>
       <div className={styles.conversation}>
         {header}
         {empty ? (
@@ -192,7 +195,8 @@ export function ChatView(props: ChatViewProps) {
                       message={m}
                       liveSteps={m.pending ? liveSteps : undefined}
                       onRetry={m.error ? () => onRetry(i) : undefined}
-                      onOpenArtifact={setArtifact}
+                      onOpenArtifact={(artifact) => setPanel({ kind: 'artifact', artifact })}
+                      onOpenSource={(target) => setPanel({ kind: 'source', target })}
                       onViewOnGlobe={onViewOnGlobe}
                       language={composer.language}
                     />
@@ -218,7 +222,8 @@ export function ChatView(props: ChatViewProps) {
           </>
         )}
       </div>
-      <ArtifactPanel artifact={artifact} onClose={() => setArtifact(null)} />
+      <ArtifactPanel artifact={panel?.kind === 'artifact' ? panel.artifact : null} onClose={() => setPanel(null)} />
+      <SourceViewer target={panel?.kind === 'source' ? panel.target : null} onClose={() => setPanel(null)} />
     </div>
   );
 }
