@@ -73,7 +73,7 @@ Add keys to `.env` (see [`.env.example`](.env.example)). The first configured pr
 
 | Provider | Free tier (October 2026) | Notes |
 | --- | --- | --- |
-| Google Gemini | Gemini 3.5 Flash / Flash-Lite, embeddings, images; limits shown in AI Studio | Prompts may be used to improve Google's models outside the EEA, UK and Switzerland |
+| Google Gemini | Gemini 3.5 Flash-Lite (about 500 requests/day; 3.5 Flash only 20/day), embeddings, images | Prompts may be used to improve Google's models outside the EEA, UK and Switzerland |
 | Groq | gpt-oss-120b/20b, Qwen; 30 requests/min, 1,000/day, 8,000 tokens/min per model; Whisper | Fastest; the small per-minute token limit means long prompts move to the next provider |
 | NVIDIA NIM | Nemotron 3 Super, Kimi, GLM, DeepSeek and more; about 40 requests/min per model | NVIDIA Developer account; meant for development and evaluation |
 | Mistral | Free Experiment plan | Requests may be used for training unless you opt out |
@@ -100,7 +100,7 @@ Model and search keys are listed in [`.env.example`](.env.example). Other settin
 
 | Variable | Default | Purpose |
 | --- | --- | --- |
-| `OMNIDOC_MODEL` | first configured provider, else `qwen2.5:7b-instruct` | Default model spec (`gemini:gemini-3.5-flash`, `groq:openai/gpt-oss-120b`, or an Ollama name); switchable in the app |
+| `OMNIDOC_MODEL` | first configured provider, else `qwen2.5:7b-instruct` | Default model spec (`gemini:gemini-3.5-flash-lite`, `groq:openai/gpt-oss-120b`, or an Ollama name); switchable in the app |
 | `OMNIDOC_LLM_PROVIDERS` | `gemini,groq,nvidia,mistral,cerebras,openrouter,github,custom` | Fallback order of hosted providers |
 | `OMNIDOC_LOCAL_FALLBACK` / `OMNIDOC_CLOUD_FALLBACK` | `1` / `0` | Fall back from hosted models to Ollama / from Ollama to hosted models |
 | `OMNIDOC_EMBED_MODEL` | Ollama `nomic-embed-text`, else a hosted embedding model, else `st:intfloat/multilingual-e5-small` on the CPU | Changing it re-indexes the library in the background |
