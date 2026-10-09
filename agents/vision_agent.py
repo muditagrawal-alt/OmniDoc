@@ -1,6 +1,8 @@
 """
-Vision agent: reads the figures of the documents in scope with a local vision-language
-model served by Ollama. Nothing leaves the machine.
+Vision agent: reads the figures of the documents in scope with a vision-language model: a
+hosted one when configured (OMNIDOC_VISION_MODEL="gemini:gemini-2.5-flash", or the vision
+model of the first configured provider that has one), else a local Ollama model, in which
+case nothing leaves the machine.
 
 Figures are saved at ingestion as ``<images_dir>/<doc_id>/p<page>_img<k>.png`` (embedded
 images) and ``p<page>_page.png`` (whole pages dominated by vector charts or diagrams). The
@@ -15,7 +17,8 @@ import threading
 from typing import Any, Dict, List, Optional, Set, Tuple
 
 from core.state import AgentWorkflowState
-from agents.llm_utils import get_client, trace
+from agents.llm_utils import get_client, trace, vision_chat
+from agents import llm_providers
 
 logger = logging.getLogger("OmniDoc.VisionAgent")
 
@@ -133,8 +136,24 @@ class VisionAgent:
             return set()
         return {_field(m, "model") or _field(m, "name") for m in (_field(listed, "models") or [])}
 
+    @staticmethod
+    def _hosted_model() -> Optional[str]:
+        """A hosted vision model: the configured spec if it names a provider, else the first provider with one."""
+        configured = os.getenv("OMNIDOC_VISION_MODEL", "").strip()
+        kind, name = llm_providers.parse_spec(configured) if configured else ("", "")
+        if kind and kind != "ollama":
+            p = llm_providers.REGISTRY.get(kind)
+            return f"{kind}:{name or p.vision_model}" if p and p.configured else None
+        for p in llm_providers.chat_providers():
+            if p.vision_model:
+                return f"{p.name}:{p.vision_model}"
+        return None
+
     def _resolve_model(self) -> Optional[str]:
-        """First installed model (the configured one first) that reports the vision capability."""
+        """A hosted vision model, else the first installed local model that reports the vision capability."""
+        hosted = self._hosted_model()
+        if hosted:
+            return hosted
         with self._resolve_lock:
             if self._resolved is None:
                 self._resolved = ""
@@ -162,6 +181,10 @@ class VisionAgent:
         try:
             with open(fig["image_path"], "rb") as f:
                 image = f.read()
+            if llm_providers.parse_spec(model)[0] != "ollama":
+                mime = "image/jpeg" if fig["image_path"].lower().endswith((".jpg", ".jpeg")) else "image/png"
+                text = vision_chat(model, PROMPT.format(query=query[:500], page=fig["page"], doc_id=fig["doc_id"]), image, mime=mime)
+                return text.strip() or None
             request = {
                 "model": model,
                 "messages": [{
