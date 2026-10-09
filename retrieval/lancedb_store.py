@@ -105,30 +105,57 @@ class LanceDBStore:
             self._init_table()
         return self.table is not None
 
+    def _fields(self) -> List[str]:
+        try:
+            return list(self.table.schema.names) if self.table is not None else []
+        except Exception:
+            return []
+
+    @property
+    def has_search_text(self) -> bool:
+        """Tables created by this version keep a search text (title, section, document context + text) for BM25."""
+        return "search_text" in self._fields()
+
+    def vector_dim(self) -> Optional[int]:
+        try:
+            field = self.table.schema.field("vector")
+            return int(field.type.list_size)
+        except Exception:
+            return None
+
     def _rebuild_fts(self):
         try:
-            self.table.create_fts_index("text", replace=True)
+            self.table.create_fts_index("search_text" if self.has_search_text else "text", replace=True)
             self._fts_ready = True
         except Exception as e:
             logger.warning(f"FTS index build skipped: {e}")
 
-    def add_chunks(self, chunks: List[RetrievedChunk], embeddings: List[List[float]]):
-        """Adds document chunks and vectors to LanceDB (re-ingesting a document replaces its rows)."""
+    def add_chunks(self, chunks: List[RetrievedChunk], embeddings: List[List[float]],
+                   search_texts: Optional[List[str]] = None):
+        """
+        Adds document chunks and vectors to LanceDB (re-ingesting a document replaces its rows).
+        ``search_texts`` (the chunk with its document and section context) feed BM25 when the
+        table has that column; ``text`` stays the passage shown and cited.
+        """
         if not chunks or not embeddings:
             return
         if len(chunks) != len(embeddings):
             raise ValueError(f"{len(chunks)} chunks but {len(embeddings)} embeddings")
 
+        keep_search = search_texts is not None and (self.table is None and not self._table_exists() or self.has_search_text)
         records = []
-        for ch, emb in zip(chunks, embeddings):
-            records.append({
+        for i, (ch, emb) in enumerate(zip(chunks, embeddings)):
+            row = {
                 "id": ch.chunk_id,
                 "doc_id": ch.doc_id,
                 "text": ch.text,
                 "page_number": int(ch.page_number or 1),
                 "section_title": ch.section_title or "General",
                 "vector": [float(x) for x in emb],
-            })
+            }
+            if keep_search:
+                row["search_text"] = search_texts[i]
+            records.append(row)
 
         if self._ensure_table():
             # Idempotent re-ingest: drop existing rows of these documents first.
@@ -237,6 +264,92 @@ class LanceDBStore:
                 retrieval_method="hybrid_rrf"
             ))
         return results
+
+    def document_ids(self) -> List[str]:
+        """Ids of all indexed documents."""
+        if not self._ensure_table():
+            return []
+        try:
+            rows = self.table.search().select(["doc_id"]).limit(10_000_000).to_list()
+            return sorted({str(r["doc_id"]) for r in rows if r.get("doc_id")})
+        except Exception as e:
+            logger.warning(f"Could not list documents: {e}")
+            return []
+
+    def get_chunk(self, chunk_id: str) -> Optional[RetrievedChunk]:
+        """One chunk by id."""
+        if not self._ensure_table() or not is_safe_id(chunk_id):
+            return None
+        try:
+            rows = (self.table.search().where(f"id = {_quote(chunk_id)}", prefilter=True)
+                    .select(["id", "doc_id", "text", "page_number", "section_title"]).limit(1).to_list())
+        except Exception as e:
+            logger.warning(f"Could not read chunk {chunk_id}: {e}")
+            return None
+        if not rows:
+            return None
+        r = rows[0]
+        return RetrievedChunk(chunk_id=str(r["id"]), doc_id=str(r.get("doc_id", "")), text=str(r.get("text", "")),
+                              page_number=int(r.get("page_number") or 1), section_title=str(r.get("section_title") or ""),
+                              score=0.0, retrieval_method="lookup")
+
+    def count_chunks(self) -> int:
+        """Number of chunks in the whole library."""
+        if not self._ensure_table():
+            return 0
+        try:
+            return int(self.table.count_rows())
+        except Exception as e:
+            logger.warning(f"Could not count chunks: {e}")
+            return 0
+
+    def count_document_chunks(self, doc_id: str, cap: int) -> int:
+        """Number of chunks of a document, counting no further than ``cap``."""
+        if not self._ensure_table() or not is_safe_id(doc_id):
+            return 0
+        try:
+            return len(self.table.search().where(f"doc_id = {_quote(doc_id)}", prefilter=True)
+                       .select(["id"]).limit(cap).to_list())
+        except Exception as e:
+            logger.warning(f"Could not count chunks of {doc_id}: {e}")
+            return 0
+
+    def get_document_chunks(self, doc_id: str) -> List[RetrievedChunk]:
+        """All chunks of a document in reading order (page, then position on the page)."""
+        if not self._ensure_table() or not is_safe_id(doc_id):
+            return []
+        try:
+            rows = (self.table.search()
+                    .where(f"doc_id = {_quote(doc_id)}", prefilter=True)
+                    .select(["id", "doc_id", "text", "page_number", "section_title"])
+                    .limit(100000)
+                    .to_list())
+        except Exception as e:
+            logger.warning(f"Could not read chunks of {doc_id}: {e}")
+            return []
+
+        def order(row: Dict[str, Any]):
+            m = re.search(r"_c(\d+)$", str(row.get("id", "")))
+            return int(row.get("page_number") or 1), int(m.group(1)) if m else 0
+
+        return [RetrievedChunk(
+            chunk_id=str(r["id"]),
+            doc_id=str(r.get("doc_id", "")),
+            text=str(r.get("text", "")),
+            page_number=int(r.get("page_number") or 1),
+            section_title=str(r.get("section_title") or "General"),
+            score=0.0,
+            retrieval_method="document_order",
+        ) for r in sorted(rows, key=order)]
+
+    def drop_all(self) -> None:
+        """Drops the chunks table (used when re-indexing with an embedding model of another size)."""
+        try:
+            self.db.drop_table(self.table_name)
+        except Exception as e:
+            logger.warning(f"Could not drop {self.table_name}: {e}")
+        self.table = None
+        self._fts_ready = False
 
     def delete_document(self, doc_id: str):
         """Deletes all chunks belonging to a document."""
