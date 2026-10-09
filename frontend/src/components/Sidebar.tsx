@@ -1,8 +1,10 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import {
   Check,
+  GitCompareArrows,
   Globe2,
   Library,
+  ListChecks,
   LogIn,
   LogOut,
   MessageSquare,
@@ -13,6 +15,7 @@ import {
   Pencil,
   Search,
   Settings2,
+  Sparkles,
   SquarePen,
   Sun,
   Trash2,
@@ -25,9 +28,10 @@ import type { ThemePreference } from '../lib/theme';
 import { Menu } from './ui/Menu';
 import { useToast } from './ui/Toast';
 import { BrandMark } from './BrandMark';
+import { ProvidersDialog } from './ProvidersDialog';
 import styles from './Sidebar.module.css';
 
-export type View = 'chat' | 'library' | 'knowledge';
+export type View = 'chat' | 'library' | 'extract' | 'compare' | 'knowledge';
 
 interface SidebarProps {
   open: boolean;
@@ -88,6 +92,8 @@ export function Sidebar(props: SidebarProps) {
   const nav: Array<{ key: View; label: string; icon: typeof MessageSquare; hint?: string }> = [
     { key: 'chat', label: 'Chat', icon: MessageSquare },
     { key: 'library', label: 'Library', icon: Library, hint: documentCount ? String(documentCount) : undefined },
+    { key: 'extract', label: 'Extract', icon: ListChecks },
+    { key: 'compare', label: 'Compare', icon: GitCompareArrows },
     { key: 'knowledge', label: 'Knowledge', icon: Globe2 },
   ];
 
@@ -269,6 +275,7 @@ function SettingsFooter({ user, onOpenProfile, onSignOut }: { user: User | null;
   const [models, setModels] = useState<ModelInfo[] | null>(null);
   const [current, setCurrent] = useState<string>('');
   const [modelError, setModelError] = useState<string | null>(null);
+  const [providersOpen, setProvidersOpen] = useState(false);
 
   const loadModels = () => {
     api
@@ -306,7 +313,7 @@ function SettingsFooter({ user, onOpenProfile, onSignOut }: { user: User | null;
             <span className={styles.avatar} aria-hidden="true">{initials}</span>
             <span className={styles.profileText}>
               <span className={styles.profileName}>{user?.name || 'Local profile'}</span>
-              <span className={styles.profileMeta}>{current || 'Settings'}</span>
+              <span className={styles.profileMeta}>{current ? current.split(':').slice(-1)[0].split('/').slice(-1)[0] : 'Settings'}</span>
             </span>
             <Settings2 size={16} strokeWidth={1.75} className={styles.profileIcon} />
           </button>
@@ -332,19 +339,28 @@ function SettingsFooter({ user, onOpenProfile, onSignOut }: { user: User | null;
             <div className="menu-label">Model</div>
             {modelError && <div className="menu-label">{modelError}</div>}
             {!models && !modelError && <div className="menu-label">Loading models…</div>}
-            {models?.map((m) => (
-              <button
-                key={m.name}
-                type="button"
-                role="menuitemradio"
-                aria-checked={current === m.name}
-                className="menu-item"
-                onClick={() => switchModel(m.name)}
-              >
-                <span>{m.name}</span>
-                <span className="menu-hint">{current === m.name ? <Check size={15} strokeWidth={2} /> : m.parameter_size || ''}</span>
-              </button>
+            {models?.map((m, i) => (
+              <div key={m.name}>
+                {(i === 0 || models[i - 1].provider_label !== m.provider_label) && m.provider_label && (
+                  <div className="menu-label">{m.provider_label}</div>
+                )}
+                <button
+                  type="button"
+                  role="menuitemradio"
+                  aria-checked={current === m.name}
+                  className="menu-item"
+                  onClick={() => switchModel(m.name)}
+                >
+                  <span>{m.label || m.name}</span>
+                  <span className="menu-hint">
+                    {current === m.name ? <Check size={15} strokeWidth={2} /> : m.tier === 'fast' ? 'fast' : m.parameter_size || ''}
+                  </span>
+                </button>
+              </div>
             ))}
+            <button type="button" role="menuitem" className="menu-item" onClick={() => { close(); setProvidersOpen(true); }}>
+              <Sparkles size={15} strokeWidth={1.75} /> Free model APIs and web search…
+            </button>
             <div className="menu-sep" />
             {user ? (
               <button type="button" role="menuitem" className="menu-item" onClick={() => { close(); onSignOut(); }}>
@@ -358,6 +374,7 @@ function SettingsFooter({ user, onOpenProfile, onSignOut }: { user: User | null;
           </>
         )}
       </Menu>
+      <ProvidersDialog open={providersOpen} onClose={() => setProvidersOpen(false)} />
     </div>
   );
 }
