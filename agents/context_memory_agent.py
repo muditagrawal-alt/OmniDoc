@@ -112,6 +112,26 @@ class ContextResolutionAgent:
             state.previous_queries = (state.previous_queries + [current_query])[-10:]
             return current_query, state
 
+    @staticmethod
+    def remember(memory_state: Optional[ConversationMemoryState], query: str,
+                 understanding: Dict[str, Any]) -> ConversationMemoryState:
+        """
+        Updates the conversation memory without a model call: the entities, time range and
+        topic of this question join those of earlier turns (the question itself was already
+        made self-contained by the understanding step).
+        """
+        state = memory_state.model_copy(deep=True) if memory_state else ConversationMemoryState()
+        entities = as_str_list(understanding.get("entities"), max_items=10, max_len=120)
+        state.active_entities = list(dict.fromkeys(state.active_entities + entities))[-10:]
+        tr = understanding.get("time_range") or {}
+        if tr.get("start") or tr.get("end"):
+            state.active_time_range = f"{tr.get('start') or '…'}–{tr.get('end') or '…'}"
+        subs = understanding.get("sub_questions") or []
+        state.active_topic = (str(subs[0]) if subs else query)[:120]
+        state.previous_queries = (state.previous_queries + [query])[-10:]
+        state.unresolved_references = []
+        return state
+
     def run(self, state: AgentWorkflowState) -> Dict[str, Any]:
         """LangGraph node execution wrapper."""
         started = time.perf_counter()
