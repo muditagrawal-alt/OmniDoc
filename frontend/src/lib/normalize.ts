@@ -9,6 +9,8 @@ import type {
   GraphNode,
   MathResult,
   Source,
+  TableResult,
+  Usage,
   Verification,
 } from '../api';
 
@@ -25,11 +27,13 @@ export interface NormalizedAnswer {
   steps: AgentStep[];
   verification: Verification | null;
   math: MathResult[];
+  tables: TableResult[];
   charts: ChartArtifact[];
   conflicts: ConflictItem[];
   graph: GraphData;
   model?: string;
   elapsedMs?: number;
+  usage?: Usage;
 }
 
 const asArray = <T,>(v: unknown): T[] => (Array.isArray(v) ? (v as T[]) : []);
@@ -50,6 +54,10 @@ function normalizeSources(raw: unknown): Source[] {
       snippet: String(s.snippet ?? ''),
       // Legacy rows stored a constant 0.95 for every source.
       score: legacy && score === 0.95 ? null : score,
+      url: typeof s.url === 'string' ? s.url : undefined,
+      site: typeof s.site === 'string' ? s.site : undefined,
+      published: typeof s.published === 'string' ? s.published : undefined,
+      table: typeof s.table === 'string' ? s.table : undefined,
     };
   });
 }
@@ -99,11 +107,13 @@ export function normalizeAnswer(meta?: ChatMetadata | null): NormalizedAnswer {
     steps: normalizeSteps(m),
     verification,
     math: asArray<MathResult>(m.math_results),
+    tables: asArray<TableResult>(m.table_results).filter((t) => t && typeof t.sql === 'string' && Array.isArray(t.rows)),
     charts: current ? asArray<ChartArtifact>(m.visual_artifacts) : [],
     conflicts: asArray<ConflictItem>(m.conflicts),
     graph: normalizeGraph(m),
     model: typeof m.model === 'string' ? m.model : undefined,
     elapsedMs: typeof m.elapsed_ms === 'number' ? m.elapsed_ms : undefined,
+    usage: m.usage && typeof m.usage === 'object' ? (m.usage as Usage) : undefined,
   };
 }
 
