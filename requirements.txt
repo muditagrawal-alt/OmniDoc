@@ -13,6 +13,10 @@ docling>=2.69.0
 docling-core>=2.60.0
 PyMuPDF>=1.24.0
 python-docx>=1.1.0
+python-pptx>=1.0.0
+openpyxl>=3.1.0
+beautifulsoup4>=4.12.0
+lxml>=5.0.0
 Pillow>=10.2.0
 
 # Knowledge graph
@@ -38,8 +42,10 @@ torchvision>=0.17.0
 # Report export (WeasyPrint needs Cairo + Pango: `brew install pango`)
 weasyprint>=60.0
 
-# Networking (optional web search)
+# Networking: hosted model APIs, web search, page reading
 requests>=2.31.0
+httpx>=0.27.0
+python-dotenv>=1.0.0
 
 # Optional: PostgreSQL persistence (db/connection.py)
 psycopg2-binary>=2.9.9
