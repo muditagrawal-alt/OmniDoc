@@ -1,6 +1,6 @@
 """
 Vision agent: reads the figures of the documents in scope with a vision-language model: a
-hosted one when configured (OMNIDOC_VISION_MODEL="gemini:gemini-2.5-flash", or the vision
+hosted one when configured (OMNIDOC_VISION_MODEL="gemini:gemini-3.5-flash", or the vision
 model of the first configured provider that has one), else a local Ollama model, in which
 case nothing leaves the machine.
 
