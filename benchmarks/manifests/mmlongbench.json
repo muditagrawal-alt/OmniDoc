@@ -1,0 +1,282 @@
+{
+ "benchmark": "mmlongbench",
+ "seed": 2026,
+ "source": "https://huggingface.co/datasets/yubo2333/MMLongBench-Doc/resolve/main/data/train-00000-of-00001.parquet",
+ "selection": "one document per document type with 5-12 questions; all its questions",
+ "documents": [
+  "2210.02442v1.pdf",
+  "52b3137455e7ca4df65021a200aef724.pdf",
+  "PWC_opportunity_of_lifetime.pdf",
+  "e639029d16094ea71d964e2fb953952b.pdf",
+  "fdac8d1e9ef56519371df7e6532df27d.pdf",
+  "q1-2023-bilibili-inc-investor-presentation.pdf",
+  "t480_ug_en.pdf"
+ ],
+ "questions": [
+  {
+   "id": "mm_0020",
+   "doc": "fdac8d1e9ef56519371df7e6532df27d.pdf",
+   "type": "Research report / Introduction"
+  },
+  {
+   "id": "mm_0021",
+   "doc": "fdac8d1e9ef56519371df7e6532df27d.pdf",
+   "type": "Research report / Introduction"
+  },
+  {
+   "id": "mm_0022",
+   "doc": "fdac8d1e9ef56519371df7e6532df27d.pdf",
+   "type": "Research report / Introduction"
+  },
+  {
+   "id": "mm_0023",
+   "doc": "fdac8d1e9ef56519371df7e6532df27d.pdf",
+   "type": "Research report / Introduction"
+  },
+  {
+   "id": "mm_0024",
+   "doc": "fdac8d1e9ef56519371df7e6532df27d.pdf",
+   "type": "Research report / Introduction"
+  },
+  {
+   "id": "mm_0025",
+   "doc": "fdac8d1e9ef56519371df7e6532df27d.pdf",
+   "type": "Research report / Introduction"
+  },
+  {
+   "id": "mm_0026",
+   "doc": "fdac8d1e9ef56519371df7e6532df27d.pdf",
+   "type": "Research report / Introduction"
+  },
+  {
+   "id": "mm_0027",
+   "doc": "52b3137455e7ca4df65021a200aef724.pdf",
+   "type": "Tutorial/Workshop"
+  },
+  {
+   "id": "mm_0028",
+   "doc": "52b3137455e7ca4df65021a200aef724.pdf",
+   "type": "Tutorial/Workshop"
+  },
+  {
+   "id": "mm_0029",
+   "doc": "52b3137455e7ca4df65021a200aef724.pdf",
+   "type": "Tutorial/Workshop"
+  },
+  {
+   "id": "mm_0030",
+   "doc": "52b3137455e7ca4df65021a200aef724.pdf",
+   "type": "Tutorial/Workshop"
+  },
+  {
+   "id": "mm_0031",
+   "doc": "52b3137455e7ca4df65021a200aef724.pdf",
+   "type": "Tutorial/Workshop"
+  },
+  {
+   "id": "mm_0032",
+   "doc": "52b3137455e7ca4df65021a200aef724.pdf",
+   "type": "Tutorial/Workshop"
+  },
+  {
+   "id": "mm_0461",
+   "doc": "t480_ug_en.pdf",
+   "type": "Guidebook"
+  },
+  {
+   "id": "mm_0462",
+   "doc": "t480_ug_en.pdf",
+   "type": "Guidebook"
+  },
+  {
+   "id": "mm_0463",
+   "doc": "t480_ug_en.pdf",
+   "type": "Guidebook"
+  },
+  {
+   "id": "mm_0464",
+   "doc": "t480_ug_en.pdf",
+   "type": "Guidebook"
+  },
+  {
+   "id": "mm_0465",
+   "doc": "t480_ug_en.pdf",
+   "type": "Guidebook"
+  },
+  {
+   "id": "mm_0466",
+   "doc": "t480_ug_en.pdf",
+   "type": "Guidebook"
+  },
+  {
+   "id": "mm_0467",
+   "doc": "t480_ug_en.pdf",
+   "type": "Guidebook"
+  },
+  {
+   "id": "mm_0468",
+   "doc": "t480_ug_en.pdf",
+   "type": "Guidebook"
+  },
+  {
+   "id": "mm_0469",
+   "doc": "t480_ug_en.pdf",
+   "type": "Guidebook"
+  },
+  {
+   "id": "mm_0488",
+   "doc": "q1-2023-bilibili-inc-investor-presentation.pdf",
+   "type": "Financial report"
+  },
+  {
+   "id": "mm_0489",
+   "doc": "q1-2023-bilibili-inc-investor-presentation.pdf",
+   "type": "Financial report"
+  },
+  {
+   "id": "mm_0490",
+   "doc": "q1-2023-bilibili-inc-investor-presentation.pdf",
+   "type": "Financial report"
+  },
+  {
+   "id": "mm_0491",
+   "doc": "q1-2023-bilibili-inc-investor-presentation.pdf",
+   "type": "Financial report"
+  },
+  {
+   "id": "mm_0492",
+   "doc": "q1-2023-bilibili-inc-investor-presentation.pdf",
+   "type": "Financial report"
+  },
+  {
+   "id": "mm_0493",
+   "doc": "q1-2023-bilibili-inc-investor-presentation.pdf",
+   "type": "Financial report"
+  },
+  {
+   "id": "mm_0494",
+   "doc": "q1-2023-bilibili-inc-investor-presentation.pdf",
+   "type": "Financial report"
+  },
+  {
+   "id": "mm_0495",
+   "doc": "q1-2023-bilibili-inc-investor-presentation.pdf",
+   "type": "Financial report"
+  },
+  {
+   "id": "mm_0576",
+   "doc": "e639029d16094ea71d964e2fb953952b.pdf",
+   "type": "Administration/Industry file"
+  },
+  {
+   "id": "mm_0577",
+   "doc": "e639029d16094ea71d964e2fb953952b.pdf",
+   "type": "Administration/Industry file"
+  },
+  {
+   "id": "mm_0578",
+   "doc": "e639029d16094ea71d964e2fb953952b.pdf",
+   "type": "Administration/Industry file"
+  },
+  {
+   "id": "mm_0579",
+   "doc": "e639029d16094ea71d964e2fb953952b.pdf",
+   "type": "Administration/Industry file"
+  },
+  {
+   "id": "mm_0580",
+   "doc": "e639029d16094ea71d964e2fb953952b.pdf",
+   "type": "Administration/Industry file"
+  },
+  {
+   "id": "mm_0581",
+   "doc": "e639029d16094ea71d964e2fb953952b.pdf",
+   "type": "Administration/Industry file"
+  },
+  {
+   "id": "mm_0582",
+   "doc": "e639029d16094ea71d964e2fb953952b.pdf",
+   "type": "Administration/Industry file"
+  },
+  {
+   "id": "mm_0762",
+   "doc": "2210.02442v1.pdf",
+   "type": "Academic paper"
+  },
+  {
+   "id": "mm_0763",
+   "doc": "2210.02442v1.pdf",
+   "type": "Academic paper"
+  },
+  {
+   "id": "mm_0764",
+   "doc": "2210.02442v1.pdf",
+   "type": "Academic paper"
+  },
+  {
+   "id": "mm_0765",
+   "doc": "2210.02442v1.pdf",
+   "type": "Academic paper"
+  },
+  {
+   "id": "mm_0766",
+   "doc": "2210.02442v1.pdf",
+   "type": "Academic paper"
+  },
+  {
+   "id": "mm_0767",
+   "doc": "2210.02442v1.pdf",
+   "type": "Academic paper"
+  },
+  {
+   "id": "mm_0768",
+   "doc": "2210.02442v1.pdf",
+   "type": "Academic paper"
+  },
+  {
+   "id": "mm_0769",
+   "doc": "2210.02442v1.pdf",
+   "type": "Academic paper"
+  },
+  {
+   "id": "mm_0770",
+   "doc": "2210.02442v1.pdf",
+   "type": "Academic paper"
+  },
+  {
+   "id": "mm_0915",
+   "doc": "PWC_opportunity_of_lifetime.pdf",
+   "type": "Brochure"
+  },
+  {
+   "id": "mm_0916",
+   "doc": "PWC_opportunity_of_lifetime.pdf",
+   "type": "Brochure"
+  },
+  {
+   "id": "mm_0917",
+   "doc": "PWC_opportunity_of_lifetime.pdf",
+   "type": "Brochure"
+  },
+  {
+   "id": "mm_0918",
+   "doc": "PWC_opportunity_of_lifetime.pdf",
+   "type": "Brochure"
+  },
+  {
+   "id": "mm_0919",
+   "doc": "PWC_opportunity_of_lifetime.pdf",
+   "type": "Brochure"
+  },
+  {
+   "id": "mm_0920",
+   "doc": "PWC_opportunity_of_lifetime.pdf",
+   "type": "Brochure"
+  },
+  {
+   "id": "mm_0921",
+   "doc": "PWC_opportunity_of_lifetime.pdf",
+   "type": "Brochure"
+  }
+ ]
+}
