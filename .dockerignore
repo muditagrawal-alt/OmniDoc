@@ -1,0 +1,17 @@
+.git
+.venv
+venv
+.env
+.data
+data
+db
+.cache
+**/__pycache__
+**/*.pyc
+frontend/node_modules
+frontend/dist
+extracted_images
+test_docs
+test_pictures
+untitled folder
+*.log
