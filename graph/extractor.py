@@ -61,6 +61,23 @@ DOCUMENT CHUNK:
 """
 
 
+BATCH_PROMPT = """You are an expert Knowledge Graph Extraction Agent.
+Extract prominent domain entities and directional relationships from EACH numbered document chunk below, separately.
+
+Rules:
+- 3 to 10 meaningful entities per chunk (concepts, components, methods, organisations, people, places, metrics), named exactly as written in that chunk.
+- Do not invent entities, facts or numbers that are not in the chunk.
+- Relationship source_name and target_name MUST be entities of the same chunk; "relation" is a short UPPER_SNAKE_CASE verb (USES, PART_OF, PRODUCES).
+- Output ONLY valid JSON:
+{{"chunks": [{{"id": "C1", "entities": [{{"name": "...", "category": "...", "description": "..."}}],
+  "relationships": [{{"source_name": "...", "target_name": "...", "relation": "...", "description": "...", "weight": 1.0}}]}}]}}
+
+{chunks}
+"""
+# Chunks per extraction call, and the text budget of one call.
+BATCH_CHUNKS = 4
+BATCH_CHARS = 7000
+
 _REL_RE = re.compile(r"[^A-Z0-9]+")
 _WORD_RE = re.compile(r"[a-z0-9]+")
 
@@ -170,12 +187,53 @@ class GraphExtractor:
 
         try:
             from agents.llm_utils import chat_json  # local import avoids an import cycle via agents/__init__
-            data = chat_json(self.model_name, EXTRACTION_PROMPT.format(chunk_text=chunk_text[:3000]), num_predict=1024)
+            data = chat_json(self.model_name, EXTRACTION_PROMPT.format(chunk_text=chunk_text[:3000]), num_predict=1024,
+                             fast=True)
             payload = coerce_payload(data)
         except Exception as e:
             logger.warning(f"Graph extraction skipped for chunk {chunk_id}: {e}")
             return [], []
+        return self._index_payload(doc_id, chunk_id, chunk_text, payload)
 
+    def extract_batch(self, doc_id: str, chunks: List[Any], progress: Optional[Any] = None) -> int:
+        """
+        Extracts entities and relations from several chunks per model call (up to
+        BATCH_CHUNKS chunks / BATCH_CHARS characters), which cuts the calls for a document to
+        about a quarter. Returns the number of entities created.
+        """
+        from agents.llm_utils import chat_json
+        batches: List[List[Any]] = []
+        for ch in chunks:
+            if batches and len(batches[-1]) < BATCH_CHUNKS and sum(len(c.text[:2500]) for c in batches[-1]) + len(ch.text[:2500]) <= BATCH_CHARS:
+                batches[-1].append(ch)
+            else:
+                batches.append([ch])
+        created = 0
+        done = 0
+        for batch in batches:
+            for ch in batch:
+                self.graph_store.add_chunk(chunk_id=ch.chunk_id, doc_id=doc_id, page_number=ch.page_number,
+                                           section_title=clean_text(ch.section_title, 200) or "General", text=ch.text)
+            listing = "\n\n".join(f"[C{i}] {ch.text[:2500]}" for i, ch in enumerate(batch, 1))
+            try:
+                data = chat_json(self.model_name, BATCH_PROMPT.format(chunks=listing), num_predict=600 * len(batch), fast=True)
+            except Exception as e:
+                logger.warning(f"Graph extraction skipped for {len(batch)} chunk(s) of {doc_id}: {e}")
+                data = {}
+            per_chunk = {str(item.get("id") or "").strip().upper(): item
+                         for item in (data.get("chunks") or [] if isinstance(data, dict) else []) if isinstance(item, dict)}
+            for i, ch in enumerate(batch, 1):
+                payload = coerce_payload(per_chunk.get(f"C{i}") or {})
+                entities, _ = self._index_payload(doc_id, ch.chunk_id, ch.text, payload)
+                created += len(entities)
+            done += len(batch)
+            if progress:
+                progress(done, len(chunks))
+        return created
+
+    def _index_payload(self, doc_id: str, chunk_id: str, chunk_text: str,
+                       payload: ExtractionPayload) -> Tuple[List[EntityNode], List[RelationshipEdge]]:
+        """Registers a chunk's extracted entities (those found in its text) and relations."""
         created_entities: List[EntityNode] = []
         entity_map: Dict[str, str] = {}  # lower(name) -> id
         meta: Dict[str, Tuple[str, str]] = {}
