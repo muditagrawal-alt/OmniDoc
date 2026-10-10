@@ -11,6 +11,10 @@ Pages are read in parallel. It also runs without being asked when the best passa
 pages that are mostly pictures or charts (slides, brochures, infographics), whose content the
 text layer misses.
 
+At ingestion it also describes the pages that are mostly pictures or charts and carry
+little text (``caption_pages``); the pipeline indexes those descriptions as passages, so a
+question about a map, an infographic or a photo finds its page by text search.
+
 Other formats fall back to the figures saved at ingestion, ``<images_dir>/<doc_id>/p<page>_img<k>.png``
 (embedded images) and ``p<page>_page.png`` (pages dominated by vector charts). Either way the
 analysis is cited with its page, next to the passages it explains.
@@ -47,6 +51,10 @@ LARGE_IMAGE_SHARE = 0.35
 # Retrieved pages checked for the automatic trigger.
 TRIGGER_TOP_PAGES = 2
 IMAGE_EXTENSIONS = (".png", ".jpg", ".jpeg", ".webp", ".tif", ".tiff", ".bmp")
+# Pages described at ingestion, per document (one vision call each).
+CAPTION_MAX_PAGES = int(os.getenv("OMNIDOC_CAPTION_MAX_PAGES", "30"))
+# A page whose text layer has more characters than this is described only when a picture or chart covers most of it.
+CAPTION_TEXT_CHARS = 800
 
 _FIGURE_RE = re.compile(r"^p(\d+)_(?:img(\d+)|page)\.(?:png|jpe?g)$", re.IGNORECASE)
 _DOC_ID_RE = re.compile(r"^[A-Za-z0-9_\-.]+$")
@@ -71,6 +79,15 @@ tables and their titles, axis labels, legends, captions and annotations. Transcr
 names and labels exactly as printed; count items carefully when the question asks how many;
 do not estimate values you cannot read. If nothing on the page is relevant, say so in one sentence.
 Answer in plain prose, at most 180 words."""
+
+
+CAPTION_PROMPT = """Describe page {page} of the document "{title}" for a search index.
+
+Transcribe every title, heading, label, number, name and short text you can read on the page.
+Describe each chart (type, axes, every series with its values), table (columns and the values in
+each row), map (what places or areas it marks and what the colours mean), diagram and photo (what
+it shows, how many of each thing). Do not add anything that is not visible on the page.
+Plain text, at most 220 words."""
 
 
 def _field(obj: Any, key: str) -> Any:
@@ -266,6 +283,60 @@ class VisionAgent:
     def visual_pages(self, state: AgentWorkflowState) -> bool:
         """True when the question names a page, or the best passages sit on pages with real figures."""
         return bool(self._page_candidates(state, strict=True))
+
+    # ------------------------------------------------------------------ ingestion captions
+    def caption_candidates(self, path: str, max_pages: int = CAPTION_MAX_PAGES) -> List[int]:
+        """
+        Pages of a PDF worth describing, in page order: mostly pictures or charts and little text,
+        best first when there are more than ``max_pages``. An uploaded image is its own page 1.
+        """
+        if path.lower().endswith(IMAGE_EXTENSIONS):
+            return [1]
+        if not path.lower().endswith(".pdf"):
+            return []
+        import fitz
+        ranked: List[Tuple[float, int]] = []
+        with fitz.open(path) as doc:
+            for i, page in enumerate(doc, 1):
+                share, chart, _ = self._visual(page)
+                if share < VISUAL_IMAGE_SHARE and not chart:
+                    continue
+                chars = len(page.get_text().strip())
+                if chars > CAPTION_TEXT_CHARS and share < LARGE_IMAGE_SHARE and not chart:
+                    continue  # a text page with a small picture: its words are already searchable
+                weight = share + chart + 1 - min(chars, CAPTION_TEXT_CHARS) / CAPTION_TEXT_CHARS
+                ranked.append((-weight, i))
+        return sorted(page for _, page in sorted(ranked)[:max_pages])
+
+    def caption_pages(self, path: str, title: str, progress: Optional[Any] = None) -> List[Tuple[int, str]]:
+        """(page, description) for the pages chosen by ``caption_candidates``; empty without a vision model."""
+        pages = self.caption_candidates(path)
+        model = self._resolve_model() if pages else None
+        if not model:
+            return []
+        out: List[Tuple[int, str]] = []
+        for i, page_no in enumerate(pages, 1):
+            try:
+                if path.lower().endswith(IMAGE_EXTENSIONS):
+                    with open(path, "rb") as f:
+                        image = f.read()
+                    mime = "image/jpeg" if path.lower().endswith((".jpg", ".jpeg")) else "image/png"
+                else:
+                    image, mime = self._render(path, page_no), "image/png"
+                prompt = CAPTION_PROMPT.format(page=page_no, title=title[:120])
+                if llm_providers.parse_spec(model)[0] != "ollama":
+                    text = vision_chat(model, prompt, image, mime=mime, num_predict=500)
+                else:
+                    resp = get_client().chat(model=model, messages=[{"role": "user", "content": prompt, "images": [image]}],
+                                             options={"temperature": 0.1, "num_predict": 500})
+                    text = _field(_field(resp, "message"), "content") or ""
+                if text and text.strip():
+                    out.append((page_no, " ".join(text.split())))
+            except Exception as e:
+                logger.warning(f"Could not describe page {page_no} of {title}: {e}")
+            if progress:
+                progress(i, len(pages))
+        return out
 
     @staticmethod
     def _render(path: str, page_no: int) -> bytes:
