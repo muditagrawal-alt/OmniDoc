@@ -62,6 +62,9 @@ GRAPH_CHUNK_LIMIT = int(os.environ.get("OMNIDOC_GRAPH_CHUNKS", "40"))
 SUMMARIES_ENABLED = os.environ.get("OMNIDOC_SUMMARIES", "1") != "0"
 # Fill the template of a recognised document type (invoice, contract, ...) after upload (one or two calls).
 AUTO_EXTRACT = os.environ.get("OMNIDOC_AUTO_EXTRACT", "1") != "0"
+# Describe the pages that are mostly pictures or charts with the vision model, and index the
+# descriptions, so questions about maps, infographics and photos find their pages.
+FIGURE_CAPTIONS = os.environ.get("OMNIDOC_FIGURE_CAPTIONS", "1") != "0"
 
 
 def contextual_text(title: str, section: str, text: str, overview: str = "") -> str:
@@ -386,6 +389,28 @@ class AgenticGraphRAGPipeline:
         if first and chunks:
             self._index_chunks(title, chunks, first)
 
+    def _describe_figures(self, doc_id: str, title: str, progress: Optional[Any] = None) -> int:
+        """
+        Indexes a description of each page that is mostly pictures or charts (one vision call per
+        page, at most OMNIDOC_CAPTION_MAX_PAGES), as a passage of that page. Returns how many.
+        """
+        from core.state import RetrievedChunk
+        path = self.vision_agent._upload(doc_id)
+        if not path:
+            return 0
+        captions = self.vision_agent.caption_pages(path, title, progress=progress)
+        if not captions:
+            return 0
+        chunks = [RetrievedChunk(chunk_id=f"{doc_id}_p{page}_fig", doc_id=doc_id, page_number=page,
+                                 text=f"Description of the pictures and charts on page {page}: {text}",
+                                 section_title=f"Figures on page {page}", score=0.0, retrieval_method="hybrid")
+                  for page, text in captions]
+        summary = self.summarizer.load(doc_id) or {}
+        first = re.split(r"(?<=[.!?])\s+", (summary.get("summary") or "").strip(), maxsplit=1)[0][:240]
+        self._index_chunks(title, chunks, first)
+        logger.info(f"Indexed descriptions of {len(chunks)} picture page(s) of {doc_id}.")
+        return len(chunks)
+
     def _auto_extract(self, doc_id: str, title: str) -> None:
         """Fills the template of the document's type and checks the values (one or two model calls)."""
         meta = self.layout_meta(doc_id)
@@ -446,7 +471,7 @@ class AgenticGraphRAGPipeline:
             logger.warning(f"Could not refresh the library records: {e}")
 
     def _post_ingest(self, doc_id: str, title: str, chunks: List[Any]) -> None:
-        """Background work after upload: summary, contextual re-index, extraction, knowledge graph."""
+        """Background work after upload: summary, contextual re-index, figure descriptions, extraction, knowledge graph."""
         job = self.graph_jobs.setdefault(doc_id, {"processed": 0, "total": 0})
         if job.get("status") == "cancelled":
             return
@@ -477,6 +502,14 @@ class AgenticGraphRAGPipeline:
                     except Exception as e:
                         logger.warning(f"Summary of {doc_id} failed: {e}")
                     self.refresh_records()
+                if cancelled():
+                    return
+                if FIGURE_CAPTIONS and getattr(self, "vision_agent", None) is not None:
+                    job.update(stage="figures", processed=0, total=0)
+                    try:
+                        self._describe_figures(doc_id, title, lambda i, n: job.update(processed=i, total=n))
+                    except Exception as e:
+                        logger.warning(f"Figure descriptions for {doc_id} failed: {e}")
                 if cancelled():
                     return
                 if AUTO_EXTRACT and TYPE_PRESETS.get(self.layout_meta(doc_id).get("doc_type") or ""):
