@@ -4,11 +4,18 @@ hosted one when configured (OMNIDOC_VISION_MODEL="gemini:gemini-3.5-flash-lite",
 model of the first configured provider that has one), else a local Ollama model, in which
 case nothing leaves the machine.
 
-Figures are saved at ingestion as ``<images_dir>/<doc_id>/p<page>_img<k>.png`` (embedded
-images) and ``p<page>_page.png`` (whole pages dominated by vector charts or diagrams). The
-agent prefers figures on the pages the retriever already found relevant, so the analysis can
-be cited next to the passages it explains.
+For PDFs and images the agent looks at whole pages, rendered from the stored upload when the
+question is asked: the best-matching pages that carry pictures or charts, and pages the question
+names, so a figure is read together with its labels, legend and caption, as a person sees it.
+Pages are read in parallel. It also runs without being asked when the best passages sit on
+pages that are mostly pictures or charts (slides, brochures, infographics), whose content the
+text layer misses.
+
+Other formats fall back to the figures saved at ingestion, ``<images_dir>/<doc_id>/p<page>_img<k>.png``
+(embedded images) and ``p<page>_page.png`` (pages dominated by vector charts). Either way the
+analysis is cited with its page, next to the passages it explains.
 """
+from concurrent.futures import ThreadPoolExecutor
 import os
 import re
 import time
@@ -19,12 +26,27 @@ from typing import Any, Dict, List, Optional, Set, Tuple
 from core.state import AgentWorkflowState
 from agents.llm_utils import get_client, trace, vision_chat
 from agents import llm_providers
+from agents.document_intelligence_agent import DocumentIntelligenceAgent
 
 logger = logging.getLogger("OmniDoc.VisionAgent")
 
 # Vision-capable models tried in order after OMNIDOC_VISION_MODEL.
 FALLBACK_VISION_MODELS = ("qwen3.5:9b", "gemma4:12b", "qwen2.5vl:7b", "llama3.2-vision:11b")
 MAX_FIGURES = int(os.getenv("OMNIDOC_VISION_MAX_FIGURES", "2"))
+
+# Rendered page size: the longer side in pixels.
+RENDER_PX = int(os.getenv("OMNIDOC_VISION_RENDER_PX", "1600"))
+# A page carries a real figure when images cover this share of it (small logos and banners
+# stay below), or when it has a chart drawn as vectors: curves, or many lines. Rectangles do not
+# count: financial statements and other tables are drawn with hundreds of filled cells.
+VISUAL_IMAGE_SHARE = 0.2
+CHART_CURVES = 5
+CHART_LINES = 200
+# A large picture (a full-page map, photo or chart), looked for when the text search missed it.
+LARGE_IMAGE_SHARE = 0.35
+# Retrieved pages checked for the automatic trigger.
+TRIGGER_TOP_PAGES = 2
+IMAGE_EXTENSIONS = (".png", ".jpg", ".jpeg", ".webp", ".tif", ".tiff", ".bmp")
 
 _FIGURE_RE = re.compile(r"^p(\d+)_(?:img(\d+)|page)\.(?:png|jpe?g)$", re.IGNORECASE)
 _DOC_ID_RE = re.compile(r"^[A-Za-z0-9_\-.]+$")
@@ -39,6 +61,16 @@ diagram, photo...), axis titles, legend entries, labels and every number you can
 Transcribe numbers and labels exactly as printed; do not estimate values you cannot read.
 If the figure is unrelated to the question, say so in one sentence.
 Answer in plain prose, at most 150 words."""
+
+PAGE_PROMPT = """You are looking at page {page} of a document, rendered as an image, to help answer a question.
+
+Question: {query}
+
+Read what on this page is relevant to the question: figures, charts, maps, diagrams, photos,
+tables and their titles, axis labels, legends, captions and annotations. Transcribe numbers,
+names and labels exactly as printed; count items carefully when the question asks how many;
+do not estimate values you cannot read. If nothing on the page is relevant, say so in one sentence.
+Answer in plain prose, at most 180 words."""
 
 
 def _field(obj: Any, key: str) -> Any:
@@ -64,8 +96,10 @@ class VisionAgent:
     """Analyses document figures with a local Ollama vision model."""
 
     def __init__(self, images_dir: str = "extracted_images", vision_model: Optional[str] = None,
-                 max_figures: int = MAX_FIGURES):
+                 max_figures: int = MAX_FIGURES, files_dir: Optional[str] = None):
         self.images_dir = images_dir
+        # The uploaded files sit next to the figures folder (<data>/uploads beside <data>/figures).
+        self.files_dir = files_dir or os.path.join(os.path.dirname(os.path.abspath(images_dir)), "uploads")
         # Deliberately not called `model_name`: switching the text model must not
         # replace the vision model with one that cannot read images.
         self.vision_model = vision_model or os.getenv("OMNIDOC_VISION_MODEL", "")
@@ -75,7 +109,8 @@ class VisionAgent:
 
     def run(self, state: AgentWorkflowState) -> Dict[str, Any]:
         started = time.perf_counter()
-        figures = self._candidate_figures(state)
+        asked = bool((state.get("needs") or {}).get("figures"))
+        figures = self._page_candidates(state, strict=not asked) or (self._candidate_figures(state) if asked else [])
         if not figures:
             return {"visual_context": [],
                     "agent_traces": [trace("vision_agent", "skipped", "No figures in the selected documents.", started)]}
@@ -86,13 +121,159 @@ class VisionAgent:
                     "agent_traces": [trace("vision_agent", "skipped", "No local vision model is installed.", started)]}
 
         query = state.get("user_query", "")
-        findings: List[Dict[str, Any]] = []
-        for fig in figures[: self.max_figures]:
-            analysis = self._analyze(model, fig, query)
-            if analysis:
-                findings.append({**fig, "analysis": analysis, "model": model})
-        detail = f"{len(findings)} of {min(len(figures), self.max_figures)} figures read with {model}"
+        chosen = figures[: self.max_figures]
+        with ThreadPoolExecutor(max_workers=max(1, len(chosen))) as pool:
+            analyses = list(pool.map(lambda fig: self._analyze(model, fig, query), chosen))
+        findings = [{**{k: v for k, v in fig.items() if k != "render"}, "analysis": a, "model": model}
+                    for fig, a in zip(chosen, analyses) if a]
+        kind = "pages" if any("render" in f for f in chosen) else "figures"
+        detail = f"{len(findings)} of {len(chosen)} {kind} read with {model}" + ("" if asked else " (pages mostly pictures or charts)")
         return {"visual_context": findings, "agent_traces": [trace("vision_agent", "completed", detail, started)]}
+
+    # ------------------------------------------------------------------ pages
+    def _upload(self, doc_id: str) -> Optional[str]:
+        """The stored upload of a document when it is a PDF or an image."""
+        if not _DOC_ID_RE.match(doc_id or "") or not os.path.isdir(self.files_dir):
+            return None
+        for ext in (".pdf",) + IMAGE_EXTENSIONS:
+            path = os.path.join(self.files_dir, doc_id + ext)
+            if os.path.isfile(path):
+                return path
+        return None
+
+    @staticmethod
+    def _visual(page: Any) -> Tuple[float, float, bool]:
+        """
+        (share of the page covered by images, strength of a vector chart on it (0 = none, up to 1),
+        whether one image is the whole page).
+        """
+        area = float(page.rect.width * page.rect.height) or 1.0
+        covered, scan = 0.0, False
+        try:
+            for info in page.get_image_info():
+                x0, y0, x1, y1 = info["bbox"]
+                a = max(0.0, x1 - x0) * max(0.0, y1 - y0)
+                covered += a
+                scan = scan or a >= 0.9 * area
+        except Exception:
+            pass
+        curves = lines = 0
+        try:
+            for d in page.get_drawings():
+                for item in d.get("items") or []:
+                    curves += item[0] == "c"
+                    lines += item[0] == "l"
+        except Exception:
+            pass
+        chart = min(1.0, curves / 100 + lines / 1000) if curves >= CHART_CURVES or lines >= CHART_LINES else 0.0
+        return min(1.0, covered / area), chart, scan
+
+    def _page_candidates(self, state: AgentWorkflowState, strict: bool) -> List[Dict[str, Any]]:
+        """
+        Pages worth looking at, best first. ``strict`` (the question did not ask about a figure)
+        keeps only pages the question names and top retrieved pages that carry a real figure,
+        never a whole-page scan (OCR read its text). When the question asks about a figure:
+        named pages, retrieved pages with a real figure, then the largest pictures of the
+        retrieved documents (a map or chart with no words around it is rarely found by the text
+        search), then retrieved pages with any picture.
+        """
+        page_scores = _page_scores(state.get("chunk_context") or [])
+        scores = sorted(page_scores.items(), key=lambda kv: -kv[1])
+        if strict:
+            scores = scores[:TRIGGER_TOP_PAGES]
+        docs: Dict[str, Any] = {}
+        chosen: List[Tuple[str, int]] = []
+        weaker: List[Tuple[str, int]] = []
+        # Pages the question names ("in page 47", "slide 12") come first: one that is a picture
+        # or chart, or whose text was not retrieved (often a page with no text layer at all).
+        scope = [str(d) for d in (state.get("document_ids") or []) if _DOC_ID_RE.match(str(d))]
+        scope = (scope or list(dict.fromkeys(d for (d, _), _ in scores)))[:2]
+        named = [n for k, n in DocumentIntelligenceAgent.references(state.get("user_query", "")) if k == "page"]
+
+        def open_pdf(doc_id: str) -> Optional[Any]:
+            if doc_id not in docs:
+                path = self._upload(doc_id)
+                docs[doc_id] = None
+                if path and path.lower().endswith(".pdf"):
+                    import fitz
+                    docs[doc_id] = fitz.open(path)
+            return docs[doc_id]
+
+        out: List[Dict[str, Any]] = []
+        try:
+            for doc_id in scope:
+                doc = open_pdf(doc_id)
+                for name in named:
+                    page_no = len(doc) if doc is not None and name == "last" else int(name) if name.isdigit() else 0
+                    if doc is None or not 1 <= page_no <= len(doc):
+                        continue
+                    share, chart, _ = self._visual(doc[page_no - 1])
+                    if not strict or share >= VISUAL_IMAGE_SHARE or chart \
+                            or (doc_id, page_no) not in page_scores:
+                        chosen.append((doc_id, page_no))
+            for (doc_id, page_no), _ in scores:
+                path = self._upload(doc_id)
+                if not path or page_no < 1:
+                    continue
+                if path.lower().endswith(IMAGE_EXTENSIONS):
+                    if not strict and not any(f["doc_id"] == doc_id for f in out):
+                        out.append({"figure_id": f"{doc_id}_image", "doc_id": doc_id, "page": 1,
+                                    "caption": "The uploaded image", "image_path": path})
+                    continue
+                doc = open_pdf(doc_id)
+                if doc is None or page_no > len(doc):
+                    continue
+                share, chart, scan = self._visual(doc[page_no - 1])
+                real = share >= VISUAL_IMAGE_SHARE or chart > 0
+                if (doc_id, page_no) in chosen:
+                    continue
+                if real and not (strict and scan):
+                    chosen.append((doc_id, page_no))
+                elif not strict and share > 0:
+                    weaker.append((doc_id, page_no))
+            if not strict and len(chosen) < self.max_figures:
+                large: List[Tuple[float, str, int]] = []
+                for doc_id in list(dict.fromkeys(d for (d, _), _ in scores))[:2]:
+                    doc = open_pdf(doc_id)
+                    if doc is None:
+                        continue
+                    for page_no in self._figure_pages(doc_id):
+                        if (doc_id, page_no) in chosen or page_no > len(doc):
+                            continue
+                        share, chart, _ = self._visual(doc[page_no - 1])
+                        if share >= LARGE_IMAGE_SHARE or chart > 0:
+                            large.append((-max(share, chart), doc_id, page_no))
+                chosen += [(d, p) for _, d, p in sorted(large)]
+            chosen += [w for w in weaker if w not in chosen] if not strict else []
+            for doc_id, page_no in chosen[: max(0, self.max_figures - len(out))]:
+                out.append({"figure_id": f"{doc_id}_p{page_no}_render", "doc_id": doc_id, "page": page_no,
+                            "caption": f"Page {page_no}", "render": self._upload(doc_id)})
+        except Exception as e:
+            logger.warning(f"Could not choose pages to look at: {e}")
+        finally:
+            for doc in docs.values():
+                if doc is not None:
+                    doc.close()
+        return out
+
+    def _figure_pages(self, doc_id: str) -> List[int]:
+        """Pages with a figure saved at ingestion (embedded images, chart pages)."""
+        folder = os.path.join(self.images_dir, doc_id)
+        if not _DOC_ID_RE.match(doc_id or "") or not os.path.isdir(folder):
+            return []
+        return sorted({int(m.group(1)) for m in (_FIGURE_RE.match(n) for n in os.listdir(folder)) if m})
+
+    def visual_pages(self, state: AgentWorkflowState) -> bool:
+        """True when the question names a page, or the best passages sit on pages with real figures."""
+        return bool(self._page_candidates(state, strict=True))
+
+    @staticmethod
+    def _render(path: str, page_no: int) -> bytes:
+        import fitz
+        with fitz.open(path) as doc:
+            page = doc[page_no - 1]
+            zoom = min(3.0, RENDER_PX / max(float(page.rect.width), float(page.rect.height), 1.0))
+            return page.get_pixmap(matrix=fitz.Matrix(zoom, zoom)).tobytes("png")
 
     def _scope_doc_ids(self, state: AgentWorkflowState) -> List[str]:
         doc_ids = [str(d) for d in (state.get("document_ids") or []) if _DOC_ID_RE.match(str(d))]
@@ -176,20 +357,25 @@ class VisionAgent:
         # Older Ollama servers do not report capabilities; trust the curated list then.
         return caps is None or "vision" in caps
 
-    @staticmethod
-    def _analyze(model: str, fig: Dict[str, Any], query: str) -> Optional[str]:
+    @classmethod
+    def _analyze(cls, model: str, fig: Dict[str, Any], query: str) -> Optional[str]:
         try:
-            with open(fig["image_path"], "rb") as f:
-                image = f.read()
-            if llm_providers.parse_spec(model)[0] != "ollama":
+            if fig.get("render"):
+                image, mime = cls._render(fig["render"], fig["page"]), "image/png"
+                prompt = PAGE_PROMPT.format(query=query[:500], page=fig["page"])
+            else:
+                with open(fig["image_path"], "rb") as f:
+                    image = f.read()
                 mime = "image/jpeg" if fig["image_path"].lower().endswith((".jpg", ".jpeg")) else "image/png"
-                text = vision_chat(model, PROMPT.format(query=query[:500], page=fig["page"], doc_id=fig["doc_id"]), image, mime=mime)
+                prompt = PROMPT.format(query=query[:500], page=fig["page"], doc_id=fig["doc_id"])
+            if llm_providers.parse_spec(model)[0] != "ollama":
+                text = vision_chat(model, prompt, image, mime=mime, num_predict=500)
                 return text.strip() or None
             request = {
                 "model": model,
                 "messages": [{
                     "role": "user",
-                    "content": PROMPT.format(query=query[:500], page=fig["page"], doc_id=fig["doc_id"]),
+                    "content": prompt,
                     "images": [image],
                 }],
                 "options": {"temperature": 0.1, "num_predict": 400},
@@ -202,5 +388,5 @@ class VisionAgent:
             content = _field(_field(resp, "message"), "content") or ""
             return content.strip() or None
         except Exception as e:
-            logger.warning(f"Figure analysis failed for {fig.get('image_path')}: {e}")
+            logger.warning(f"Figure analysis failed for {fig.get('render') or fig.get('image_path')} (page {fig.get('page')}): {e}")
             return None
