@@ -1,0 +1,196 @@
+{
+ "run": "2026-10-10_revision-a_8805552",
+ "label": "revision-a",
+ "commit": "8805552",
+ "uncommitted_changes": false,
+ "settings": {
+  "provider": "nvidia",
+  "model": "nvidia:nvidia/nemotron-3-super-120b-a12b",
+  "vision": "gemini:gemini-3.5-flash-lite",
+  "embed": "nomic-embed-text",
+  "judge": "groq:openai/gpt-oss-120b"
+ },
+ "graded": 89,
+ "benchmarks": {
+  "mmlongbench": {
+   "n": 53,
+   "accuracy": 0.4716981132075472,
+   "accuracy_ci95": [
+    0.343820276089814,
+    0.6034014769924354
+   ],
+   "wrong": 0.37735849056603776,
+   "declined": 0.1509433962264151,
+   "answerable_accuracy": 0.4186046511627907,
+   "unanswerable_n": 10,
+   "unanswerable_accuracy": 0.7,
+   "f1": 0.4444444444444444,
+   "gold_page_retrieved": 0.6904761904761905,
+   "gold_page_cited": 0.5238095238095238,
+   "first_word_p50_s": 5.67,
+   "first_word_p90_s": 39.74,
+   "answer_p50_s": 7.82,
+   "answer_p90_s": 64.17,
+   "model_calls_mean": 2.0943396226415096,
+   "tokens_mean": 4198.358490566037,
+   "errors": 0,
+   "retried": 0,
+   "verified_mean": 0.9803921568627451,
+   "by_evidence": {
+    "(unspecified)": {
+     "n": 1,
+     "accuracy": 0.0
+    },
+    "Chart": {
+     "n": 5,
+     "accuracy": 0.2
+    },
+    "Figure": {
+     "n": 22,
+     "accuracy": 0.2727272727272727
+    },
+    "Generalized-text": {
+     "n": 4,
+     "accuracy": 0.5
+    },
+    "Multi-page": {
+     "n": 13,
+     "accuracy": 0.15384615384615385
+    },
+    "Not answerable": {
+     "n": 10,
+     "accuracy": 0.7
+    },
+    "Pure-text": {
+     "n": 11,
+     "accuracy": 0.7272727272727273
+    },
+    "Single-page": {
+     "n": 30,
+     "accuracy": 0.5333333333333333
+    },
+    "Table": {
+     "n": 6,
+     "accuracy": 0.6666666666666666
+    }
+   },
+   "by_doc_type": {
+    "Academic paper": {
+     "n": 9,
+     "accuracy": 0.4444444444444444
+    },
+    "Administration/Industry file": {
+     "n": 7,
+     "accuracy": 0.5714285714285714
+    },
+    "Brochure": {
+     "n": 7,
+     "accuracy": 0.7142857142857143
+    },
+    "Financial report": {
+     "n": 8,
+     "accuracy": 0.5
+    },
+    "Guidebook": {
+     "n": 9,
+     "accuracy": 0.2222222222222222
+    },
+    "Research report / Introduction": {
+     "n": 7,
+     "accuracy": 0.5714285714285714
+    },
+    "Tutorial/Workshop": {
+     "n": 6,
+     "accuracy": 0.3333333333333333
+    }
+   },
+   "ingestion": {
+    "documents": 7,
+    "chunks": 596,
+    "upload_s": 61.3,
+    "background_s": 1471.8,
+    "index_commit": "fb1d133"
+   }
+  },
+  "financebench": {
+   "n": 36,
+   "accuracy": 0.5,
+   "accuracy_ci95": [
+    0.34474067624730526,
+    0.6552593237526947
+   ],
+   "wrong": 0.16666666666666666,
+   "declined": 0.3333333333333333,
+   "answerable_accuracy": 0.5,
+   "unanswerable_n": 0,
+   "unanswerable_accuracy": null,
+   "f1": 0.6,
+   "gold_page_retrieved": 0.75,
+   "gold_page_cited": 0.4722222222222222,
+   "first_word_p50_s": 14.87,
+   "first_word_p90_s": 67.34,
+   "answer_p50_s": 37.34,
+   "answer_p90_s": 99.42,
+   "model_calls_mean": 3.9166666666666665,
+   "tokens_mean": 9507.416666666666,
+   "errors": 0,
+   "retried": 0,
+   "verified_mean": 0.9518611111111112,
+   "by_type": {
+    "domain-relevant": {
+     "n": 12,
+     "accuracy": 0.4166666666666667
+    },
+    "metrics-generated": {
+     "n": 12,
+     "accuracy": 0.5
+    },
+    "novel-generated": {
+     "n": 12,
+     "accuracy": 0.5833333333333334
+    }
+   },
+   "by_reasoning": {
+    "-": {
+     "n": 12,
+     "accuracy": 0.5833333333333334
+    },
+    "Information extraction": {
+     "n": 5,
+     "accuracy": 0.6
+    },
+    "Logical reasoning (based on numerical reasoning)": {
+     "n": 2,
+     "accuracy": 0.5
+    },
+    "Logical reasoning (based on numerical reasoning) OR Logical reasoning": {
+     "n": 1,
+     "accuracy": 1.0
+    },
+    "Logical reasoning (based on numerical reasoning) OR Numerical reasoning OR Logical reasoning": {
+     "n": 1,
+     "accuracy": 0.0
+    },
+    "Numerical reasoning": {
+     "n": 11,
+     "accuracy": 0.5454545454545454
+    },
+    "Numerical reasoning OR Logical reasoning": {
+     "n": 3,
+     "accuracy": 0.0
+    },
+    "Numerical reasoning OR information extraction": {
+     "n": 1,
+     "accuracy": 0.0
+    }
+   },
+   "ingestion": {
+    "documents": 24,
+    "chunks": 10575,
+    "upload_s": 1104.5,
+    "background_s": 5124.3,
+    "index_commit": "fb1d133"
+   }
+  }
+ }
+}
