@@ -1,0 +1,170 @@
+{
+ "benchmark": "mmlongbench",
+ "split": "dev",
+ "seed": 2027,
+ "source": "https://huggingface.co/datasets/yubo2333/MMLongBench-Doc/resolve/main/data/train-00000-of-00001.parquet",
+ "selection": "4 document types at random, one document each with 5-12 questions; all its questions; no document of the test split",
+ "documents": [
+  "NIKE_2021_10K.pdf",
+  "SnapNTell.pdf",
+  "disciplined-agile-business-analysis-160218012713_95.pdf",
+  "honor_watch_gs_pro.pdf"
+ ],
+ "questions": [
+  {
+   "id": "mm_0083",
+   "doc": "honor_watch_gs_pro.pdf",
+   "type": "Guidebook"
+  },
+  {
+   "id": "mm_0084",
+   "doc": "honor_watch_gs_pro.pdf",
+   "type": "Guidebook"
+  },
+  {
+   "id": "mm_0085",
+   "doc": "honor_watch_gs_pro.pdf",
+   "type": "Guidebook"
+  },
+  {
+   "id": "mm_0086",
+   "doc": "honor_watch_gs_pro.pdf",
+   "type": "Guidebook"
+  },
+  {
+   "id": "mm_0087",
+   "doc": "honor_watch_gs_pro.pdf",
+   "type": "Guidebook"
+  },
+  {
+   "id": "mm_0088",
+   "doc": "honor_watch_gs_pro.pdf",
+   "type": "Guidebook"
+  },
+  {
+   "id": "mm_0436",
+   "doc": "SnapNTell.pdf",
+   "type": "Academic paper"
+  },
+  {
+   "id": "mm_0437",
+   "doc": "SnapNTell.pdf",
+   "type": "Academic paper"
+  },
+  {
+   "id": "mm_0438",
+   "doc": "SnapNTell.pdf",
+   "type": "Academic paper"
+  },
+  {
+   "id": "mm_0439",
+   "doc": "SnapNTell.pdf",
+   "type": "Academic paper"
+  },
+  {
+   "id": "mm_0440",
+   "doc": "SnapNTell.pdf",
+   "type": "Academic paper"
+  },
+  {
+   "id": "mm_0441",
+   "doc": "SnapNTell.pdf",
+   "type": "Academic paper"
+  },
+  {
+   "id": "mm_0442",
+   "doc": "SnapNTell.pdf",
+   "type": "Academic paper"
+  },
+  {
+   "id": "mm_0443",
+   "doc": "SnapNTell.pdf",
+   "type": "Academic paper"
+  },
+  {
+   "id": "mm_0962",
+   "doc": "disciplined-agile-business-analysis-160218012713_95.pdf",
+   "type": "Tutorial/Workshop"
+  },
+  {
+   "id": "mm_0963",
+   "doc": "disciplined-agile-business-analysis-160218012713_95.pdf",
+   "type": "Tutorial/Workshop"
+  },
+  {
+   "id": "mm_0964",
+   "doc": "disciplined-agile-business-analysis-160218012713_95.pdf",
+   "type": "Tutorial/Workshop"
+  },
+  {
+   "id": "mm_0965",
+   "doc": "disciplined-agile-business-analysis-160218012713_95.pdf",
+   "type": "Tutorial/Workshop"
+  },
+  {
+   "id": "mm_0966",
+   "doc": "disciplined-agile-business-analysis-160218012713_95.pdf",
+   "type": "Tutorial/Workshop"
+  },
+  {
+   "id": "mm_0967",
+   "doc": "disciplined-agile-business-analysis-160218012713_95.pdf",
+   "type": "Tutorial/Workshop"
+  },
+  {
+   "id": "mm_0968",
+   "doc": "disciplined-agile-business-analysis-160218012713_95.pdf",
+   "type": "Tutorial/Workshop"
+  },
+  {
+   "id": "mm_1041",
+   "doc": "NIKE_2021_10K.pdf",
+   "type": "Financial report"
+  },
+  {
+   "id": "mm_1042",
+   "doc": "NIKE_2021_10K.pdf",
+   "type": "Financial report"
+  },
+  {
+   "id": "mm_1043",
+   "doc": "NIKE_2021_10K.pdf",
+   "type": "Financial report"
+  },
+  {
+   "id": "mm_1044",
+   "doc": "NIKE_2021_10K.pdf",
+   "type": "Financial report"
+  },
+  {
+   "id": "mm_1045",
+   "doc": "NIKE_2021_10K.pdf",
+   "type": "Financial report"
+  },
+  {
+   "id": "mm_1046",
+   "doc": "NIKE_2021_10K.pdf",
+   "type": "Financial report"
+  },
+  {
+   "id": "mm_1047",
+   "doc": "NIKE_2021_10K.pdf",
+   "type": "Financial report"
+  },
+  {
+   "id": "mm_1048",
+   "doc": "NIKE_2021_10K.pdf",
+   "type": "Financial report"
+  },
+  {
+   "id": "mm_1049",
+   "doc": "NIKE_2021_10K.pdf",
+   "type": "Financial report"
+  },
+  {
+   "id": "mm_1050",
+   "doc": "NIKE_2021_10K.pdf",
+   "type": "Financial report"
+  }
+ ]
+}
