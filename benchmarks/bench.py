@@ -70,6 +70,11 @@ MM_PDF = "https://huggingface.co/datasets/yubo2333/MMLongBench-Doc/resolve/main/
 MM_QUESTIONS_PER_DOC = (5, 12)  # documents with a typical number of questions
 
 PORT = 8011
+# Free tiers throttle bursts: a pause between questions (like a person reading the answer) and
+# patient retries of answers that failed on a rate limit. Retries are counted in the report.
+PAUSE_S = 20
+ATTEMPTS = 5
+RETRY_WAITS = (60, 90, 120, 150)
 DEFAULTS = {
     "provider": "nvidia",
     "model": "nvidia:nvidia/nemotron-3-super-120b-a12b",
@@ -443,6 +448,7 @@ def run(args: argparse.Namespace) -> None:
             "commit": commit, "uncommitted_changes": dirty, "benchmarks": benches, "settings": settings,
             "work": str(WORK), **({"code": str(CODE)} if CODE != ROOT else {}),
             "scope": "each question is asked about its own document (document_ids = [doc]); web search off",
+            "pacing": f"{args.pause}s between questions; answers that failed are asked again up to {ATTEMPTS} times",
             "notes": args.notes or "",
         }, indent=1) + "\n")
     results_path = run_dir / "results.jsonl"
@@ -463,7 +469,7 @@ def run(args: argparse.Namespace) -> None:
                 doc = state["docs"][q["doc"]]
                 out: Dict[str, Any] = {}
                 failures: List[str] = []
-                for attempt in range(1, 4):
+                for attempt in range(1, ATTEMPTS + 1):
                     try:
                         out = ask(server, doc["doc_id"], gold["question"])
                     except Exception as e:  # network trouble: retry
@@ -471,9 +477,10 @@ def run(args: argparse.Namespace) -> None:
                     if not out.get("error") and out.get("answer"):
                         break
                     failures.append(out.get("error") or "empty answer")
-                    if attempt < 3:
-                        log(f"  {q['id']}: {failures[-1][:120]}; retrying in 30s")
-                        time.sleep(30)
+                    if attempt < ATTEMPTS:
+                        wait = RETRY_WAITS[min(attempt - 1, len(RETRY_WAITS) - 1)]
+                        log(f"  {q['id']}: {failures[-1][:120]}; retrying in {wait}s")
+                        time.sleep(wait)
                 reference = {("answer_gold" if k == "answer" else k): v for k, v in gold.items()}
                 row = {"id": q["id"], "benchmark": bench, "doc": q["doc"], "doc_id": doc["doc_id"], **reference,
                        **out, "attempts": attempt, "failed_attempts": failures}
@@ -481,6 +488,8 @@ def run(args: argparse.Namespace) -> None:
                     row["retried_after"] = previous[q["id"]].get("error") or (previous[q["id"]].get("answer") or "")[:200]
                 append_jsonl(results_path, row)
                 log(f"  [{i}/{len(todo)}] {q['id']} {row.get('total_s', '-')}s {'ERROR ' + row['error'] if row.get('error') else ''}")
+                if i < len(todo):
+                    time.sleep(args.pause)
         finally:
             server.stop()
         index = {k: v for k, v in state.items() if k != "pending"}
@@ -804,6 +813,7 @@ def main() -> None:
     r.add_argument("--resume", default="", help="continue an interrupted run in this run folder")
     r.add_argument("--no-judge", action="store_true")
     r.add_argument("--wait-index", action="store_true", help="wait for an index that `bench.py index` is building")
+    r.add_argument("--pause", type=float, default=PAUSE_S, help=f"seconds between questions (default {PAUSE_S})")
     ix = sub.add_parser("index", help="ingest the documents only (a later run reuses the index)")
     ix.add_argument("--bench", default="financebench,mmlongbench")
     ix.add_argument("--reingest", action="store_true")
