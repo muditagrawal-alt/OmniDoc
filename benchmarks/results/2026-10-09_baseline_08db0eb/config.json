@@ -1,0 +1,20 @@
+{
+ "label": "baseline",
+ "started": "2026-10-09T22:14:54",
+ "commit": "08db0eb",
+ "uncommitted_changes": false,
+ "benchmarks": [
+  "mmlongbench",
+  "financebench"
+ ],
+ "settings": {
+  "provider": "nvidia",
+  "model": "nvidia:nvidia/nemotron-3-super-120b-a12b",
+  "vision": "gemini:gemini-3.5-flash-lite",
+  "embed": "nomic-embed-text",
+  "judge": "groq:openai/gpt-oss-120b"
+ },
+ "scope": "each question is asked about its own document (document_ids = [doc]); web search off",
+ "notes": "Code at 08db0eb. Answers: NVIDIA Nemotron 3 Super; figures: Gemini 3.5 Flash-Lite; judge: Groq gpt-oss-120b. Resumed on 2026-10-10 after the session stopped: 19 answers that were NVIDIA rate-limit errors (the FinanceBench phase overlapped with an index build on the same key) and the 18 FinanceBench questions not yet asked were asked again with pacing; product code unchanged (08db0eb).",
+ "pacing": "20s between questions; answers that failed are asked again up to 5 times (60-150s apart)"
+}
