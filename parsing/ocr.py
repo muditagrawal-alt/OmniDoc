@@ -26,6 +26,10 @@ OCR_DPI = int(os.getenv("OMNIDOC_OCR_DPI", "200"))
 # Pages with fewer extractable characters than this are treated as images and OCR'd.
 MIN_TEXT_CHARS = int(os.getenv("OMNIDOC_OCR_MIN_CHARS", "25"))
 MAX_OCR_PAGES = int(os.getenv("OMNIDOC_OCR_MAX_PAGES", "300"))
+# A page that is mostly one picture (a slide or flyer exported as an image) is read with OCR
+# even when its text layer holds a few words (a footer, a page number, a link).
+PICTURE_PAGE_SHARE = 0.6
+PICTURE_PAGE_MAX_CHARS = 400
 # Fixed language packs (e.g. "eng+hin"); empty means detect the script on every page.
 FIXED_LANGS = os.getenv("OMNIDOC_OCR_LANGS", "").strip()
 MIN_WORD_CONF = float(os.getenv("OMNIDOC_OCR_MIN_CONF", "55"))
@@ -142,10 +146,24 @@ def _mean_conf(words: List[Dict[str, Any]]) -> float:
     return sum(confs) / len(confs) if confs else 0.0
 
 
+def _image_share(page: Any) -> float:
+    """Share of the page covered by images."""
+    area = float(page.rect.width * page.rect.height) or 1.0
+    try:
+        covered = sum(max(0.0, b[2] - b[0]) * max(0.0, b[3] - b[1]) for b in (i["bbox"] for i in page.get_image_info()))
+    except Exception:
+        return 0.0
+    return min(1.0, covered / area)
+
+
 def page_needs_ocr(page: Any, text_chars: int) -> bool:
-    """A page with almost no text but some ink (an image or drawings) is a scan."""
+    """
+    A page with almost no text but some ink (an image or drawings) is a scan; a page that is
+    mostly one picture with only a few words of text (a slide exported as an image) is read too,
+    so the words in the picture become searchable.
+    """
     if text_chars >= MIN_TEXT_CHARS:
-        return False
+        return text_chars <= PICTURE_PAGE_MAX_CHARS and _image_share(page) >= PICTURE_PAGE_SHARE
     try:
         if page.get_images(full=False):
             return True
