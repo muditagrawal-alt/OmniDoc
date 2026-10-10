@@ -1,7 +1,8 @@
 """
 A tiny OpenAI-compatible server for tests: /chat/completions (plain and streamed) and
-/embeddings. Behaviour per instance: always rate-limited, rejecting optional request
-fields, or answering with a fixed reply (optionally wrapped in a <think> block).
+/embeddings. Behaviour per instance: always rate-limited, failing its first requests with
+a server error, rejecting optional request fields, or answering with a fixed reply
+(optionally wrapped in a <think> block).
 """
 import json
 import threading
@@ -10,9 +11,10 @@ from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 
 class FakeLLM:
     def __init__(self, reply: str = "Hello [1].", rate_limited: bool = False, reject_extras: bool = False,
-                 think: bool = False):
+                 think: bool = False, fail_first: int = 0):
         self.reply = reply
         self.rate_limited = rate_limited
+        self.fail_first = fail_first
         self.reject_extras = reject_extras
         self.think = think
         self.requests = []
@@ -36,6 +38,9 @@ class FakeLLM:
                 length = int(self.headers.get("Content-Length") or 0)
                 body = json.loads(self.rfile.read(length) or b"{}")
                 owner.requests.append({"path": self.path, "body": body})
+                if owner.fail_first > 0:
+                    owner.fail_first -= 1
+                    return self._send(503, {"error": {"message": "overloaded"}})
                 if owner.rate_limited:
                     return self._send(429, {"error": {"message": "Rate limit reached for requests per minute"}}, {"retry-after": "7"})
                 if owner.reject_extras and ("reasoning_effort" in body or "stream_options" in body
