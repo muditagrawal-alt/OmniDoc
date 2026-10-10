@@ -16,7 +16,7 @@ import math
 import base64
 import logging
 import threading
-from typing import Any, Callable, Dict, List, Optional
+from typing import Any, Callable, Dict, List, Optional, Tuple
 
 import ollama
 
@@ -27,6 +27,8 @@ logger = logging.getLogger("OmniDoc.LLM")
 
 DEFAULT_NUM_CTX = int(os.getenv("OMNIDOC_NUM_CTX", "8192"))
 LLM_TIMEOUT_S = float(os.getenv("OMNIDOC_LLM_TIMEOUT", "300"))
+# Longest wait for a paused provider before a call gives up (see _route).
+ROUTE_WAIT_S = float(os.getenv("OMNIDOC_ROUTE_WAIT", "30"))
 
 _client = None
 _client_lock = threading.Lock()
@@ -114,13 +116,15 @@ def _route(model: str, messages: List[Dict[str, Any]], call: Callable[[str, Opti
            num_predict: int) -> str:
     """
     Tries the providers for ``model`` in order until one answers. ``call(kind, provider,
-    model)`` performs the request. When every provider is only pacing or cooling down, waits
-    briefly once and tries again.
+    model)`` performs the request. When none answered because of a pause that ends soon (a
+    rate limit, a server error or timeout, the per-minute window), waits for the first provider
+    to free up (at most ROUTE_WAIT_S) and tries again, twice at most: with a single API key
+    this is the difference between a slower answer and no answer.
     """
     est = providers.estimate_tokens(messages, num_predict)
     errors: List[str] = []
-    for attempt in range(2):
-        tried = False
+    for attempt in range(3):
+        waitable = False
         for kind, p, m in providers.candidates(model):
             if p is None:
                 primary = providers.parse_spec(model)[0] == "ollama"
@@ -135,16 +139,20 @@ def _route(model: str, messages: List[Dict[str, Any]], call: Callable[[str, Opti
             ok, why = providers.is_available(p, est)
             if not ok:
                 errors.append(f"{p.label}: {why}")
+                waitable = True
                 continue
-            tried = True
             try:
                 return call(kind, p, m)
             except ProviderError as e:
                 errors.append(str(e))
+                waitable = waitable or e.retryable
                 logger.warning(f"{e}; trying the next provider.")
-        if tried or attempt:
+        waits = [w for w in (providers.wait_seconds(p, est) for _, p, _ in providers.candidates(model) if p is not None)
+                 if w is not None]
+        if attempt == 2 or not waitable or not waits or min(waits) > ROUTE_WAIT_S:
             break
-        time.sleep(6)  # everything was rate-paced: give the per-minute windows a moment
+        logger.info(f"Every provider is paused; waiting {min(waits):.0f}s before trying again.")
+        time.sleep(max(1.0, min(waits)))
     raise RuntimeError("No language model could answer: " + "; ".join(errors[-6:]))
 
 
@@ -294,6 +302,45 @@ def _balanced_block(text: str) -> Optional[str]:
     return tail + "".join(reversed(stack))
 
 
+def _salvage(text: str) -> List[str]:
+    """
+    Repairs for output cut off by the token limit ("...", "category"): besides closing the text
+    where it stops, cut it back to each of the last complete elements ({...} or [...]) and close
+    it there, so everything before the cut is kept. Empty when the output is complete.
+    """
+    start = next((i for i, ch in enumerate(text) if ch in "{["), None)
+    if start is None:
+        return []
+    stack: List[str] = []
+    cuts: List[Tuple[int, str]] = []  # (end, closers) after each complete nested element
+    in_str = escaped = False
+    for j in range(start, len(text)):
+        ch = text[j]
+        if in_str:
+            if escaped:
+                escaped = False
+            elif ch == "\\":
+                escaped = True
+            elif ch == '"':
+                in_str = False
+            continue
+        if ch == '"':
+            in_str = True
+        elif ch in "{[":
+            stack.append("}" if ch == "{" else "]")
+        elif ch in "}]":
+            if stack and stack[-1] == ch:
+                stack.pop()
+            if not stack:
+                return []
+            cuts.append((j + 1, "".join(reversed(stack))))
+    tail = text[start:] + ('"' if in_str else "")
+    out = [re.sub(r"[,:\s]+$", "", tail) + "".join(reversed(stack))]
+    for end, closers in reversed(cuts[-6:]):
+        out.append(re.sub(r"[,\s]+$", "", text[start:end]) + closers)
+    return out
+
+
 def _repair(s: str) -> str:
     s = s.replace("“", '"').replace("”", '"').replace("‘", "'").replace("’", "'")
     s = re.sub(r",\s*([}\]])", r"\1", s)                       # trailing commas
@@ -320,6 +367,7 @@ def parse_llm_json(raw: Optional[str]) -> Any:
     block = _balanced_block(text)
     if block and block != text:
         candidates.append(block)
+    candidates += _salvage(text)
     for cand in candidates:
         for fix in (lambda x: x, _repair):
             try:
