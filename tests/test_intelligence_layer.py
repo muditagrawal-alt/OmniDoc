@@ -104,6 +104,26 @@ def test_cut_off_json_keeps_its_complete_elements():
     assert parse_llm_json('Here: {"a": [1, 2]} done') == {"a": [1, 2]}
 
 
+def test_graph_batches_cut_off_ask_again_for_the_missing_chunks(monkeypatch):
+    from types import SimpleNamespace
+    from graph.extractor import GraphExtractor
+    calls = []
+
+    def reply(model, prompt, **k):
+        calls.append(prompt)
+        ids = [i for i in ("C1", "C2", "C3") if f"[{i}]" in prompt]
+        keep = ids[:1] if len(calls) == 1 else ids  # the first reply stops after one chunk
+        return {"chunks": [{"id": i, "entities": [{"name": "Acme", "category": "org", "description": "x"}]} for i in keep]}
+    monkeypatch.setattr(U, "chat_json", reply)
+    store = SimpleNamespace(added=[], add_chunk=lambda **k: None, link_chunk_to_entity=lambda *a: None,
+                            add_relation=lambda **k: None)
+    store.add_entity = lambda **k: store.added.append(k["entity_id"])
+    chunks = [SimpleNamespace(chunk_id=f"d_p1_c{i}", page_number=1, section_title="S", text=f"Acme report part {i}.")
+              for i in range(3)]
+    created = GraphExtractor(store, "nvidia:x").extract_batch("d", chunks)
+    assert len(calls) == 2 and "[C1] Acme report part 1." in calls[1] and created == 3
+
+
 def test_think_filter_handles_tags_split_across_pieces():
     f = P.ThinkFilter()
     text = "".join(f.feed(p) for p in ["Ans", "<thi", "nk>secret</th", "ink>wer"]) + f.flush()
@@ -382,6 +402,33 @@ def test_vision_reads_rendered_pages_that_carry_figures(monkeypatch):
     # A page the question names comes first when its text was not retrieved.
     named = {**state([1]), "user_query": "What is in the box on page 3?"}
     assert agent.visual_pages(named) and [c["page"] for c in agent._page_candidates(named, strict=True)] == [3]
+
+
+def test_picture_pages_are_read_with_ocr_and_described_for_search(monkeypatch):
+    import fitz
+    import agents.vision_agent as V
+    from types import SimpleNamespace
+    from parsing import ocr
+    from core.pipeline import AgenticGraphRAGPipeline
+    folder = tempfile.mkdtemp()
+    path = _pdf_with_figures(folder)
+    with fitz.open(path) as doc:
+        assert not ocr.page_needs_ocr(doc[0], 60)          # a text page
+        page = doc.new_page(width=595, height=842)          # a slide exported as one picture, with a footer
+        page.insert_image(fitz.Rect(0, 0, 595, 800), stream=doc[1].get_pixmap().tobytes("png"))
+        page.insert_text((72, 830), "www.example.org - page 4", fontsize=8)
+        assert ocr.page_needs_ocr(page, 30) and not ocr.page_needs_ocr(page, 900)
+    agent = V.VisionAgent(images_dir=os.path.join(folder, "figures"))
+    assert agent.caption_candidates(path) == [2]             # the chart page; not the logo or text pages
+    monkeypatch.setattr(V.VisionAgent, "_hosted_model", staticmethod(lambda: "gemini:gemini-3.5-flash-lite"))
+    monkeypatch.setattr(V, "vision_chat", lambda model, prompt, image, **k: "Bar chart: revenue by region, Asia 42.")
+    indexed = []
+    stub = SimpleNamespace(vision_agent=agent, summarizer=SimpleNamespace(load=lambda d: {"summary": "Annual report. More."}),
+                           _index_chunks=lambda title, chunks, overview: indexed.append((chunks, overview)))
+    assert AgenticGraphRAGPipeline._describe_figures(stub, "doc_v", "report.pdf") == 1
+    (chunks, overview), = indexed
+    assert chunks[0].chunk_id == "doc_v_p2_fig" and chunks[0].page_number == 2 and "Asia 42" in chunks[0].text
+    assert overview == "Annual report."
 
 
 def test_document_type_detection_and_validation():
