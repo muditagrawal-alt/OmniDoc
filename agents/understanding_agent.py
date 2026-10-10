@@ -84,8 +84,14 @@ _RULES: Dict[str, re.Pattern] = {
     "calculation": re.compile(r"\b(calculat|comput|how much (more|less|higher|lower)|difference|ratio|percent(age)? (change|of)|"
                               r"growth|cagr|average|mean|median|sum of|total of|add up|multiply|divide|per cent|increase|decrease|"
                               r"times (more|larger|bigger)|what fraction|proportion)\w*", re.I),
-    "chart": re.compile(r"\b(chart|plot|graph(?! database| of relationships)|visuali[sz]|bar graph|pie|histogram|draw)\w*", re.I),
-    "figures": re.compile(r"\b(figure|fig\.|diagram|image|picture|photo|illustration|infographic|map shown|chart (in|on|shows))\w*", re.I),
+    # A request to make a chart ("plot it", "show this as a bar chart"), not a question about one in the document.
+    "chart": re.compile(r"\b(plot(?!s?\b (in|on|of) (the|this|page))|graph it|chart it|visuali[sz]e|draw|histogram|"
+                        r"(make|create|generate|build|give me|show me|produce|render|prepare)( me)? (a |an )?"
+                        r"((bar|line|pie|scatter|column|area|stacked) )?(chart|graph|plot)|"
+                        r"(as|in|into) (a |an )?((bar|line|pie|scatter|column|area) )?(chart|graph|plot)\b)\w*", re.I),
+    "figures": re.compile(r"\b(figure|fig\.|diagram|image|picture|photo|illustration|infographic|maps?\b|logo|icon|"
+                         r"screenshot|slide|colou?r|drawing|shown|depicted|pictured|look(s|ed)? like|visual|"
+                         r"charts?|graphs?(?! database| of relationships)|plots?\b|pie|histograms?)\w*", re.I),
     "tables": re.compile(r"\b(table|spreadsheet|sheet|row|column|cell|csv|excel|xlsx)s?\b", re.I),
     "graph": re.compile(r"\b(relat(ed|ion|ionship)|connect(ed|ion)|link(ed)?|network|depend(s|ency|encies)?|who works with|"
                         r"associated with|between .{2,40} and)\b", re.I),
