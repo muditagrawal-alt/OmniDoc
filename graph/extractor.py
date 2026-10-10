@@ -66,6 +66,7 @@ Extract prominent domain entities and directional relationships from EACH number
 
 Rules:
 - 3 to 10 meaningful entities per chunk (concepts, components, methods, organisations, people, places, metrics), named exactly as written in that chunk.
+- Keep every description under 15 words.
 - Do not invent entities, facts or numbers that are not in the chunk.
 - Relationship source_name and target_name MUST be entities of the same chunk; "relation" is a short UPPER_SNAKE_CASE verb (USES, PART_OF, PRODUCES).
 - Output ONLY valid JSON:
@@ -201,7 +202,6 @@ class GraphExtractor:
         BATCH_CHUNKS chunks / BATCH_CHARS characters), which cuts the calls for a document to
         about a quarter. Returns the number of entities created.
         """
-        from agents.llm_utils import chat_json
         batches: List[List[Any]] = []
         for ch in chunks:
             if batches and len(batches[-1]) < BATCH_CHUNKS and sum(len(c.text[:2500]) for c in batches[-1]) + len(ch.text[:2500]) <= BATCH_CHARS:
@@ -214,22 +214,34 @@ class GraphExtractor:
             for ch in batch:
                 self.graph_store.add_chunk(chunk_id=ch.chunk_id, doc_id=doc_id, page_number=ch.page_number,
                                            section_title=clean_text(ch.section_title, 200) or "General", text=ch.text)
-            listing = "\n\n".join(f"[C{i}] {ch.text[:2500]}" for i, ch in enumerate(batch, 1))
-            try:
-                data = chat_json(self.model_name, BATCH_PROMPT.format(chunks=listing), num_predict=600 * len(batch), fast=True)
-            except Exception as e:
-                logger.warning(f"Graph extraction skipped for {len(batch)} chunk(s) of {doc_id}: {e}")
-                data = {}
-            per_chunk = {str(item.get("id") or "").strip().upper(): item
-                         for item in (data.get("chunks") or [] if isinstance(data, dict) else []) if isinstance(item, dict)}
-            for i, ch in enumerate(batch, 1):
-                payload = coerce_payload(per_chunk.get(f"C{i}") or {})
+            answers = self._ask_batch(doc_id, batch)
+            results = {ch.chunk_id: answers.get(f"C{i}") for i, ch in enumerate(batch, 1)}
+            # A reply cut off by the token limit keeps the chunks before the cut: ask again for the rest.
+            missing = [ch for ch in batch if not results[ch.chunk_id]]
+            if missing and len(missing) < len(batch):
+                again = self._ask_batch(doc_id, missing)
+                for i, ch in enumerate(missing, 1):
+                    results[ch.chunk_id] = again.get(f"C{i}")
+            for ch in batch:
+                payload = coerce_payload(results[ch.chunk_id] or {})
                 entities, _ = self._index_payload(doc_id, ch.chunk_id, ch.text, payload)
                 created += len(entities)
             done += len(batch)
             if progress:
                 progress(done, len(chunks))
         return created
+
+    def _ask_batch(self, doc_id: str, batch: List[Any]) -> Dict[str, Any]:
+        """The model's entities and relations per chunk ("C1", "C2", ...) of one batch; {} on failure."""
+        from agents.llm_utils import chat_json
+        listing = "\n\n".join(f"[C{i}] {ch.text[:2500]}" for i, ch in enumerate(batch, 1))
+        try:
+            data = chat_json(self.model_name, BATCH_PROMPT.format(chunks=listing), num_predict=750 * len(batch), fast=True)
+        except Exception as e:
+            logger.warning(f"Graph extraction skipped for {len(batch)} chunk(s) of {doc_id}: {e}")
+            return {}
+        return {str(item.get("id") or "").strip().upper(): item
+                for item in (data.get("chunks") or [] if isinstance(data, dict) else []) if isinstance(item, dict)}
 
     def _index_payload(self, doc_id: str, chunk_id: str, chunk_text: str,
                        payload: ExtractionPayload) -> Tuple[List[EntityNode], List[RelationshipEdge]]:
