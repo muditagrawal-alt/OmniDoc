@@ -67,6 +67,43 @@ def test_streaming_hides_thinking_and_reports_every_piece(providers):
     assert out == "Wind supplies 51 percent [1]." and "".join(pieces) == out
 
 
+@pytest.fixture()
+def single_provider(monkeypatch):
+    """Only NVIDIA configured (no fallback), with a clock that moves on when the router sleeps."""
+    monkeypatch.setenv("NVIDIA_API_KEY", "k")
+    monkeypatch.setenv("OMNIDOC_LLM_PROVIDERS", "nvidia")
+    monkeypatch.setenv("OMNIDOC_LOCAL_FALLBACK", "0")
+    slept = []
+    monkeypatch.setattr(U.time, "sleep", lambda s: (slept.append(s), P._cooldown.clear()))
+    return slept
+
+
+def test_a_single_provider_is_waited_for_after_a_server_error(single_provider, monkeypatch):
+    flaky = FakeLLM(reply="ok", fail_first=1)
+    monkeypatch.setattr(P.REGISTRY["nvidia"], "base_url", flaky.url)
+    assert U.chat("nvidia:nvidia/nemotron-3-super-120b-a12b", [{"role": "user", "content": "hi"}]) == "ok"
+    assert len(flaky.requests) == 2 and len(single_provider) == 1 and 25 <= single_provider[0] <= 31
+    flaky.close()
+
+
+def test_a_single_provider_is_given_up_after_two_waits(single_provider, monkeypatch):
+    limited = FakeLLM(rate_limited=True)
+    monkeypatch.setattr(P.REGISTRY["nvidia"], "base_url", limited.url)
+    with pytest.raises(RuntimeError):
+        U.chat("nvidia:nvidia/nemotron-3-super-120b-a12b", [{"role": "user", "content": "hi"}])
+    assert len(limited.requests) == 3 and len(single_provider) == 2
+    limited.close()
+
+
+def test_cut_off_json_keeps_its_complete_elements():
+    from agents.llm_utils import parse_llm_json
+    cut_after_key = '{"chunks": [{"id": "C1", "entities": [{"name": "a", "category": "org"}, {"name": "b", "category"'
+    assert parse_llm_json(cut_after_key) == {"chunks": [{"id": "C1", "entities": [{"name": "a", "category": "org"}]}]}
+    cut_mid_key = '{"chunks": [{"id": "C1", "entities": [{"name": "a"}]}, {"id": "C2", "entities": [{"na'
+    assert parse_llm_json(cut_mid_key) == {"chunks": [{"id": "C1", "entities": [{"name": "a"}]}]}
+    assert parse_llm_json('Here: {"a": [1, 2]} done') == {"a": [1, 2]}
+
+
 def test_think_filter_handles_tags_split_across_pieces():
     f = P.ThinkFilter()
     text = "".join(f.feed(p) for p in ["Ans", "<thi", "nk>secret</th", "ink>wer"]) + f.flush()
@@ -257,6 +294,95 @@ def test_pdf_table_header_rows_are_not_headings():
     assert "Stage 2 - Ancient Civilizations and Empires" in text or "Stage 2 - Ancient Civilizations and Empires" in sections
     assert [t["title"] for t in parsed.tables] == ["Stage 1 - Humanity Before Civilization",
                                                    "Stage 2 - Ancient Civilizations and Empires"]
+
+def test_page_references_in_questions():
+    from agents.document_intelligence_agent import DocumentIntelligenceAgent as D
+    refs = lambda q: [n for k, n in D.references(q) if k == "page"]
+    assert refs("What date is mentioned at the beginning of page(1)?") == ["1"]
+    assert refs("How many times does a phone appear on pages 16 and 18?") == ["16", "18"]
+    assert refs("What animals appear on page nine?") == ["9"]
+    assert refs("Is there a signature on the last page?") == ["last"]
+    assert refs("How many websites are on the cover page?") == ["1"]
+    assert refs("Summarise pages 3-5") == ["3", "4", "5"]
+    assert refs("What page has a snowflake image?") == []
+    assert D.references("What is in Table 3 on page 12?") == [("page", "12"), ("table", "3")]
+
+
+def test_financial_statements_are_added_for_the_figures_a_question_needs():
+    from types import SimpleNamespace
+    from core.state import RetrievedChunk
+    from agents.document_intelligence_agent import DocumentIntelligenceAgent
+
+    def chunk(i, page, section, text):
+        return RetrievedChunk(chunk_id=f"d_p{page}_c{i}", doc_id="d", text=text, page_number=page, section_title=section,
+                              score=0.0, retrieval_method="hybrid")
+    chunks = [chunk(0, 2, "Table of Contents", "Consolidated Balance Sheets 61 Consolidated Statements of Income 59"),
+              chunk(0, 30, "Results of Operations", "Inventories rose because of supply chain delays in the year."),
+              chunk(0, 59, "CONSOLIDATED STATEMENTS OF INCOME", "2021 2020 Revenues $ 44,538 $ 37,403 Cost of sales 24,576 21,162 "
+                    "Gross profit 19,962 16,241 Net income 5,727 2,539"),
+              chunk(0, 61, "CONSOLIDATED BALANCE SHEETS", "2021 2020 Cash 9,889 8,348 Inventories 6,854 7,367 "
+                    "Total current assets 26,291 20,556 Total current liabilities 9,674 8,284")]
+    agent = DocumentIntelligenceAgent(SimpleNamespace(get_document_chunks=lambda doc_id: chunks))
+    state = {"user_query": "What is the FY2021 inventory turnover ratio (COGS / average inventory) using the statement of financial position?",
+             "document_ids": ["d"], "chunk_context": [{**chunks[1].model_dump(), "score": 0.8}]}
+    statements = lambda q: sorted(c["page_number"] for c in agent.run({**state, "user_query": q})["chunk_context"]
+                                  if c["retrieval_method"] == "reference")
+    assert statements(state["user_query"]) == [59, 61]          # not the contents page that names them
+    assert statements("What was the capital expenditure?") == []  # no cash flow statement in this filing
+    assert statements("Who is the chief executive?") == []
+
+
+def _pdf_with_figures(folder: str) -> str:
+    """Page 1 text only, page 2 a large chart image, page 3 text with a small logo."""
+    import io
+    import fitz
+    from PIL import Image, ImageDraw
+    def png(w, h):
+        img = Image.new("RGB", (w, h), "white")
+        ImageDraw.Draw(img).rectangle([10, 10, w - 10, h - 10], outline="black", width=4)
+        buf = io.BytesIO()
+        img.save(buf, format="PNG")
+        return buf.getvalue()
+    doc = fitz.open()
+    for page_no in range(3):
+        page = doc.new_page(width=595, height=842)
+        page.insert_text((72, 72), f"Page {page_no + 1}: revenue grew in every region.", fontsize=11)
+        if page_no == 1:
+            page.insert_image(fitz.Rect(60, 120, 535, 620), stream=png(800, 800))
+        if page_no == 2:
+            page.insert_image(fitz.Rect(500, 20, 560, 60), stream=png(160, 160))
+    os.makedirs(os.path.join(folder, "uploads"), exist_ok=True)
+    path = os.path.join(folder, "uploads", "doc_v.pdf")
+    doc.save(path)
+    return path
+
+
+def test_vision_reads_rendered_pages_that_carry_figures(monkeypatch):
+    import agents.vision_agent as V
+    folder = tempfile.mkdtemp()
+    _pdf_with_figures(folder)
+    agent = V.VisionAgent(images_dir=os.path.join(folder, "figures"))
+
+    def state(pages, asked=False):
+        return {"chunk_context": [{"doc_id": "doc_v", "page_number": p, "score": 1 - i / 10} for i, p in enumerate(pages)],
+                "needs": {"figures": asked}, "user_query": "What does the chart show?"}
+    assert agent.visual_pages(state([1, 2])) and not agent.visual_pages(state([1, 3]))  # a logo is not a figure
+    assert [c["page"] for c in agent._page_candidates(state([1, 2]), strict=True)] == [2]
+    # Asked about a figure the search missed: the largest picture (known from ingestion), then the logo page.
+    os.makedirs(os.path.join(folder, "figures", "doc_v"))
+    open(os.path.join(folder, "figures", "doc_v", "p2_img0.png"), "wb").close()
+    assert [c["page"] for c in agent._page_candidates(state([1, 3], asked=True), strict=False)] == [2, 3]
+    seen = []
+    monkeypatch.setattr(V.VisionAgent, "_hosted_model", staticmethod(lambda: "gemini:gemini-3.5-flash-lite"))
+    monkeypatch.setattr(V, "vision_chat", lambda model, prompt, image, **k: (seen.append(image[:8]), "The chart shows 42.")[1])
+    out = agent.run(state([2, 1], asked=True))
+    assert seen and all(img == b"\x89PNG\r\n\x1a\n" for img in seen)  # whole pages rendered as PNG
+    assert out["visual_context"][0]["page"] == 2 and out["visual_context"][0]["analysis"] == "The chart shows 42."
+    assert "render" not in out["visual_context"][0]
+    # A page the question names comes first when its text was not retrieved.
+    named = {**state([1]), "user_query": "What is in the box on page 3?"}
+    assert agent.visual_pages(named) and [c["page"] for c in agent._page_candidates(named, strict=True)] == [3]
+
 
 def test_document_type_detection_and_validation():
     from agents.doc_classifier import classify
