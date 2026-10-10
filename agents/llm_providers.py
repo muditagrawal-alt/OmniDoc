@@ -223,6 +223,19 @@ def _available(p: Provider, est_tokens: int) -> Tuple[bool, str]:
     return True, ""
 
 
+def wait_seconds(p: Provider, est_tokens: int) -> Optional[float]:
+    """Seconds until ``p`` can take a request (0 = now); None when it never can (too large for its limit)."""
+    now = time.time()
+    if p.tpm and est_tokens > 0.9 * p.tpm:
+        return None
+    wait = max(0.0, _cooldown.get(p.name, 0) - now)
+    with _pace_lock:
+        window = sorted(t for t in _recent.get(p.name, []) if now - t < 60)
+        if len(window) >= p.rpm:
+            wait = max(wait, 60 - (now - window[len(window) - p.rpm]))
+    return wait
+
+
 def _mark_used(p: Provider) -> None:
     with _pace_lock:
         _recent.setdefault(p.name, []).append(time.time())
