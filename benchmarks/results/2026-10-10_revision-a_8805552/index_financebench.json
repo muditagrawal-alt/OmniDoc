@@ -1,0 +1,248 @@
+{
+ "fingerprint": "9196fbe26235",
+ "commit": "fb1d133",
+ "docs": {
+  "ACTIVISIONBLIZZARD_2019_10K": {
+   "doc_id": "doc_017f1bbc1e37",
+   "upload_s": 40.9,
+   "chunks": 557,
+   "tables": 0,
+   "ocr_pages": 0,
+   "background_status": "done",
+   "has_summary": true,
+   "pages": 198
+  },
+  "ADOBE_2017_10K": {
+   "doc_id": "doc_ace325803691",
+   "upload_s": 31.0,
+   "chunks": 313,
+   "tables": 20,
+   "ocr_pages": 0,
+   "background_status": "done",
+   "has_summary": true,
+   "pages": 107
+  },
+  "ADOBE_2022_10K": {
+   "doc_id": "doc_ce8c716abac2",
+   "upload_s": 31.6,
+   "chunks": 299,
+   "tables": 7,
+   "ocr_pages": 0,
+   "background_status": "done",
+   "has_summary": true,
+   "pages": 99
+  },
+  "AES_2022_10K": {
+   "doc_id": "doc_9c5de2227534",
+   "upload_s": 66.2,
+   "chunks": 693,
+   "tables": 165,
+   "ocr_pages": 0,
+   "background_status": "done",
+   "has_summary": true,
+   "pages": 257
+  },
+  "AMCOR_2020_10K": {
+   "doc_id": "doc_da158d5c6883",
+   "upload_s": 47.3,
+   "chunks": 433,
+   "tables": 103,
+   "ocr_pages": 9,
+   "background_status": "done",
+   "has_summary": true,
+   "pages": 195
+  },
+  "BLOCK_2016_10K": {
+   "doc_id": "doc_5ef866a19b11",
+   "upload_s": 31.9,
+   "chunks": 282,
+   "tables": 4,
+   "ocr_pages": 0,
+   "background_status": "done",
+   "has_summary": true,
+   "pages": 121
+  },
+  "CORNING_2020_10K": {
+   "doc_id": "doc_ef471ab9ff60",
+   "upload_s": 48.2,
+   "chunks": 368,
+   "tables": 82,
+   "ocr_pages": 0,
+   "background_status": "done",
+   "has_summary": true,
+   "pages": 138
+  },
+  "CVSHEALTH_2018_10K": {
+   "doc_id": "doc_bdc800e3f52a",
+   "upload_s": 109.1,
+   "chunks": 1272,
+   "tables": 1,
+   "ocr_pages": 0,
+   "background_status": "done",
+   "has_summary": true,
+   "pages": 392
+  },
+  "CVSHEALTH_2022_10K": {
+   "doc_id": "doc_183c196a4179",
+   "upload_s": 67.6,
+   "chunks": 597,
+   "tables": 78,
+   "ocr_pages": 0,
+   "background_status": "done",
+   "has_summary": true,
+   "pages": 213
+  },
+  "JOHNSON_JOHNSON_2022Q4_EARNINGS": {
+   "doc_id": "doc_7ae6bf6f9a99",
+   "upload_s": 13.3,
+   "chunks": 45,
+   "tables": 14,
+   "ocr_pages": 0,
+   "background_status": "done",
+   "has_summary": true,
+   "pages": 24
+  },
+  "JOHNSON_JOHNSON_2022_10K": {
+   "doc_id": "doc_dba7d6cc9773",
+   "upload_s": 41.1,
+   "chunks": 393,
+   "tables": 87,
+   "ocr_pages": 0,
+   "background_status": "done",
+   "has_summary": true,
+   "pages": 151
+  },
+  "JOHNSON_JOHNSON_2023Q2_EARNINGS": {
+   "doc_id": "doc_db1f3419d309",
+   "upload_s": 7.2,
+   "chunks": 84,
+   "tables": 16,
+   "ocr_pages": 0,
+   "background_status": "done",
+   "has_summary": true,
+   "pages": 24
+  },
+  "JPMORGAN_2021Q1_10Q": {
+   "doc_id": "doc_62518c05b022",
+   "upload_s": 57.8,
+   "chunks": 534,
+   "tables": 35,
+   "ocr_pages": 0,
+   "background_status": "done",
+   "has_summary": true,
+   "pages": 179
+  },
+  "JPMORGAN_2022_10K": {
+   "doc_id": "doc_c269899950f3",
+   "upload_s": 151.0,
+   "chunks": 1306,
+   "tables": 89,
+   "ocr_pages": 0,
+   "background_status": "done",
+   "has_summary": true,
+   "pages": 382
+  },
+  "LOCKHEEDMARTIN_2021_10K": {
+   "doc_id": "doc_d2486265fede",
+   "upload_s": 37.2,
+   "chunks": 446,
+   "tables": 53,
+   "ocr_pages": 0,
+   "background_status": "done",
+   "has_summary": true,
+   "pages": 136
+  },
+  "LOCKHEEDMARTIN_2022_10K": {
+   "doc_id": "doc_9a2317300d0f",
+   "upload_s": 41.3,
+   "chunks": 434,
+   "tables": 20,
+   "ocr_pages": 0,
+   "background_status": "done",
+   "has_summary": true,
+   "pages": 130
+  },
+  "MGMRESORTS_2022Q4_EARNINGS": {
+   "doc_id": "doc_fe9126b17c36",
+   "upload_s": 5.6,
+   "chunks": 51,
+   "tables": 15,
+   "ocr_pages": 0,
+   "background_status": "done",
+   "has_summary": true,
+   "pages": 15
+  },
+  "MGMRESORTS_2022_10K": {
+   "doc_id": "doc_130b96c1309c",
+   "upload_s": 61.2,
+   "chunks": 680,
+   "tables": 70,
+   "ocr_pages": 0,
+   "background_status": "done",
+   "has_summary": true,
+   "pages": 220
+  },
+  "MICROSOFT_2016_10K": {
+   "doc_id": "doc_f3555bd5ea18",
+   "upload_s": 29.8,
+   "chunks": 289,
+   "tables": 0,
+   "ocr_pages": 0,
+   "background_status": "done",
+   "has_summary": true,
+   "pages": 121
+  },
+  "NIKE_2021_10K": {
+   "doc_id": "doc_73b54e5e0b1b",
+   "upload_s": 32.9,
+   "chunks": 345,
+   "tables": 45,
+   "ocr_pages": 0,
+   "background_status": "done",
+   "has_summary": true,
+   "pages": 109
+  },
+  "NIKE_2023_10K": {
+   "doc_id": "doc_51f5a0fc6ede",
+   "upload_s": 34.7,
+   "chunks": 361,
+   "tables": 50,
+   "ocr_pages": 0,
+   "background_status": "done",
+   "has_summary": true,
+   "pages": 106
+  },
+  "PAYPAL_2022_10K": {
+   "doc_id": "doc_0c1dd6cd1702",
+   "upload_s": 66.7,
+   "chunks": 338,
+   "tables": 75,
+   "ocr_pages": 0,
+   "background_status": "done",
+   "has_summary": true,
+   "pages": 134
+  },
+  "PEPSICO_2023Q1_EARNINGS": {
+   "doc_id": "doc_a705483ea6c5",
+   "upload_s": 4.1,
+   "chunks": 30,
+   "tables": 9,
+   "ocr_pages": 0,
+   "background_status": "done",
+   "has_summary": true,
+   "pages": 16
+  },
+  "PEPSICO_2023_8K_dated-2023-05-30": {
+   "doc_id": "doc_8e8f99f270b0",
+   "upload_s": 46.8,
+   "chunks": 425,
+   "tables": 12,
+   "ocr_pages": 0,
+   "background_status": "done",
+   "has_summary": true,
+   "pages": 172
+  }
+ },
+ "background_s": 5124.3,
+ "built": "2026-10-09T23:10:46"
+}
