@@ -12,6 +12,16 @@ answers and evidence pages. Every run is kept in [`results/`](results/), and
 The samples were drawn once with a fixed seed (2026) and are stored in [`manifests/`](manifests/),
 so the baseline and every later run answer exactly the same questions.
 
+### Development split
+
+Changes are tried out on a separate development split, so the test questions above only
+measure a finished revision and are not tuned against. It uses other documents (none of the
+test filings or PDFs), other questions and another seed (2027): 18 FinanceBench questions
+(6 per type) over 10 filings, and every question of 4 MMLongBench-Doc documents of 4 randomly
+chosen kinds (31 questions). Pass `--split dev` to `fetch`, `index` and `run`; development runs
+get their own indexes (`benchmarks/work/<benchmark>-dev`) and are stored under
+`results/dev/`, outside the history.
+
 ## How a run works
 
 1. A separate OmniDoc server starts on port 8011 with its own data folder (`benchmarks/work/`),
@@ -53,6 +63,7 @@ so the baseline and every later run answer exactly the same questions.
 .venv/bin/python -I benchmarks/bench.py fetch                       # questions and documents (about 90 MB)
 .venv/bin/python -I benchmarks/bench.py run --label baseline        # both benchmarks
 .venv/bin/python -I benchmarks/bench.py run --label smoke --limit 3 # quick check, kept out of the history
+.venv/bin/python -I benchmarks/bench.py run --label try-x --split dev   # try a change on the development split
 .venv/bin/python -I benchmarks/bench.py run --label x --resume benchmarks/results/<run>   # continue a run
 .venv/bin/python -I benchmarks/bench.py judge benchmarks/results/<run> --regrade
 .venv/bin/python -I benchmarks/bench.py report                      # rebuild every report and HISTORY.md
