@@ -19,6 +19,10 @@ Benchmarks (public, with gold answers and evidence pages):
 The samples are drawn once with a fixed seed and stored in benchmarks/manifests/, so every
 run (the baseline and each revision) answers exactly the same questions.
 
+A separate development split (``--split dev``: other documents, other questions, another
+seed) is for trying changes out; runs on it are stored under benchmarks/results/dev/ and kept
+out of the history, so the test questions are only used to measure a finished revision.
+
 A run starts its own OmniDoc server on a separate port with a separate data folder
 (benchmarks/work/<benchmark>), uploads the documents through the API like a user would, waits
 for the background summaries, extraction and graph, then asks every question through the
@@ -59,7 +63,9 @@ RESULTS = BENCH / "results"
 PYTHON = ROOT / ".venv" / "bin" / "python"
 
 SEED = 2026
+DEV_SEED = 2027
 FB_PER_TYPE = 12
+FB_DEV_PER_TYPE = 6
 FB_TYPES = ("metrics-generated", "domain-relevant", "novel-generated")
 FB_QUESTIONS = "https://raw.githubusercontent.com/patronus-ai/financebench/main/data/financebench_open_source.jsonl"
 FB_PDF = "https://github.com/patronus-ai/financebench/raw/main/pdfs/{doc}.pdf"
@@ -68,6 +74,17 @@ FB_PAGE_OFFSET = 1
 MM_QUESTIONS = "https://huggingface.co/datasets/yubo2333/MMLongBench-Doc/resolve/main/data/train-00000-of-00001.parquet"
 MM_PDF = "https://huggingface.co/datasets/yubo2333/MMLongBench-Doc/resolve/main/documents/{doc}"
 MM_QUESTIONS_PER_DOC = (5, 12)  # documents with a typical number of questions
+MM_DEV_DOCS = 4                 # document types (one document each) in the development split
+SPLIT = "test"                  # --split: "test" (the measured question sets) or "dev"
+
+
+def manifest_path(bench: str) -> Path:
+    return MANIFESTS / (f"{bench}.json" if SPLIT == "test" else f"{bench}-{SPLIT}.json")
+
+
+def work_dir(bench: str) -> Path:
+    """The data folder of a benchmark's index (development documents get their own)."""
+    return WORK / (bench if SPLIT == "test" else f"{bench}-{SPLIT}")
 
 PORT = 8011
 # Free tiers throttle bursts: a pause between questions (like a person reading the answer) and
@@ -144,15 +161,25 @@ def download_questions(bench: str) -> Path:
     return download(MM_QUESTIONS, DATASETS / "mmlongbench" / "train.parquet")
 
 
+def test_documents(bench: str) -> set:
+    """Documents of the test split, which the development split never uses."""
+    return set(json.loads((MANIFESTS / f"{bench}.json").read_text())["documents"])
+
+
 def sample_financebench() -> Dict[str, Any]:
-    """12 questions of each type; documents taken in a seeded random order until the quotas are met."""
+    """12 questions of each type (6 in dev); documents taken in a seeded random order until the quotas are met."""
     questions = read_jsonl(download_questions("financebench"))
     by_doc: Dict[str, List[Dict[str, Any]]] = {}
     for q in questions:
         by_doc.setdefault(q["doc_name"], []).append(q)
-    docs = sorted(by_doc)
-    random.Random(SEED).shuffle(docs)
-    quota = {t: FB_PER_TYPE for t in FB_TYPES}
+    if SPLIT == "test":
+        docs = sorted(by_doc)
+        random.Random(SEED).shuffle(docs)
+        quota = {t: FB_PER_TYPE for t in FB_TYPES}
+    else:
+        docs = sorted(set(by_doc) - test_documents("financebench"))
+        random.Random(DEV_SEED).shuffle(docs)
+        quota = {t: FB_DEV_PER_TYPE for t in FB_TYPES}
     chosen: List[Dict[str, Any]] = []
     for doc in docs:
         if not any(quota.values()):
@@ -161,9 +188,11 @@ def sample_financebench() -> Dict[str, Any]:
             if quota.get(q["question_type"], 0) > 0:
                 quota[q["question_type"]] -= 1
                 chosen.append(q)
+    per_type = FB_PER_TYPE if SPLIT == "test" else FB_DEV_PER_TYPE
     return {
-        "benchmark": "financebench", "seed": SEED, "source": FB_QUESTIONS,
-        "selection": f"{FB_PER_TYPE} questions per question type; documents in seeded random order",
+        "benchmark": "financebench", "split": SPLIT, "seed": SEED if SPLIT == "test" else DEV_SEED, "source": FB_QUESTIONS,
+        "selection": f"{per_type} questions per question type; documents in seeded random order"
+                     + ("" if SPLIT == "test" else "; no document of the test split"),
         "documents": sorted({q["doc_name"] for q in chosen}),
         "questions": [{"id": q["financebench_id"], "doc": q["doc_name"], "type": q["question_type"]} for q in chosen],
     }
@@ -173,17 +202,26 @@ def sample_mmlongbench() -> Dict[str, Any]:
     """One document per document type (with a typical number of questions), all of its questions."""
     import pandas as pd
     df = pd.read_parquet(download_questions("mmlongbench"))
-    rng = random.Random(SEED)
     lo, hi = MM_QUESTIONS_PER_DOC
     counts = df.groupby("doc_id").size()
     chosen_docs = []
-    for doc_type in sorted(df.doc_type.unique()):
-        docs = sorted(d for d in df[df.doc_type == doc_type].doc_id.unique() if lo <= counts[d] <= hi)
-        chosen_docs.append(rng.choice(docs))
+    if SPLIT == "test":
+        rng = random.Random(SEED)
+        for doc_type in sorted(df.doc_type.unique()):
+            docs = sorted(d for d in df[df.doc_type == doc_type].doc_id.unique() if lo <= counts[d] <= hi)
+            chosen_docs.append(rng.choice(docs))
+        selection = f"one document per document type with {lo}-{hi} questions; all its questions"
+    else:
+        rng, excluded = random.Random(DEV_SEED), test_documents("mmlongbench")
+        for doc_type in sorted(rng.sample(sorted(df.doc_type.unique()), MM_DEV_DOCS)):
+            docs = sorted(d for d in df[df.doc_type == doc_type].doc_id.unique() if lo <= counts[d] <= hi and d not in excluded)
+            chosen_docs.append(rng.choice(docs))
+        selection = (f"{MM_DEV_DOCS} document types at random, one document each with {lo}-{hi} questions; "
+                     "all its questions; no document of the test split")
     rows = df[df.doc_id.isin(chosen_docs)].reset_index()
     return {
-        "benchmark": "mmlongbench", "seed": SEED, "source": MM_QUESTIONS,
-        "selection": f"one document per document type with {lo}-{hi} questions; all its questions",
+        "benchmark": "mmlongbench", "split": SPLIT, "seed": SEED if SPLIT == "test" else DEV_SEED, "source": MM_QUESTIONS,
+        "selection": selection,
         "documents": sorted(chosen_docs),
         "questions": [{"id": f"mm_{int(r['index']):04d}", "doc": r["doc_id"], "type": r["doc_type"]}
                       for _, r in rows.iterrows()],
@@ -223,13 +261,13 @@ def pdf_path(bench: str, doc: str) -> Path:
 def fetch(args: argparse.Namespace) -> None:
     MANIFESTS.mkdir(parents=True, exist_ok=True)
     for bench, sampler, url in (("financebench", sample_financebench, FB_PDF), ("mmlongbench", sample_mmlongbench, MM_PDF)):
-        manifest_path = MANIFESTS / f"{bench}.json"
-        if manifest_path.exists() and not args.resample:
-            manifest = json.loads(manifest_path.read_text())
+        path = manifest_path(bench)
+        if path.exists() and not args.resample:
+            manifest = json.loads(path.read_text())
             download_questions(bench)
         else:
             manifest = sampler()
-            manifest_path.write_text(json.dumps(manifest, indent=1) + "\n")
+            path.write_text(json.dumps(manifest, indent=1) + "\n")
         log(f"{bench}: {len(manifest['questions'])} questions over {len(manifest['documents'])} documents")
         for doc in manifest["documents"]:
             dest = pdf_path(bench, doc)
@@ -244,7 +282,7 @@ class Server:
     """An OmniDoc server with its own data folder and pinned models."""
 
     def __init__(self, bench: str, settings: Dict[str, str], port: int = PORT):
-        self.dir = WORK / bench
+        self.dir = work_dir(bench)
         self.settings = settings
         self.port = port
         self.url = f"http://127.0.0.1:{port}"
@@ -316,7 +354,7 @@ def ensure_index(bench: str, manifest: Dict[str, Any], settings: Dict[str, str],
     parsing / indexing code and the embedding model are unchanged, and redone otherwise.
     ``wait`` waits for an index another process (``bench.py index``) is building instead.
     """
-    state_path = WORK / bench / "index.json"
+    state_path = work_dir(bench) / "index.json"
     fingerprint = index_fingerprint(settings["embed"])
 
     def current() -> Dict[str, Any]:
@@ -335,9 +373,9 @@ def ensure_index(bench: str, manifest: Dict[str, Any], settings: Dict[str, str],
         return state
     if wait:
         raise SystemExit(f"{bench}: no finished index with fingerprint {fingerprint} appeared")
-    if (WORK / bench / "data").exists():
+    if (work_dir(bench) / "data").exists():
         log(f"{bench}: indexing code changed (or --reingest): rebuilding the index")
-        shutil.rmtree(WORK / bench / "data")
+        shutil.rmtree(work_dir(bench) / "data")
     return {"fingerprint": fingerprint, "commit": git("rev-parse", "--short", "HEAD"), "docs": {}, "pending": True,
             **({"code": str(CODE)} if CODE != ROOT else {})}
 
@@ -377,7 +415,7 @@ def ingest(server: Server, bench: str, manifest: Dict[str, Any], state: Dict[str
     log(f"{bench}: background processing finished in {time.perf_counter() - started:.0f}s")
     state.update(docs=docs, pending=False, background_s=round(time.perf_counter() - started, 1),
                  built=dt.datetime.now().isoformat(timespec="seconds"))
-    (WORK / bench / "index.json").write_text(json.dumps(state, indent=1) + "\n")
+    (work_dir(bench) / "index.json").write_text(json.dumps(state, indent=1) + "\n")
     return state
 
 
@@ -437,14 +475,14 @@ def run(args: argparse.Namespace) -> None:
     benches = [b.strip() for b in args.bench.split(",") if b.strip()]
     commit = git("rev-parse", "--short", "HEAD")
     dirty = bool(git("status", "--porcelain", "--untracked-files=no"))
-    # Smoke tests (--limit) stay out of the results history.
-    base = WORK / "smoke" if args.limit else RESULTS
+    # Smoke tests (--limit) and development runs stay out of the results history.
+    base = WORK / "smoke" if args.limit else RESULTS if SPLIT == "test" else RESULTS / SPLIT
     run_dir = Path(args.resume) if args.resume else base / f"{dt.date.today():%Y-%m-%d}_{args.label}_{commit}"
     run_dir.mkdir(parents=True, exist_ok=True)
     config_path = run_dir / "config.json"
     if not config_path.exists():
         config_path.write_text(json.dumps({
-            "label": args.label, "started": dt.datetime.now().isoformat(timespec="seconds"),
+            "label": args.label, "split": SPLIT, "started": dt.datetime.now().isoformat(timespec="seconds"),
             "commit": commit, "uncommitted_changes": dirty, "benchmarks": benches, "settings": settings,
             "work": str(WORK), **({"code": str(CODE)} if CODE != ROOT else {}),
             "scope": "each question is asked about its own document (document_ids = [doc]); web search off",
@@ -455,7 +493,7 @@ def run(args: argparse.Namespace) -> None:
     previous = {r["id"]: r for r in latest_rows(results_path)}
     done = {i for i, r in previous.items() if not r.get("error") and not PIPELINE_ERROR.search(r.get("answer") or "")}
     for bench in benches:
-        manifest = json.loads((MANIFESTS / f"{bench}.json").read_text())
+        manifest = json.loads(manifest_path(bench).read_text())
         questions = load_questions(bench)
         server = Server(bench, settings, args.port)
         state = ensure_index(bench, manifest, settings, args.reingest, args.wait_index)
@@ -503,7 +541,7 @@ def build_index(args: argparse.Namespace) -> None:
     """Ingests the documents of the benchmarks without asking anything (runs reuse the index)."""
     settings = {k: getattr(args, k) or v for k, v in DEFAULTS.items()}
     for bench in [b.strip() for b in args.bench.split(",") if b.strip()]:
-        manifest = json.loads((MANIFESTS / f"{bench}.json").read_text())
+        manifest = json.loads(manifest_path(bench).read_text())
         state = ensure_index(bench, manifest, settings, args.reingest)
         if not state.get("pending"):
             continue
@@ -804,6 +842,7 @@ def main() -> None:
     sub = parser.add_subparsers(dest="command", required=True)
     f = sub.add_parser("fetch", help="download the questions and sampled documents, write the manifests")
     f.add_argument("--resample", action="store_true", help="draw new samples (changes the question sets!)")
+    f.add_argument("--split", choices=("test", "dev"), default="test", help="test (default) or the development split")
     r = sub.add_parser("run", help="ingest, ask, grade and report")
     r.add_argument("--label", required=True, help="name of the run, e.g. baseline or after-table-fix")
     r.add_argument("--bench", default="financebench,mmlongbench")
@@ -818,6 +857,8 @@ def main() -> None:
     ix.add_argument("--bench", default="financebench,mmlongbench")
     ix.add_argument("--reingest", action="store_true")
     for cmd in (r, ix):
+        cmd.add_argument("--split", choices=("test", "dev"), default="test",
+                         help="test (default): the measured question sets; dev: other documents for trying changes")
         cmd.add_argument("--port", type=int, default=PORT)
         cmd.add_argument("--work", default="", help="data folder for the indexes (default benchmarks/work)")
         cmd.add_argument("--code", default="", help="OmniDoc code folder the servers run (default this checkout)")
@@ -830,7 +871,8 @@ def main() -> None:
     rep = sub.add_parser("report", help="rebuild summaries and HISTORY.md")
     rep.add_argument("run_dir", nargs="?", default="")
     args = parser.parse_args()
-    global WORK, CODE
+    global WORK, CODE, SPLIT
+    SPLIT = getattr(args, "split", "test") or "test"
     if getattr(args, "work", ""):
         WORK = Path(args.work).resolve()
     if getattr(args, "code", ""):
