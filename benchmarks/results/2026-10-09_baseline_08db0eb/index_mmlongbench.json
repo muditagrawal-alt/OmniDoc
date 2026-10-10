@@ -1,0 +1,78 @@
+{
+ "fingerprint": "9196fbe26235",
+ "commit": "fb1d133",
+ "docs": {
+  "2210.02442v1.pdf": {
+   "doc_id": "doc_d21971c49007",
+   "upload_s": 9.4,
+   "chunks": 52,
+   "tables": 4,
+   "ocr_pages": 0,
+   "background_status": "done",
+   "has_summary": true,
+   "pages": 24
+  },
+  "52b3137455e7ca4df65021a200aef724.pdf": {
+   "doc_id": "doc_b59a69ee9d61",
+   "upload_s": 17.9,
+   "chunks": 37,
+   "tables": 7,
+   "ocr_pages": 16,
+   "background_status": "done",
+   "has_summary": true,
+   "pages": 112
+  },
+  "PWC_opportunity_of_lifetime.pdf": {
+   "doc_id": "doc_ba92752271ea",
+   "upload_s": 3.4,
+   "chunks": 36,
+   "tables": 1,
+   "ocr_pages": 0,
+   "background_status": "done",
+   "has_summary": true,
+   "pages": 18
+  },
+  "e639029d16094ea71d964e2fb953952b.pdf": {
+   "doc_id": "doc_773e1fc44166",
+   "upload_s": 3.8,
+   "chunks": 58,
+   "tables": 0,
+   "ocr_pages": 0,
+   "background_status": "done",
+   "has_summary": true,
+   "pages": 20
+  },
+  "fdac8d1e9ef56519371df7e6532df27d.pdf": {
+   "doc_id": "doc_df65695cae4e",
+   "upload_s": 4.8,
+   "chunks": 53,
+   "tables": 1,
+   "ocr_pages": 1,
+   "background_status": "done",
+   "has_summary": true,
+   "pages": 20
+  },
+  "q1-2023-bilibili-inc-investor-presentation.pdf": {
+   "doc_id": "doc_6371f5760d51",
+   "upload_s": 3.0,
+   "chunks": 33,
+   "tables": 0,
+   "ocr_pages": 1,
+   "background_status": "done",
+   "has_summary": true,
+   "pages": 27
+  },
+  "t480_ug_en.pdf": {
+   "doc_id": "doc_ee0393dadb95",
+   "upload_s": 19.0,
+   "chunks": 327,
+   "tables": 9,
+   "ocr_pages": 2,
+   "background_status": "done",
+   "has_summary": true,
+   "pages": 170
+  }
+ },
+ "background_s": 1471.8,
+ "built": "2026-10-09T21:50:13"
+}
