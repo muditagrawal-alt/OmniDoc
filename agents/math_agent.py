@@ -23,6 +23,7 @@ import sympy as sp
 from core.state import AgentWorkflowState, MathExecutionResult
 from agents.llm_utils import chat_json, to_number, extract_numbers, number_in_text, as_list, as_str_list, trace
 from agents.citations import build_sources, format_evidence_block, is_real_chunk
+from agents.finance_terms import notes_for
 
 logger = logging.getLogger("OmniDoc.MathAgent")
 
@@ -313,7 +314,7 @@ class MathematicsAgent:
             evidence_package=state.get("evidence_package"),
             chunk_context=state.get("chunk_context", []),
             graph_context=state.get("graph_context", []),
-            max_evidence=8,
+            max_evidence=12,
             table_results=state.get("table_results", []),
         )
         return format_evidence_block(sources), sources
@@ -402,8 +403,11 @@ class MathematicsAgent:
             return {"math_results": [], "agent_traces": [trace("math_agent", "skipped", "No numbers in evidence.", started)]}
 
         logger.info(f"MathAgent activated for query: '{query[:60]}'")
-        prompt = MATH_PLANNER_PROMPT.format(evidence=evidence_text[:9000] or "(none)", query=query,
+        prompt = MATH_PLANNER_PROMPT.format(evidence=evidence_text[:30000] or "(none)", query=query,
                                             max_calcs=MAX_CALCULATIONS)
+        notes = notes_for(query)
+        if notes:
+            prompt += "\n\n" + notes
         results, problems = [], []
         # One corrective retry when the model copies numbers that are not in the sources.
         for attempt in range(2):
