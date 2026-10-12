@@ -1,0 +1,22 @@
+{
+ "label": "revision-b",
+ "started": "2026-10-10T19:37:23",
+ "commit": "c289454",
+ "uncommitted_changes": false,
+ "benchmarks": [
+  "mmlongbench",
+  "financebench"
+ ],
+ "settings": {
+  "provider": "nvidia",
+  "model": "nvidia:nvidia/nemotron-3-super-120b-a12b",
+  "vision": "gemini:gemini-3.5-flash-lite",
+  "embed": "nomic-embed-text",
+  "judge": "groq:openai/gpt-oss-120b"
+ },
+ "work": "/Users/muditagrawal/Projects/zee work/OmniDoc/benchmarks/work/revB",
+ "scope": "each question is asked about its own document (document_ids = [doc]); web search off",
+ "pacing": "20s between questions; answers that failed are asked again up to 5 times",
+ "notes": "Revision B (ingestion), on top of revision A: picture-only pages are read with OCR, pages that are mostly pictures or charts are described by the vision model at ingestion and indexed as passages of their page, and graph batches cut off mid-reply are asked again for the missing chunks. Code at c289454; index rebuilt in benchmarks/work/revB (the baseline/revision A index in benchmarks/work is kept). FinanceBench questions 21-36 were (re)asked on 2026-10-12: the first run of them stalled for two days while the computer slept, which used up each question's time budget (calculation steps skipped) and, with the server's growing graph cache, starved the reranker of memory; those answers were discarded (kept outside the results in benchmarks/work/revB_results_before_redo.jsonl). Same code (c289454) and index.",
+ "caveat": "Revision B as committed dropped the text of every document it added picture descriptions to (fixed in a3ea0bb and 112af5d): 7 of the 24 FinanceBench filings and all 7 MMLongBench-Doc documents were answered from their picture descriptions alone, so this run measures that bug, not the intended revision."
+}
