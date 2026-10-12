@@ -542,11 +542,28 @@ def test_picture_pages_are_read_with_ocr_and_described_for_search(monkeypatch):
     monkeypatch.setattr(V, "vision_chat", lambda model, prompt, image, **k: "Bar chart: revenue by region, Asia 42.")
     indexed = []
     stub = SimpleNamespace(vision_agent=agent, summarizer=SimpleNamespace(load=lambda d: {"summary": "Annual report. More."}),
-                           _index_chunks=lambda title, chunks, overview: indexed.append((chunks, overview)))
+                           _index_chunks=lambda title, chunks, overview, replace=True: indexed.append((chunks, overview, replace)))
     assert AgenticGraphRAGPipeline._describe_figures(stub, "doc_v", "report.pdf") == 1
-    (chunks, overview), = indexed
+    (chunks, overview, replace), = indexed
     assert chunks[0].chunk_id == "doc_v_p2_fig" and chunks[0].page_number == 2 and "Asia 42" in chunks[0].text
-    assert overview == "Annual report."
+    assert overview == "Annual report." and replace is False  # added to the document's text, not instead of it
+
+
+def test_added_passages_join_a_document_and_re_ingest_replaces_it():
+    """A real store: picture descriptions join the text passages; re-ingesting a document replaces all of its rows."""
+    from retrieval.lancedb_store import LanceDBStore
+    store = LanceDBStore(db_dir=os.path.join(tempfile.mkdtemp(), "lancedb"))
+
+    def chunk(cid, page, text):
+        return RetrievedChunk(chunk_id=cid, doc_id="d", page_number=page, text=text, section_title="S")
+    text = [chunk(f"d_p{i}_c0", i, f"Passage {i} about revenue.") for i in (1, 2, 3)]
+    store.add_chunks(text, [[1.0, 0.0, 0.0, float(i)] for i in range(3)])
+    caption = [chunk("d_p2_fig", 2, "Description of the pictures and charts on page 2: a bar chart.")]
+    for _ in range(2):  # adding the descriptions again does not duplicate them
+        store.add_chunks(caption, [[0.0, 1.0, 0.0, 0.0]], replace=False)
+    assert sorted(c.chunk_id for c in store.get_document_chunks("d")) == ["d_p1_c0", "d_p2_c0", "d_p2_fig", "d_p3_c0"]
+    store.add_chunks(text[:2], [[1.0, 0.0, 0.0, 0.0], [1.0, 0.0, 0.0, 1.0]])
+    assert sorted(c.chunk_id for c in store.get_document_chunks("d")) == ["d_p1_c0", "d_p2_c0"]
 
 
 def test_document_type_detection_and_validation():
