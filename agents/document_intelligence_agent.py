@@ -51,12 +51,15 @@ TOP_PASSAGES = 3
 # so a statement is recognised by its line items and its density of amounts.
 _STATEMENTS = (
     (re.compile(r"balance sheets?|financial (position|condition)|working capital|current (assets|liabilities|ratio)|quick ratio|"
+                r"cash ratio|cash conversion cycle|liquidity|solvency|leverage|debt[- ]to[- ]equity|asset turnover|"
+                r"return on (assets|equity)|\bRO[AE]\b|accrued|accruals?\b|"
                 r"inventor(y|ies)|receivables?|payables?|total (assets|liabilities|debt)|(shareholders|stockholders)'? equity|"
                 r"PP&E|property,? plant|book value|days (payable|sales|inventory)", re.I),
      re.compile(r"balance sheets?|statements? of (consolidated )?financial (position|condition)", re.I),
      re.compile(r"total current assets|total assets|total current liabilities|total liabilities|(stockholders|shareholders)['’]? equity|"
                 r"retained earnings|accounts payable|inventories|property(, plant)? and equipment|cash and cash equivalents", re.I)),
     (re.compile(r"income statements?|statements? of (consolidated )?(income|operations|earnings)|profit (and|&) loss|\bP&L\b|"
+                r"cash conversion cycle|asset turnover|\bRO[AE]\b|interest coverage|"
                 r"revenues?|net sales|COGS|cost of (goods sold|sales|revenues?)|gross (profit|margin)|operating (income|margin|profit)|"
                 r"net (income|earnings|margin|loss)|EBIT(DA)?|earnings per share|\bEPS\b|interest expense|turnover|return on", re.I),
      re.compile(r"statements? of (consolidated )?(income|operations|earnings|comprehensive income)|income statements?|profit (and|&) loss", re.I),
@@ -240,7 +243,8 @@ class DocumentIntelligenceAgent:
         of pages where the balance sheet, income statement and cash flow statement score best
         together; a statement missing from that window comes from its best page elsewhere.
         """
-        wanted = [k for k, (pattern, _, _) in enumerate(_STATEMENTS) if pattern.search(query or "")]
+        query = (query or "").replace("_", " ")  # "cash_ratio"
+        wanted = [k for k, (pattern, _, _) in enumerate(_STATEMENTS) if pattern.search(query)]
         pages: List[Tuple[str, int]] = []
         for doc_id in docs:
             if not wanted:
