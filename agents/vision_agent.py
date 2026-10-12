@@ -13,7 +13,8 @@ sit on pages that are mostly pictures or charts (slides, brochures, infographics
 content the text layer misses.
 
 A short PDF (at most OMNIDOC_VISION_WHOLE_PAGES pages) is read whole, every page in one request,
-so a picture or layout the text search cannot find is still seen. A question about the document
+for every question about it (a hosted model), so a picture, diagram or table layout the text
+search cannot find is still seen. A question about the document
 as a whole ("how many photos does this report have?", "which page has the snowflake?") is
 answered from a scan of every page, a batch of pages per request, listing what each page shows
 of the thing asked about; the writer counts from that list.
@@ -49,7 +50,7 @@ MAX_FIGURES = int(os.getenv("OMNIDOC_VISION_MAX_FIGURES", "2"))
 RENDER_PX = int(os.getenv("OMNIDOC_VISION_RENDER_PX", "1600"))
 # Pages a hosted model reads together for one question; a PDF this short is read whole.
 READ_PAGES = int(os.getenv("OMNIDOC_VISION_PAGES", "6"))
-WHOLE_READ_PAGES = int(os.getenv("OMNIDOC_VISION_WHOLE_PAGES", "40"))
+WHOLE_READ_PAGES = int(os.getenv("OMNIDOC_VISION_WHOLE_PAGES", "50"))
 MAX_PAGE_FINDINGS = 12    # page findings passed on from one reading (the answer comes first)
 # Whole-document scans: at most this many pages, a batch per request, rendered smaller.
 SCAN_MAX_PAGES = int(os.getenv("OMNIDOC_VISION_SCAN_PAGES", "160"))
@@ -424,6 +425,11 @@ class VisionAgent:
         wait = llm_providers.wait_seconds(p, 1100 * images) if p else 0
         if wait and wait <= SCAN_WAIT_S:
             time.sleep(wait)
+
+    def short_document(self, state: AgentWorkflowState) -> bool:
+        """Whether the one document in scope is a PDF short enough to be read whole by a hosted model."""
+        model = self._hosted_model()
+        return bool(model) and bool(self._whole_document(state))
 
     def _whole_document(self, state: AgentWorkflowState) -> List[Dict[str, Any]]:
         """Every page of the one short PDF in scope (to be read together), else nothing."""
