@@ -99,9 +99,11 @@ DEFAULTS = {
     "embed": "nomic-embed-text",
     "judge": "groq:openai/gpt-oss-120b",
 }
-# Files whose changes alter what ingestion stores: the index is rebuilt when they change.
-INDEX_FILES = ("parsing/*.py", "retrieval/*.py", "core/pipeline.py", "agents/summary_agent.py",
-               "graph/extractor.py", "agents/extraction_agent.py", "agents/doc_classifier.py")
+# Files whose changes alter what ingestion stores: the index is rebuilt when they change. (The
+# reranker, in retrieval/ too, only ranks at question time.)
+INDEX_FILES = ("parsing/*.py", "retrieval/embeddings.py", "retrieval/lancedb_store.py", "retrieval/table_store.py",
+               "retrieval/records.py", "core/pipeline.py", "agents/summary_agent.py", "graph/extractor.py",
+               "agents/extraction_agent.py", "agents/doc_classifier.py")
 # An answer that is the pipeline's error message (a model was rate-limited or unavailable):
 # retried like a network error, and counted as a robustness problem.
 PIPELINE_ERROR = re.compile(r"(^Error during \w+|No language model could answer|The agent pipeline failed)", re.I)
@@ -348,7 +350,7 @@ def index_fingerprint(embed: str) -> str:
 
 
 def ensure_index(bench: str, manifest: Dict[str, Any], settings: Dict[str, str], reingest: bool,
-                 wait: bool = False) -> Dict[str, Any]:
+                 wait: bool = False, keep: bool = False) -> Dict[str, Any]:
     """
     The documents of a benchmark indexed in its own data folder. Ingestion is reused while the
     parsing / indexing code and the embedding model are unchanged, and redone otherwise.
@@ -362,6 +364,16 @@ def ensure_index(bench: str, manifest: Dict[str, Any], settings: Dict[str, str],
         ok = state.get("fingerprint") == fingerprint and set(state.get("docs", {})) >= set(manifest["documents"])
         return state if ok else {}
 
+    if keep and not reingest and state_path.exists():
+        # --keep-index: the indexing files changed in a way known not to alter what is stored.
+        state = json.loads(state_path.read_text())
+        if set(state.get("docs", {})) >= set(manifest["documents"]):
+            if state.get("fingerprint") != fingerprint:
+                log(f"{bench}: keeping the index built by {state.get('commit')} ({state.get('fingerprint')}) "
+                    f"although the indexing files changed ({fingerprint})")
+                state.update(kept_from=state.get("fingerprint"), fingerprint=fingerprint)
+                state_path.write_text(json.dumps(state, indent=1) + "\n")
+            return state
     if wait and not reingest and not current():
         log(f"{bench}: waiting for the index being built by another process ({fingerprint})")
         deadline = time.time() + 6 * 3600
@@ -487,6 +499,7 @@ def run(args: argparse.Namespace) -> None:
             "work": str(WORK), **({"code": str(CODE)} if CODE != ROOT else {}),
             "scope": "each question is asked about its own document (document_ids = [doc]); web search off",
             "pacing": f"{args.pause}s between questions; answers that failed are asked again up to {ATTEMPTS} times",
+            **({"kept_index": "the index was kept although the indexing files changed (--keep-index)"} if args.keep_index else {}),
             "notes": args.notes or "",
         }, indent=1) + "\n")
     results_path = run_dir / "results.jsonl"
@@ -496,7 +509,7 @@ def run(args: argparse.Namespace) -> None:
         manifest = json.loads(manifest_path(bench).read_text())
         questions = load_questions(bench)
         server = Server(bench, settings, args.port)
-        state = ensure_index(bench, manifest, settings, args.reingest, args.wait_index)
+        state = ensure_index(bench, manifest, settings, args.reingest, args.wait_index, args.keep_index)
         server.start()
         try:
             state = ingest(server, bench, manifest, state)
@@ -855,6 +868,8 @@ def main() -> None:
     r.add_argument("--resume", default="", help="continue an interrupted run in this run folder")
     r.add_argument("--no-judge", action="store_true")
     r.add_argument("--wait-index", action="store_true", help="wait for an index that `bench.py index` is building")
+    r.add_argument("--keep-index", action="store_true",
+                   help="reuse the existing index although indexing files changed (only for changes that do not alter what is stored)")
     r.add_argument("--pause", type=float, default=PAUSE_S, help=f"seconds between questions (default {PAUSE_S})")
     ix = sub.add_parser("index", help="ingest the documents only (a later run reuses the index)")
     ix.add_argument("--bench", default="financebench,mmlongbench")
