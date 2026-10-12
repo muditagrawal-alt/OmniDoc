@@ -10,18 +10,23 @@ Layout-aware context, without model calls:
 * adds the financial statements a question names ("statement of financial position") or
   needs for the figures it asks about (inventory, COGS, capex...), recognised by their line
   items and amounts: the text search rarely ranks a page of numbers first;
+* gives those statements and the pages a question names as whole pages: a balance sheet
+  split into passages loses the rows the question needs;
 * adds the neighbouring passage when a top passage stops mid-sentence or starts in the
-  middle of one, so the writer sees the whole statement.
+  middle of one, so the writer sees the whole statement;
+* notes the names in the question (proper nouns, acronyms, quoted terms) that appear nowhere
+  in the document: a question about "MMDU" put to a paper that never mentions it is one the
+  document cannot answer, whatever the search returns.
 
 Added passages carry the relevance of the passage they belong to and are marked
-``layout_context`` or ``reference``.
+``layout_context`` or ``reference``; whole pages are also marked ``full_page``.
 """
 import re
 import time
 import logging
 from typing import Any, Dict, List, Optional, Tuple
 
-from core.state import AgentWorkflowState
+from core.state import AgentWorkflowState, RetrievedChunk
 from agents.llm_utils import trace
 
 logger = logging.getLogger("OmniDoc.DocumentIntelligence")
@@ -63,10 +68,45 @@ _STATEMENTS = (
      re.compile(r"operating activities|investing activities|financing activities|net cash (provided|used)|"
                 r"depreciation and amortization|capital expenditures|purchases? of property|dividends paid|end of (the )?(year|period)", re.I)),
 )
-STATEMENT_PASSAGES = 2   # per statement: the best block and the passage next to it
-MAX_STATEMENT_PASSAGES = 5
+MAX_STATEMENT_PAGES = 4   # per question
+# The primary statements sit next to each other (balance sheet, income, cash flows): the pages
+# are chosen from the window of this many pages where the three score best together, which
+# passes over the summaries elsewhere that repeat their line items.
+STATEMENT_WINDOW = 7
+# Five-year summaries ("Selected Financial Data") repeat the line items for many years.
+_YEAR = re.compile(r"\b(?:19|20)\d\d\b")
+# A whole page given to the writer is cut after this many characters (a 10-K balance sheet is 3-6,000).
+FULL_PAGE_CHARS = 7000
 STATEMENT_MIN_AMOUNTS = 6  # a statement is full of amounts (44,538 / 3.46); a contents page has page numbers
 _AMOUNT = re.compile(r"\d{1,3}(?:,\d{3})+(?:\.\d+)?|\d+\.\d+")
+_QUOTED = re.compile(r'["“]([^"”]{2,60})["”]')
+_CAPITALISED = re.compile(r"\b[A-Z][\w&.\-]*[A-Za-z0-9](?:\s+(?:of\s+|the\s+|and\s+|&\s+)?[A-Z][\w&.\-]*[A-Za-z0-9])*")
+# Capitalised words that are not names: question words, sentence starters, financial shorthand.
+_NOT_NAMES = set("""what how which who whom whose when where why is are was were does do did can could should would will
+has have had the a an in on of for to from by with and or if according based compared give return round please answer
+calculate using use considering assuming directly list name describe explain provide find tell among between as at this
+that these those it its there fy usd us gaap non-gaap ar ap cogs pp&e ebit ebitda eps fcf sg&a r&d d&a roa roe dpo dso
+dio cagr yoy ttm ceo cfo inc corp ltd plc llc co january february march april may june july august september october
+november december monday tuesday wednesday thursday friday saturday sunday i yes no""".split())
+
+
+def _squash(text: str) -> str:
+    return re.sub(r"[^a-z0-9]+", "", (text or "").lower())
+
+
+def question_names(query: str) -> List[str]:
+    """Proper nouns, acronyms and quoted terms of a question, for checking that the document mentions them."""
+    names = [m.group(1).strip() for m in _QUOTED.finditer(query or "")]
+    for m in _CAPITALISED.finditer(query or ""):
+        words = m.group(0).split()
+        while words and words[0].lower() in _NOT_NAMES:
+            words = words[1:]
+        if not words or (len(words) == 1 and (len(words[0]) < 3 or words[0].lower() in _NOT_NAMES)):
+            continue
+        if re.fullmatch(r"(FY|Q[1-4]|H[12])\d*|\d[\d\-]*s?", words[0]):
+            continue  # a period ("Q2 of FY2023", "FY2022"), not a name
+        names.append(" ".join(words))
+    return list(dict.fromkeys(n for n in names if _squash(n)))[:8]
 
 
 def _number(token: str) -> Optional[int]:
@@ -91,6 +131,29 @@ def page_references(query: str) -> List[str]:
 
 def _real(ch: Dict[str, Any]) -> bool:
     return isinstance(ch, dict) and bool(ch.get("chunk_id")) and bool(ch.get("text"))
+
+
+def _strip_overlap(previous: str, text: str, max_words: int = 80) -> str:
+    """Drops the words a passage repeats from the end of the one before it (passages overlap)."""
+    prev_words, words = previous.split(), text.split()
+    for k in range(min(max_words, len(prev_words), len(words) - 1), 4, -1):
+        if prev_words[-k:] == words[:k]:
+            return " ".join(words[k:])
+    return text
+
+
+def page_passage(chunks: List[Any], doc_id: str, page: int) -> Optional[RetrievedChunk]:
+    """One passage holding the whole text of a page (its passages joined in reading order)."""
+    parts, previous = [], ""
+    for c in chunks:
+        if c.page_number == page:
+            parts.append(_strip_overlap(previous, c.text) if previous else c.text)
+            previous = c.text
+    if not parts:
+        return None
+    first = next(c for c in chunks if c.page_number == page)
+    return RetrievedChunk(chunk_id=f"{doc_id}_p{page}_page", doc_id=doc_id, page_number=page,
+                          text=" ".join(parts)[:FULL_PAGE_CHARS], section_title=first.section_title)
 
 
 class DocumentIntelligenceAgent:
@@ -122,9 +185,10 @@ class DocumentIntelligenceAgent:
 
     def _reference_hits(self, kind: str, num: str, chunks: List[Any]) -> List[Any]:
         if kind == "page":
-            if num == "last":
-                num = str(max((c.page_number for c in chunks), default=0))
-            return [c for c in chunks if str(c.page_number) == num][:2]
+            last = max((c.page_number for c in chunks), default=0)
+            page = last if num == "last" else int(num) if num.isdigit() else 0
+            whole = page_passage(chunks, chunks[0].doc_id, page) if chunks and page else None
+            return [whole] if whole else []
         word = _KIND_PATTERN.get(kind, re.escape(kind))
         pattern = re.compile(rf"\b{word}\s*{re.escape(num)}\b", re.I)
         # A caption ("Table 3: ...", "Figure 2. ...") beats a passing mention.
@@ -152,39 +216,73 @@ class DocumentIntelligenceAgent:
     def _amounts(text: str) -> int:
         return len(_AMOUNT.findall(text or ""))
 
+    def _statement_scores(self, chunks: List[Any]) -> List[Dict[int, float]]:
+        """Per statement (balance sheet, income, cash flows): page -> how much its best passage looks like it."""
+        out: List[Dict[int, float]] = []
+        for _, heading, items in _STATEMENTS:
+            pages: Dict[int, float] = {}
+            for c in chunks:
+                amounts = self._amounts(c.text)
+                kinds = {m.group(0).lower() for m in items.finditer(c.text)}
+                if amounts < STATEMENT_MIN_AMOUNTS or len(kinds) < 2:
+                    continue
+                titled = bool(heading.search(c.section_title or "") or heading.search(c.text[:200]))
+                score = 10 * len(kinds) + min(amounts, 80) + (30 if titled else 0)
+                if len(set(_YEAR.findall(c.text[:300]))) >= 4:
+                    score *= 0.6  # a five-year summary, not the statement
+                pages[c.page_number] = max(pages.get(c.page_number, 0.0), score)
+            out.append(pages)
+        return out
+
     def _statement_passages(self, query: str, docs: List[str], cache: Dict[str, List[Any]]) -> List[Any]:
         """
-        The passages of the financial statements the question needs: per statement, the block
-        whose line items and amounts look most like it, and the first near-best block (the
-        statement itself comes before the schedules and multi-year summaries that repeat it,
-        and after the management report's tables).
+        The pages of the financial statements the question needs, whole: each from the window
+        of pages where the balance sheet, income statement and cash flow statement score best
+        together; a statement missing from that window comes from its best page elsewhere.
         """
-        out: List[Any] = []
-        for wanted, heading, items in _STATEMENTS:
-            if not wanted.search(query or ""):
+        wanted = [k for k, (pattern, _, _) in enumerate(_STATEMENTS) if pattern.search(query or "")]
+        pages: List[Tuple[str, int]] = []
+        for doc_id in docs:
+            if not wanted:
+                break
+            scores = self._statement_scores(self._chunks(doc_id, cache))
+            starts = sorted({p for per in scores for p in per})
+            if not starts:
                 continue
-            for doc_id in docs:
-                chunks = self._chunks(doc_id, cache)
-                scores: List[Tuple[int, float]] = []
-                for i, c in enumerate(chunks):
-                    amounts = self._amounts(c.text)
-                    kinds = {m.group(0).lower() for m in items.finditer(c.text)}
-                    if amounts < STATEMENT_MIN_AMOUNTS or len(kinds) < 2:
-                        continue
-                    titled = bool(heading.search(c.section_title or "") or heading.search(c.text[:200]))
-                    scores.append((i, 10 * len(kinds) + min(amounts, 80) + (30 if titled else 0)))
-                if not scores:
+
+            def window(start: int) -> float:
+                return sum(max([v for p, v in per.items() if start <= p < start + STATEMENT_WINDOW], default=0.0) for per in scores)
+            start = max(starts, key=lambda s0: (window(s0), -s0))
+            for k in wanted:
+                per = scores[k]
+                if not per:
                     continue
-                best, top = max(scores, key=lambda t: t[1])
-                page = chunks[best].page_number
-                before = [chunks[best - 1]] if best > 0 and chunks[best - 1].page_number == page else []
-                after = [chunks[best + 1]] if best + 1 < len(chunks) and chunks[best + 1].page_number == page else []
-                block = ([chunks[best]] + (before or after))[:STATEMENT_PASSAGES]
-                first = min(i for i, score in scores if score >= 0.85 * top)
-                if all(c.chunk_id != chunks[first].chunk_id for c in block):
-                    block.append(chunks[first])
-                out.extend(block)
-        return out[:MAX_STATEMENT_PASSAGES]
+                best = max(per, key=per.get)
+                inside = [p for p in per if start <= p < start + STATEMENT_WINDOW]
+                page = max(inside, key=per.get) if inside and per[max(inside, key=per.get)] >= 0.4 * per[best] else best
+                if (doc_id, page) not in pages:
+                    pages.append((doc_id, page))
+        out = [page_passage(self._chunks(doc_id, cache), doc_id, page) for doc_id, page in pages[:MAX_STATEMENT_PAGES]]
+        return [p for p in out if p]
+
+    def _absent_names(self, query: str, docs: List[str], cache: Dict[str, List[Any]]) -> List[str]:
+        """
+        Names in the question that none of the documents in scope mentions anywhere: the name
+        itself is not in the text, and nor is one of its words ("Adjusted Non GAAP EBITDA" is
+        present when the filing says "Adjusted EBITDA" and "non-GAAP" apart; "MMDU" is not).
+        """
+        names = question_names(query)
+        if not names or not docs:
+            return []
+        text = "".join(_squash(c.text) for d in docs for c in self._chunks(d, cache))
+        if not text:
+            return []
+        absent = []
+        for name in names:
+            words = [_squash(w) for w in re.findall(r"[A-Za-z0-9]+", name) if w.lower() not in _NOT_NAMES]
+            if _squash(name) not in text and any(w and w not in text for w in words):
+                absent.append(name)
+        return absent
 
     def _neighbours(self, ch: Dict[str, Any], cache: Dict[str, List[Any]]) -> List[Any]:
         """The passage after (and/or before) a top passage that is cut mid-sentence or very short."""
@@ -214,7 +312,8 @@ class DocumentIntelligenceAgent:
         def add(chunk: Any, score: float, method: str) -> None:
             if chunk.chunk_id not in have:
                 have.add(chunk.chunk_id)
-                added.append({**chunk.model_dump(), "score": round(score, 4), "retrieval_method": method})
+                whole = {"full_page": True} if chunk.chunk_id.endswith("_page") else {}
+                added.append({**chunk.model_dump(), "score": round(score, 4), "retrieval_method": method, **whole})
 
         scope = [d for d in (state.get("document_ids") or []) if d]
         docs = (scope or list(dict.fromkeys(c["doc_id"] for c in retrieved)))[:MAX_DOCS]
@@ -231,13 +330,16 @@ class DocumentIntelligenceAgent:
             for neighbour in self._neighbours(ch, cache):
                 add(neighbour, float(ch.get("score") or 0) * 0.9, "layout_context")
 
+        absent = self._absent_names(state.get("user_query", ""), docs, cache) if scope else []
         parts = []
         if refs:
             parts.append(f"{referenced} passage(s) for " + ", ".join(f"{k} {n}" for k, n in refs))
         if statements:
-            parts.append(f"{statements} passage(s) of the financial statements")
+            parts.append(f"{statements} page(s) of the financial statements")
         if len(added) > found:
             parts.append(f"{len(added) - found} neighbouring passage(s)")
+        if absent:
+            parts.append("not in the document: " + ", ".join(absent))
         detail = "; ".join(parts) or "Passages were complete; nothing added."
-        return {"chunk_context": added,
-                "agent_traces": [trace("document_intelligence", "completed" if added else "skipped", detail, started)]}
+        return {"chunk_context": added, "absent_terms": absent,
+                "agent_traces": [trace("document_intelligence", "completed" if added or absent else "skipped", detail, started)]}
