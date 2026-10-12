@@ -82,21 +82,37 @@ class ChunkReranker:
     def is_neural(self) -> bool:
         return self.model is not None
 
+    def _move_to_cpu(self) -> bool:
+        try:
+            with _CACHE_LOCK:
+                self.model.to("cpu")
+            return True
+        except Exception as e:
+            logger.warning(f"Could not move the cross-encoder to the CPU: {e}")
+            return False
+
     def score_pairs(self, query: str, texts: Sequence[str]) -> List[float]:
         """Relevance in [0, 1] for each text (cross-encoder probability, or lexical overlap)."""
         if not texts:
             return []
         if self.model is not None:
-            try:
-                raw = self.model.predict([(query, t or "") for t in texts], show_progress_bar=False)
-                vals = [float(v) for v in raw]
-                # ms-marco cross-encoders output raw logits (Identity activation); map them
-                # to probabilities so scores are comparable and bounded.
-                if self._outputs_logits:
-                    vals = [_sigmoid(v) for v in vals]
-                return vals
-            except Exception as e:
-                logger.warning(f"Cross-encoder inference failed: {e}. Using lexical-overlap scores.")
+            pairs = [(query, t or "") for t in texts]
+            for attempt in range(2):
+                try:
+                    raw = self.model.predict(pairs, show_progress_bar=False)
+                    vals = [float(v) for v in raw]
+                    # ms-marco cross-encoders output raw logits (Identity activation); map them
+                    # to probabilities so scores are comparable and bounded.
+                    if self._outputs_logits:
+                        vals = [_sigmoid(v) for v in vals]
+                    return vals
+                except Exception as e:
+                    # The GPU (Apple MPS, CUDA) ran out of memory: the small model runs on the CPU from now on.
+                    if attempt == 0 and re.search(r"out of memory|MPS|CUDA", str(e), re.I) and self._move_to_cpu():
+                        logger.warning(f"Cross-encoder inference failed on the GPU ({str(e)[:120]}); moved it to the CPU.")
+                        continue
+                    logger.warning(f"Cross-encoder inference failed: {e}. Using lexical-overlap scores.")
+                    break
         q_terms = set(_terms(query))
         if not q_terms:
             return [0.0 for _ in texts]
