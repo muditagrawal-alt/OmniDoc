@@ -10,6 +10,9 @@ from graph.schema import KUZU_NODE_SCHEMAS, KUZU_REL_SCHEMAS
 
 logger = logging.getLogger("OmniDoc.KuzuStore")
 
+# Memory the graph database may use for its page cache (MB).
+GRAPH_MEMORY_MB = int(os.getenv("OMNIDOC_GRAPH_MEMORY_MB", "512"))
+
 
 class KuzuGraphStore:
     """Manages the embedded Kùzu property graph database."""
@@ -33,7 +36,9 @@ class KuzuGraphStore:
         """Initializes connection and bootstraps schema DDL."""
         try:
             import kuzu
-            self.db = kuzu.Database(self.db_path)
+            # Kùzu caches pages in memory up to ~80% of the machine's RAM by default; a document
+            # graph needs far less, and a server must leave room for everything else.
+            self.db = kuzu.Database(self.db_path, buffer_pool_size=GRAPH_MEMORY_MB * 1024 * 1024)
             self.conn = kuzu.Connection(self.db)
             self._apply_schema()
             logger.info(f"Connected to embedded Kùzu DB at {self.db_path}")
