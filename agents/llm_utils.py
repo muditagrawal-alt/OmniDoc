@@ -256,6 +256,20 @@ def vision_chat(model: str, prompt: str, image: bytes, *, mime: str = "image/png
     return providers.openai_chat(p, name or p.vision_model, messages, temperature=0.1, max_tokens=num_predict)
 
 
+def vision_chat_pages(model: str, prompt: str, pages: List[Tuple[int, bytes]], *, num_predict: int = 1500,
+                      json_mode: bool = True) -> str:
+    """One question about several page images (a hosted model), each image preceded by its page number."""
+    kind, name = providers.parse_spec(model)
+    p = providers.REGISTRY[kind]
+    content: List[Dict[str, Any]] = [{"type": "text", "text": prompt}]
+    for page_no, image in pages:
+        content.append({"type": "text", "text": f"Page {page_no}:"})
+        content.append({"type": "image_url",
+                        "image_url": {"url": f"data:image/png;base64,{base64.b64encode(image).decode('ascii')}"}})
+    return providers.openai_chat(p, name or p.vision_model, [{"role": "user", "content": content}],
+                                 temperature=0.1, max_tokens=num_predict, json_mode=json_mode)
+
+
 # ----------------------------------------------------------------------------
 # JSON parsing & repair
 # ----------------------------------------------------------------------------
