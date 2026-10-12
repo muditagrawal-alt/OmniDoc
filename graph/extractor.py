@@ -3,9 +3,11 @@ Entity and Relationship Extractor for Graph RAG.
 Uses structured LLM output to extract entity-relationship triples
 and populate the embedded Kùzu property graph.
 """
+import os
 import re
 import uuid
 import logging
+from concurrent.futures import ThreadPoolExecutor
 from typing import List, Dict, Any, Tuple, Optional
 from pydantic import BaseModel, Field
 
@@ -78,6 +80,9 @@ Rules:
 # Chunks per extraction call, and the text budget of one call.
 BATCH_CHUNKS = 4
 BATCH_CHARS = 7000
+# Batches asked at once: a hosted model answers several requests in parallel (each takes 20-40 s),
+# which cuts a document's graph time by about that factor; a local model answers one at a time.
+GRAPH_WORKERS = int(os.getenv("OMNIDOC_GRAPH_WORKERS", "3"))
 
 _REL_RE = re.compile(r"[^A-Z0-9]+")
 _WORD_RE = re.compile(r"[a-z0-9]+")
@@ -208,27 +213,49 @@ class GraphExtractor:
                 batches[-1].append(ch)
             else:
                 batches.append([ch])
+        from agents import llm_providers
+        local = llm_providers.parse_spec(self.model_name)[0] == "ollama"
         created = 0
         done = 0
-        for batch in batches:
-            for ch in batch:
-                self.graph_store.add_chunk(chunk_id=ch.chunk_id, doc_id=doc_id, page_number=ch.page_number,
-                                           section_title=clean_text(ch.section_title, 200) or "General", text=ch.text)
-            answers = self._ask_batch(doc_id, batch)
-            results = {ch.chunk_id: answers.get(f"C{i}") for i, ch in enumerate(batch, 1)}
-            # A reply cut off by the token limit keeps the chunks before the cut: ask again for the rest.
-            missing = [ch for ch in batch if not results[ch.chunk_id]]
-            if missing and len(missing) < len(batch):
-                again = self._ask_batch(doc_id, missing)
-                for i, ch in enumerate(missing, 1):
-                    results[ch.chunk_id] = again.get(f"C{i}")
-            for ch in batch:
-                payload = coerce_payload(results[ch.chunk_id] or {})
-                entities, _ = self._index_payload(doc_id, ch.chunk_id, ch.text, payload)
-                created += len(entities)
+        failed: List[List[Any]] = []
+        # The model calls run in parallel; the graph is written here, batch by batch in document order.
+        with ThreadPoolExecutor(max_workers=1 if local else max(1, GRAPH_WORKERS)) as pool:
+            asked = [pool.submit(self._ask_complete, doc_id, batch) for batch in batches]
+            for batch, future in zip(batches, asked):
+                results = future.result()
+                if not any(results.values()):
+                    failed.append(batch)  # no answer at all (a rate limit, a timeout): asked again at the end
+                    continue
+                created += self._store_batch(doc_id, batch, results)
+                done += len(batch)
+                if progress:
+                    progress(done, len(chunks))
+        for batch in failed:
+            created += self._store_batch(doc_id, batch, self._ask_complete(doc_id, batch))
             done += len(batch)
             if progress:
                 progress(done, len(chunks))
+        return created
+
+    def _ask_complete(self, doc_id: str, batch: List[Any]) -> Dict[str, Any]:
+        """chunk_id -> the model's answer for it; a reply cut off by the token limit is asked again for the rest."""
+        answers = self._ask_batch(doc_id, batch)
+        results = {ch.chunk_id: answers.get(f"C{i}") for i, ch in enumerate(batch, 1)}
+        missing = [ch for ch in batch if not results[ch.chunk_id]]
+        if missing and len(missing) < len(batch):
+            again = self._ask_batch(doc_id, missing)
+            for i, ch in enumerate(missing, 1):
+                results[ch.chunk_id] = again.get(f"C{i}")
+        return results
+
+    def _store_batch(self, doc_id: str, batch: List[Any], results: Dict[str, Any]) -> int:
+        """Writes a batch's chunks and the entities and relations found in them; returns the entities created."""
+        created = 0
+        for ch in batch:
+            self.graph_store.add_chunk(chunk_id=ch.chunk_id, doc_id=doc_id, page_number=ch.page_number,
+                                       section_title=clean_text(ch.section_title, 200) or "General", text=ch.text)
+            entities, _ = self._index_payload(doc_id, ch.chunk_id, ch.text, coerce_payload(results.get(ch.chunk_id) or {}))
+            created += len(entities)
         return created
 
     def _ask_batch(self, doc_id: str, batch: List[Any]) -> Dict[str, Any]:
