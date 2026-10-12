@@ -1,0 +1,98 @@
+{
+ "run": "2026-10-13_revision-c-2_7d67293",
+ "label": "revision-c-2",
+ "commit": "7d67293",
+ "uncommitted_changes": false,
+ "settings": {
+  "provider": "nvidia",
+  "model": "nvidia:nvidia/nemotron-3-super-120b-a12b",
+  "vision": "gemini:gemini-3.5-flash-lite",
+  "embed": "nomic-embed-text",
+  "judge": "nvidia:openai/gpt-oss-20b"
+ },
+ "notes": "Revision C (7d67293) on the development split: short PDFs read whole for every question, statement triggers for cash ratios.",
+ "caveat": "",
+ "graded": 31,
+ "benchmarks": {
+  "mmlongbench": {
+   "n": 31,
+   "accuracy": 0.7419354838709677,
+   "accuracy_ci95": [
+    0.5675352757228489,
+    0.8629845626313024
+   ],
+   "wrong": 0.1935483870967742,
+   "declined": 0.06451612903225806,
+   "answerable_accuracy": 0.7692307692307693,
+   "unanswerable_n": 5,
+   "unanswerable_accuracy": 0.6,
+   "f1": 0.7692307692307693,
+   "gold_page_retrieved": 1.0,
+   "gold_page_cited": 0.8461538461538461,
+   "first_word_p50_s": 9.43,
+   "first_word_p90_s": 14.12,
+   "answer_p50_s": 12.85,
+   "answer_p90_s": 19.79,
+   "model_calls_mean": 4,
+   "tokens_mean": 36837.58064516129,
+   "errors": 0,
+   "retried": 0,
+   "verified_mean": 0.8666666666666667,
+   "by_evidence": {
+    "(unspecified)": {
+     "n": 1,
+     "accuracy": 1.0
+    },
+    "Figure": {
+     "n": 11,
+     "accuracy": 0.7272727272727273
+    },
+    "Multi-page": {
+     "n": 12,
+     "accuracy": 0.75
+    },
+    "Not answerable": {
+     "n": 5,
+     "accuracy": 0.6
+    },
+    "Pure-text": {
+     "n": 4,
+     "accuracy": 1.0
+    },
+    "Single-page": {
+     "n": 14,
+     "accuracy": 0.7857142857142857
+    },
+    "Table": {
+     "n": 13,
+     "accuracy": 0.7692307692307693
+    }
+   },
+   "by_doc_type": {
+    "Academic paper": {
+     "n": 8,
+     "accuracy": 0.875
+    },
+    "Financial report": {
+     "n": 10,
+     "accuracy": 0.8
+    },
+    "Guidebook": {
+     "n": 6,
+     "accuracy": 0.5
+    },
+    "Tutorial/Workshop": {
+     "n": 7,
+     "accuracy": 0.7142857142857143
+    }
+   },
+   "ingestion": {
+    "documents": 4,
+    "chunks": 580,
+    "upload_s": 90.0,
+    "background_s": 901.3,
+    "index_commit": "408ac1a"
+   }
+  }
+ }
+}
