@@ -394,6 +394,7 @@ class VisionAgent:
                     image, mime = self._render(path, page_no), "image/png"
                 prompt = CAPTION_PROMPT.format(page=page_no, title=title[:120])
                 if llm_providers.parse_spec(model)[0] != "ollama":
+                    self._pace(model, 1)  # a free tier allows a few requests a minute
                     text = vision_chat(model, prompt, image, mime=mime, num_predict=500)
                 else:
                     resp = get_client().chat(model=model, messages=[{"role": "user", "content": prompt, "images": [image]}],
@@ -617,6 +618,7 @@ class VisionAgent:
                 mime = "image/jpeg" if fig["image_path"].lower().endswith((".jpg", ".jpeg")) else "image/png"
                 prompt = PROMPT.format(query=query[:500], page=fig["page"], doc_id=fig["doc_id"])
             if llm_providers.parse_spec(model)[0] != "ollama":
+                cls._pace(model, 1)
                 text = vision_chat(model, prompt, image, mime=mime, num_predict=500)
                 return text.strip() or None
             request = {
