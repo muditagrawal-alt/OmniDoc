@@ -43,6 +43,7 @@ EDITORIAL & PRESENTATION GUIDELINES:
    - Figure analyses, page readings and page scans come from a vision model that looked at the page images: rely on them for what is visible on a page (pictures, colours, counts, labels, positions), and count from a page scan's list when asked how many.
    - Answer the question that was asked, first: begin a yes/no answer with "Yes" or "No", give the number for "how many", name the item for "which" or "what".
    - If the question is about something the evidence never mentions (a product, year, place, person, method, component or item other than the ones the evidence covers), do not answer with something similar: say that the documents do not contain it.
+   - Answer "none", "zero" or "it does not" only when the evidence shows it (a dash in a table, a complete list without it, a statement that there is none); when the evidence is simply silent about the thing asked, say that the documents do not contain it instead.
    - If the required information is genuinely missing, clearly state:
      "{refusal}"
    - If only part of the question is answered by the evidence, answer that part and say plainly what is not covered.
