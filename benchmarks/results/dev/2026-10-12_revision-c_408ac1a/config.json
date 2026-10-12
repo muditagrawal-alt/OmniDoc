@@ -1,0 +1,22 @@
+{
+ "label": "revision-c",
+ "split": "dev",
+ "started": "2026-10-12T23:11:27",
+ "commit": "408ac1a",
+ "uncommitted_changes": false,
+ "benchmarks": [
+  "financebench",
+  "mmlongbench"
+ ],
+ "settings": {
+  "provider": "nvidia",
+  "model": "nvidia:nvidia/nemotron-3-super-120b-a12b",
+  "vision": "gemini:gemini-3.5-flash-lite",
+  "embed": "nomic-embed-text",
+  "judge": "nvidia:openai/gpt-oss-20b"
+ },
+ "work": "/Users/muditagrawal/Projects/zee work/OmniDoc/benchmarks/work",
+ "scope": "each question is asked about its own document (document_ids = [doc]); web search off",
+ "pacing": "20s between questions; answers that failed are asked again up to 5 times",
+ "notes": "Revision C (408ac1a) on the development split."
+}
