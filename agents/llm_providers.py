@@ -319,16 +319,19 @@ def _raise_for(p: Provider, resp: Any) -> None:
     status = resp.status_code
     text = ""
     try:
-        text = resp.text[:400]
+        text = resp.text[:4000]
     except Exception:
         pass
     if status == 429:
         retry = resp.headers.get("retry-after") or resp.headers.get("x-ratelimit-reset-requests") or ""
+        # Gemini says how long to wait in the body ("retryDelay": "17s").
+        delay = re.search(r'"retryDelay"\s*:\s*"([\d.]+)s"', text)
         try:
-            wait = float(re.findall(r"[\d.]+", retry)[0])
+            wait = float(delay.group(1)) if delay else float(re.findall(r"[\d.]+", retry)[0])
         except Exception:
             wait = 30.0
-        daily = bool(re.search(r"per ?day|daily|PerDay|RPD|TPD|quota", text, re.I))
+        # Only a per-day limit pauses a provider for an hour; every Gemini limit says "quota", per minute too.
+        daily = bool(re.search(r"per ?day|daily|PerDay|RPD|TPD", text, re.I))
         _cool(p, max(wait, 3600.0 if daily else 20.0), "rate limit" + (" (daily quota)" if daily else ""))
         raise ProviderError(f"{p.label} rate limit", retryable=True, status=status)
     if status in (401, 403):
