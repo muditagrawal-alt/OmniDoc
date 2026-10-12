@@ -451,9 +451,13 @@ def test_questions_about_the_whole_document_scan_every_page(monkeypatch):
         return json.dumps({"pages": [{"page": n, "items": found.get(n, [])} for n, _ in pages]})
     monkeypatch.setattr(V, "vision_chat_pages", scan)
     agent = V.VisionAgent(images_dir=os.path.join(folder, "figures"))
-    findings, detail = agent._scan("gemini:gemini-3.5-flash-lite",
-                                   {"document_ids": ["doc_s"], "user_query": "How many photos does this report provide?"}, "count")
-    assert batches == [list(range(1, 13)), [13, 14]]
+    ask = {"document_ids": ["doc_s"], "user_query": "How many photos does this report provide?"}
+    agent._scan("gemini:gemini-3.5-flash-lite", ask, "count")
+    assert batches == [list(range(1, 15))]  # a short document is scanned in one request
+    batches.clear()
+    monkeypatch.setattr(V, "WHOLE_READ_PAGES", 10)
+    findings, detail = agent._scan("gemini:gemini-3.5-flash-lite", ask, "count")
+    assert batches == [list(range(1, 13)), [13, 14]]  # a long one a batch at a time
     summary, *pages = findings
     assert "found 3 matching item(s) on 2 page(s): page 3 (1), page 13 (2)" in summary["analysis"]
     assert [f["page"] for f in pages] == [3, 13] and "photo of the lab" in pages[1]["analysis"]
