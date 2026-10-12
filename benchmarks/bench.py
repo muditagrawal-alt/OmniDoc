@@ -596,6 +596,9 @@ def grade(judge_spec: str, row: Dict[str, Any]) -> Dict[str, Any]:
     prompt = JUDGE_PROMPT.format(question=row["question"], answer=row["answer_gold"], extra=extra,
                                  response=(row.get("answer") or "(no answer)")[:12000])
     for attempt in range(6):
+        wait = P.wait_seconds(p, len(prompt) // 4 + 300)
+        if wait is not None and wait > 15 * 60:  # a daily quota is used up: grade later (`judge` again)
+            return {"declined": None, "correct": None, "reason": f"judge failed (paused for {int(wait)}s)"}
         try:
             text = P.openai_chat(p, model, [{"role": "user", "content": prompt}], temperature=0.0,
                                  max_tokens=300, json_mode=True)
