@@ -4,6 +4,7 @@ Executes dense vector + BM25 full-text search on LanceDB for the main query and 
 decomposed sub-questions / expansion variants, fuses the result lists with Reciprocal Rank
 Fusion, and reranks the pool with the neural cross-encoder.
 """
+import os
 import time
 import logging
 from typing import Dict, Any, List, Optional, Tuple
@@ -12,14 +13,16 @@ from core.state import AgentWorkflowState, RetrievedChunk
 from retrieval.embeddings import EmbeddingService
 from retrieval.lancedb_store import LanceDBStore, rrf_fuse
 from retrieval.reranker import ChunkReranker
+from agents import finance_terms
 from agents.llm_utils import trace
 
 logger = logging.getLogger("OmniDoc.HybridAgent")
 
 MAX_EXTRA_QUERIES = 3
-CANDIDATES_PER_QUERY = 10
-POOL_SIZE = 24
-FINAL_TOP_K = 6
+CANDIDATES_PER_QUERY = 12
+POOL_SIZE = 30
+# Passages handed on per question, sized for hosted models (a small local model may want 6).
+FINAL_TOP_K = int(os.getenv("OMNIDOC_RETRIEVAL_TOP_K", "10"))
 # Selected documents this short are read whole, so an overview ("what are the stages?") misses nothing.
 WHOLE_DOCUMENT_CHUNKS = 10
 
@@ -59,6 +62,10 @@ class HybridRetrievalAgent:
             queries.append(q.strip())
             if len(queries) > MAX_EXTRA_QUERIES:
                 break
+        # A filing names the items differently ("net AR" is "Trade receivables, net"): search those names too.
+        terms = finance_terms.search_terms(main)
+        if terms:
+            queries.append(f"{main} ({terms})")
         return queries
 
     def search(self, queries: List[str], doc_ids: Optional[List[str]] = None, top_k: int = FINAL_TOP_K,
