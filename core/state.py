@@ -321,6 +321,8 @@ class AgentWorkflowState(TypedDict):
     # Language to answer in (ISO code), and the time range the question limits itself to
     answer_language: str
     time_filter: Optional[Dict[str, Any]]
+    # Names the question uses that appear nowhere in the document (a question it cannot answer?)
+    absent_terms: List[str]
     # Dated statements from the evidence in order (temporal reasoning), for the writer
     timeline: List[Dict[str, Any]]
     
