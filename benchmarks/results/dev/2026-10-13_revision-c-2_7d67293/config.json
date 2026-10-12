@@ -1,0 +1,21 @@
+{
+ "label": "revision-c-2",
+ "split": "dev",
+ "started": "2026-10-13T00:03:43",
+ "commit": "7d67293",
+ "uncommitted_changes": false,
+ "benchmarks": [
+  "mmlongbench"
+ ],
+ "settings": {
+  "provider": "nvidia",
+  "model": "nvidia:nvidia/nemotron-3-super-120b-a12b",
+  "vision": "gemini:gemini-3.5-flash-lite",
+  "embed": "nomic-embed-text",
+  "judge": "nvidia:openai/gpt-oss-20b"
+ },
+ "work": "/Users/muditagrawal/Projects/zee work/OmniDoc/benchmarks/work",
+ "scope": "each question is asked about its own document (document_ids = [doc]); web search off",
+ "pacing": "20s between questions; answers that failed are asked again up to 5 times",
+ "notes": "Revision C (7d67293) on the development split: short PDFs read whole for every question, statement triggers for cash ratios."
+}
