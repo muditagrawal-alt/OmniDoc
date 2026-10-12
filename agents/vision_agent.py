@@ -55,7 +55,7 @@ MAX_PAGE_FINDINGS = 12    # page findings passed on from one reading (the answer
 # Whole-document scans: at most this many pages, a batch per request, rendered smaller.
 SCAN_MAX_PAGES = int(os.getenv("OMNIDOC_VISION_SCAN_PAGES", "160"))
 SCAN_BATCH = 12
-SCAN_RENDER_PX = 1100
+SCAN_RENDER_PX = 1100     # pages of a long document scanned in batches; short ones keep RENDER_PX
 SCAN_WAIT_S = 60          # longest wait for the vision model's rate limit between batches
 # A page carries a real figure when images cover this share of it (small logos and banners
 # stay below), or when it has a chart drawn as vectors: curves, or many lines. Rectangles do not
@@ -200,7 +200,7 @@ class VisionAgent:
         whole = self._whole_document(state) if hosted else []
         rendered = whole or [f for f in figures[:limit] if f.get("render")]
         if hosted and rendered:
-            findings = self._read_pages(model, rendered, query, px=SCAN_RENDER_PX if whole else RENDER_PX)
+            findings = self._read_pages(model, rendered, query)  # full resolution: small icons and colours need it
             if findings:
                 pages = sorted({f["page"] for f in rendered})
                 what = f"all {len(pages)} pages" if whole else f"pages {', '.join(map(str, pages))}"
@@ -495,10 +495,11 @@ class VisionAgent:
         # A short document is scanned in one request, so every page is seen next to the others
         # ("distinct images", "like the first figure"); a long one a batch at a time.
         size = count if count <= WHOLE_READ_PAGES else SCAN_BATCH
+        px = RENDER_PX if count <= WHOLE_READ_PAGES else SCAN_RENDER_PX
         for first in range(1, count + 1, size):
             batch = list(range(first, min(first + size, count + 1)))
             try:
-                images = [(n, self._render(path, n, px=SCAN_RENDER_PX)) for n in batch]
+                images = [(n, self._render(path, n, px=px)) for n in batch]
                 self._pace(model, len(images))
                 data = parse_llm_json(vision_chat_pages(model, SCAN_PROMPT.format(first=batch[0], last=batch[-1], query=query),
                                                         images, num_predict=1500))
