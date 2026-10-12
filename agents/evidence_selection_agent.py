@@ -4,7 +4,12 @@ Scores every candidate (document chunks and knowledge-graph triples) with the cr
 reranker, deduplicates, applies query-focused contextual compression and compiles a compact
 EvidencePackage whose items carry provenance (doc_id, page, chunk_id, section) and the real
 reranker relevance score.
+
+Passages the layout step added for the question itself (a page or table it names, the
+financial statements its figures come from) are always kept: the reranker scores a page of
+numbers low against a question in words, which is exactly the page such a question needs.
 """
+import os
 import re
 import time
 import logging
@@ -18,10 +23,13 @@ from agents.hybrid_agent import WHOLE_DOCUMENT_CHUNKS
 
 logger = logging.getLogger("OmniDoc.EvidenceSelection")
 
-MAX_CHUNKS = 6
+# Sized for hosted models with long context windows; a small local model may want 6 / 1500.
+MAX_CHUNKS = int(os.getenv("OMNIDOC_EVIDENCE_PASSAGES", "10"))
+MAX_REFERENCE_PASSAGES = 6   # pages and statements the question calls for, kept besides the best passages
 MAX_TRIPLES = 3
 MIN_TRIPLE_SCORE = 0.05   # graph triples are short; keep only ones the reranker finds relevant
-MAX_CONTENT_CHARS = 1500
+MAX_CONTENT_CHARS = int(os.getenv("OMNIDOC_EVIDENCE_CHARS", "2400"))
+FULL_PAGE_CHARS = 7000    # a whole page (a statement, a page the question names) is barely shortened
 
 _SENT_SPLIT = re.compile(r"(?<=[.!?])\s+(?=[A-Z0-9\"'(\[])")
 _WORD = re.compile(r"[a-z0-9]+")
@@ -76,8 +84,12 @@ class EvidenceSelectionAgent:
     def _dedupe_chunks(chunks: List[Dict[str, Any]]) -> List[Dict[str, Any]]:
         by_id: Dict[str, Dict[str, Any]] = {}
         seen_text = set()
-        for ch in chunks:
+        # A whole page replaces the passages it is made of (they would repeat it).
+        whole = {(ch.get("doc_id"), ch.get("page_number")) for ch in chunks if is_real_chunk(ch) and ch.get("full_page")}
+        for ch in sorted(chunks, key=lambda c: 0 if c.get("full_page") else 1):
             if not is_real_chunk(ch):
+                continue
+            if not ch.get("full_page") and (ch.get("doc_id"), ch.get("page_number")) in whole:
                 continue
             cid = str(ch["chunk_id"])
             sig = re.sub(r"\W+", "", ch["text"].lower())[:300]
@@ -140,11 +152,12 @@ class EvidenceSelectionAgent:
                 score = max(float(score), float(prior))
             cid = str(ch["chunk_id"])
             page = ch.get("page_number")
+            full = bool(ch.get("full_page"))
             chunk_items.append(EvidenceItem(
                 evidence_id=f"ev_chunk_{cid}",
                 source_type="vector_chunk",
                 source_id=cid,
-                content=compress(ch["text"], query),
+                content=compress(ch["text"], query, FULL_PAGE_CHARS if full else MAX_CONTENT_CHARS),
                 relevance_score=round(float(score), 4),
                 authority_score=1.0,
                 provenance={
@@ -154,6 +167,7 @@ class EvidenceSelectionAgent:
                     "page_no": page,
                     "section": ch.get("section_title") or "",
                     "retrieval_method": ch.get("retrieval_method", ""),
+                    **({"full_page": True} if full else {}),
                 },
             ))
 
@@ -185,9 +199,12 @@ class EvidenceSelectionAgent:
 
         chunk_items.sort(key=lambda x: x.relevance_score, reverse=True)
         triple_items.sort(key=lambda x: x.relevance_score, reverse=True)
-        # A short document read whole keeps every passage; otherwise the best MAX_CHUNKS.
+        # Pages and statements the question calls for, then (a short document read whole keeps
+        # every passage) the best MAX_CHUNKS of the others.
+        referenced = [it for it in chunk_items if it.provenance.get("retrieval_method") == "reference"][:MAX_REFERENCE_PASSAGES]
+        others = [it for it in chunk_items if it not in referenced]
         whole = any(c.get("retrieval_method") == "whole_document" for c in chunks)
-        selected = chunk_items[:WHOLE_DOCUMENT_CHUNKS if whole else MAX_CHUNKS] + triple_items[:MAX_TRIPLES]
+        selected = referenced + others[:max(WHOLE_DOCUMENT_CHUNKS, MAX_CHUNKS) if whole else MAX_CHUNKS] + triple_items[:MAX_TRIPLES]
         total = len(chunks) + len(triples)
 
         package = EvidencePackage(
@@ -202,6 +219,7 @@ class EvidenceSelectionAgent:
             "evidence_package": package,
             "agent_traces": [trace("evidence_selection", "completed",
                                    f"{total} candidates -> {len(selected)} items "
-                                   f"({min(len(chunk_items), MAX_CHUNKS)} passages, {min(len(triple_items), MAX_TRIPLES)} relations)",
+                                   f"({len(selected) - min(len(triple_items), MAX_TRIPLES)} passages, "
+                                   f"{min(len(triple_items), MAX_TRIPLES)} relations)",
                                    started)],
         }
