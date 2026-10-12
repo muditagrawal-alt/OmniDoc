@@ -350,6 +350,113 @@ def test_financial_statements_are_added_for_the_figures_a_question_needs():
     assert statements(state["user_query"]) == [59, 61]          # not the contents page that names them
     assert statements("What was the capital expenditure?") == []  # no cash flow statement in this filing
     assert statements("Who is the chief executive?") == []
+    added = [c for c in agent.run(state)["chunk_context"] if c["retrieval_method"] == "reference"]
+    assert {c["chunk_id"] for c in added} == {"d_p59_page", "d_p61_page"} and all(c["full_page"] for c in added)
+
+
+def test_statements_come_from_where_they_sit_together_not_from_summaries():
+    """A five-year summary repeats every line item; the statements themselves sit a few pages apart."""
+    from types import SimpleNamespace
+    from agents.document_intelligence_agent import DocumentIntelligenceAgent
+
+    def chunk(page, text):
+        return RetrievedChunk(chunk_id=f"d_p{page}_c0", doc_id="d", text=text, page_number=page, section_title="")
+    chunks = [chunk(20, "2022 2021 2020 2019 2018 Statement of Operations Data: Net sales 9,100 8,800 8,500 8,100 7,900 "
+                        "Cost of sales 5,100 4,900 4,700 4,500 4,300 Gross profit 4,000 3,900 3,800 3,600 3,600 Net income "
+                        "1,200 1,100 1,000 900 850 Total assets 20,100 19,000 18,500 17,900 17,000 Total current assets 7,100 "
+                        "6,900 6,500 6,100 5,900 Total current liabilities 4,100 3,900 3,700 3,500 3,300 Net cash provided by "
+                        "operating activities 1,900 1,800 1,700 1,600 1,500"),
+              chunk(60, "December 31, 2022 2021 Assets Cash and cash equivalents 2,100 1,900 Inventories 1,400 1,300 Total "
+                        "current assets 7,100 6,900 Property and equipment 5,000 4,800 Total assets 20,100 19,000 Accounts "
+                        "payable 1,600 1,500 Total current liabilities 4,100 3,900 Retained earnings 6,000 5,200"),
+              chunk(61, "Years ended December 31, 2022 2021 2020 Net sales 9,100 8,800 8,500 Cost of sales 5,100 4,900 4,700 "
+                        "Gross profit 4,000 3,900 3,800 Operating income 1,700 1,600 1,500 Net income 1,200 1,100 1,000"),
+              chunk(63, "Years ended December 31, 2022 2021 2020 Operating activities Net income 1,200 1,100 1,000 Depreciation "
+                        "and amortization 400 390 380 Net cash provided by operating activities 1,900 1,800 1,700 Investing "
+                        "activities Capital expenditures (500) (480) (450) Financing activities Dividends paid (300) (280) (260)")]
+    agent = DocumentIntelligenceAgent(SimpleNamespace(get_document_chunks=lambda doc_id: chunks))
+    picked = agent._statement_passages("FY2022 working capital, gross margin and capex from the balance sheet, income and cash flow "
+                                       "statements", ["d"], {})
+    assert [p.page_number for p in picked] == [60, 61, 63]
+
+
+def test_whole_statement_pages_survive_evidence_selection():
+    """A page of numbers scores low with the reranker, but a statement the question needs is always kept, whole."""
+    from types import SimpleNamespace
+    from agents.document_intelligence_agent import DocumentIntelligenceAgent, page_passage
+    from agents.evidence_selection_agent import EvidenceSelectionAgent, MAX_CHUNKS
+    from agents.citations import build_sources
+
+    def chunk(i, page, text):
+        return RetrievedChunk(chunk_id=f"d_p{page}_c{i}", doc_id="d", text=text, page_number=page, section_title="")
+    sheet = [chunk(0, 50, "Consolidated Balance Sheet As of June 30, 2020 2019 Cash and cash equivalents $ 742.6 $ 601.6 "
+                          "Trade receivables, net 1,615.9 1,864.3 Inventories, net 1,831.9 1,953.8 Total current assets"),
+             chunk(1, 50, "Inventories, net 1,831.9 1,953.8 Total current assets 4,534.7 5,210.1 Total assets $ 16,442.1 "
+                          "$ 17,165.0 Trade payables 2,170.8 2,303.4 Total current liabilities 3,973.6 4,541.8")]
+    whole = page_passage(sheet, "d", 50)
+    assert whole.chunk_id == "d_p50_page" and whole.text.count("Inventories, net") == 1  # the overlap is not repeated
+    narrative = [{"chunk_id": f"d_p{p}_c0", "doc_id": "d", "page_number": p, "score": 0.9, "retrieval_method": "neural_reranked",
+                  "text": f"Page {p}: receivables are collected within 60 days; management reviews credit risk."} for p in range(1, 13)]
+    statement = {**whole.model_dump(), "score": 0.2, "retrieval_method": "reference", "full_page": True}
+    reranker = SimpleNamespace(score_pairs=lambda q, texts: [0.0 if "$" in t else 0.9 for t in texts])
+    state = {"user_query": "What is Amcor's year end FY2020 net AR?", "session_id": "s",
+             "chunk_context": narrative + [{**sheet[0].model_dump(), "score": 0.5}, statement]}
+    package = EvidenceSelectionAgent(reranker=reranker).run(state)["evidence_package"]
+    ids = [it.source_id for it in package.items]
+    assert ids[0] == "d_p50_page" and "d_p50_c0" not in ids and len(ids) == 1 + MAX_CHUNKS
+    sources = build_sources(evidence_package=package)
+    assert "Total current liabilities 3,973.6" in sources[0]["_text"]  # the whole page reaches the writer
+
+
+def test_finance_notes_name_only_what_a_question_needs():
+    from agents.finance_terms import notes_for, search_terms
+    notes = notes_for("What is Amcor's year end FY2020 net AR (in USD millions)?")
+    assert "trade receivables, net" in notes and "EBITDA" not in notes and "inventory turnover" not in notes
+    turnover = notes_for("Calculate inventory turnover for FY2022; if inventory management is not meaningful for the company, say why.")
+    assert "COGS / average inventory" in turnover and "end of the prior year" in turnover and "card issuers" in turnover
+    assert notes_for("What is the CAGR if revenue grew from $100M in 2020 to $160M in 2024?") == ""
+    assert "trade receivables" in search_terms("net AR") and search_terms("Who is the chief executive?") == ""
+
+
+def test_names_the_document_never_mentions_are_noted():
+    from types import SimpleNamespace
+    from agents.document_intelligence_agent import DocumentIntelligenceAgent, question_names
+    assert question_names("Compared to MMDU, how many more QA pairs does SnapNtell have?") == ["MMDU", "SnapNtell"]
+    assert question_names("Did JnJ's net earnings rise in Q2 of FY2023 compared to Q2 of FY2022?") == ["JnJ"]
+    text = [RetrievedChunk(chunk_id="p_p5_c0", doc_id="p", page_number=5, text="SnapNTell has 75,680 QA pairs; ViQuAE has 3,700.")]
+    agent = DocumentIntelligenceAgent(SimpleNamespace(get_document_chunks=lambda doc_id: text))
+    out = agent.run({"user_query": "Compared to MMDU, how many more QA pairs does SnapNtell have?", "document_ids": ["p"],
+                     "chunk_context": [{**text[0].model_dump(), "score": 0.9}]})
+    assert out["absent_terms"] == ["MMDU"]
+
+
+def test_questions_about_the_whole_document_scan_every_page(monkeypatch):
+    import fitz
+    import agents.vision_agent as V
+    assert V.scan_kind("How many exterior photos of organisations does this report provide?") == "count"
+    assert V.scan_kind("What page has an eight-pointed snowflake image? Give me an integer.") == "locate"
+    assert V.scan_kind("How many times does mobile phone appear on pages 16 and 18?") is None  # those pages are read directly
+    assert V.scan_kind("How many employees does PwC Assurance have?") is None
+    folder = tempfile.mkdtemp()
+    os.makedirs(os.path.join(folder, "uploads"))
+    doc = fitz.open()
+    for n in range(14):
+        doc.new_page().insert_text((72, 72), f"Slide {n + 1}")
+    doc.save(os.path.join(folder, "uploads", "doc_s.pdf"))
+    batches = []
+
+    def scan(model, prompt, pages, **k):
+        batches.append([n for n, _ in pages])
+        found = {3: ["photo of the head office"], 13: ["photo of a branch", "photo of the lab"]}
+        return json.dumps({"pages": [{"page": n, "items": found.get(n, [])} for n, _ in pages]})
+    monkeypatch.setattr(V, "vision_chat_pages", scan)
+    agent = V.VisionAgent(images_dir=os.path.join(folder, "figures"))
+    findings, detail = agent._scan("gemini:gemini-3.5-flash-lite",
+                                   {"document_ids": ["doc_s"], "user_query": "How many photos does this report provide?"}, "count")
+    assert batches == [list(range(1, 13)), [13, 14]]
+    summary, *pages = findings
+    assert "found 3 matching item(s) on 2 page(s): page 3 (1), page 13 (2)" in summary["analysis"]
+    assert [f["page"] for f in pages] == [3, 13] and "photo of the lab" in pages[1]["analysis"]
 
 
 def _pdf_with_figures(folder: str) -> str:
@@ -394,11 +501,22 @@ def test_vision_reads_rendered_pages_that_carry_figures(monkeypatch):
     assert [c["page"] for c in agent._page_candidates(state([1, 3], asked=True), strict=False)] == [2, 3]
     seen = []
     monkeypatch.setattr(V.VisionAgent, "_hosted_model", staticmethod(lambda: "gemini:gemini-3.5-flash-lite"))
-    monkeypatch.setattr(V, "vision_chat", lambda model, prompt, image, **k: (seen.append(image[:8]), "The chart shows 42.")[1])
+
+    def read(model, prompt, pages, **k):
+        seen.extend((n, image[:8]) for n, image in pages)
+        return json.dumps({"answer": "Revenue by region; Asia is 42.", "answer_pages": [2],
+                           "pages": [{"page": 2, "finding": "A bar chart of revenue by region; Asia 42."}]})
+    monkeypatch.setattr(V, "vision_chat_pages", read)
     out = agent.run(state([2, 1], asked=True))
-    assert seen and all(img == b"\x89PNG\r\n\x1a\n" for img in seen)  # whole pages rendered as PNG
-    assert out["visual_context"][0]["page"] == 2 and out["visual_context"][0]["analysis"] == "The chart shows 42."
-    assert "render" not in out["visual_context"][0]
+    # A hosted model reads the candidate pages together, rendered as PNG, and answers from them first;
+    # a short document in scope is read whole.
+    assert [n for n, _ in seen] == [2] and all(img == b"\x89PNG\r\n\x1a\n" for _, img in seen)
+    seen.clear()
+    assert agent.run({**state([2, 1], asked=True), "document_ids": ["doc_v"]})["visual_context"]
+    assert [n for n, _ in seen] == [1, 2, 3]
+    reading, page = out["visual_context"]
+    assert reading["page"] == 2 and reading["analysis"] == "Answer read from page(s) 2: Revenue by region; Asia is 42."
+    assert page["page"] == 2 and "Asia 42" in page["analysis"] and "render" not in page
     # A page the question names comes first when its text was not retrieved.
     named = {**state([1]), "user_query": "What is in the box on page 3?"}
     assert agent.visual_pages(named) and [c["page"] for c in agent._page_candidates(named, strict=True)] == [3]
@@ -513,3 +631,23 @@ def test_mcp_server_speaks_json_rpc():
     missing = mcp_server.handle({"jsonrpc": "2.0", "id": 3, "method": "tools/call", "params": {"name": "nope"}})
     assert missing["error"]["code"] == -32602
     json.dumps(init)  # serialisable
+
+
+def test_the_reranker_moves_to_the_cpu_when_the_gpu_runs_out_of_memory():
+    from retrieval.reranker import ChunkReranker
+
+    class Model:
+        device = "mps"
+
+        def to(self, device):
+            self.device = device
+            return self
+
+        def predict(self, pairs, **k):
+            if self.device != "cpu":
+                raise RuntimeError("MPS backend out of memory (MPS allocated: 3.02 GiB, other allocations: 27.19 GiB)")
+            return [2.0 if "receivables" in text else -2.0 for _, text in pairs]
+    reranker = ChunkReranker.__new__(ChunkReranker)
+    reranker.model, reranker.model_name, reranker._outputs_logits = Model(), "stub", True
+    scores = reranker.score_pairs("net AR", ["Trade receivables, net 1,615.9", "The weather was fine"])
+    assert reranker.model.device == "cpu" and scores[0] > 0.8 > 0.2 > scores[1]  # cross-encoder scores, not word overlap
