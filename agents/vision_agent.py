@@ -485,8 +485,11 @@ class VisionAgent:
         query = state.get("user_query", "")[:800]
         found: Dict[int, List[str]] = {}
         missed: List[int] = []
-        for first in range(1, count + 1, SCAN_BATCH):
-            batch = list(range(first, min(first + SCAN_BATCH, count + 1)))
+        # A short document is scanned in one request, so every page is seen next to the others
+        # ("distinct images", "like the first figure"); a long one a batch at a time.
+        size = count if count <= WHOLE_READ_PAGES else SCAN_BATCH
+        for first in range(1, count + 1, size):
+            batch = list(range(first, min(first + size, count + 1)))
             try:
                 images = [(n, self._render(path, n, px=SCAN_RENDER_PX)) for n in batch]
                 self._pace(model, len(images))
