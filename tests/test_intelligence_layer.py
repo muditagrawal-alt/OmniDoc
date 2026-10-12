@@ -154,6 +154,19 @@ def test_graph_batches_are_asked_in_parallel_and_written_in_order(monkeypatch):
     assert written == [f"d_p1_c{i}" for i in (0, 1, 2, 3, 8, 9, 10, 11, 4, 5, 6, 7)]  # in order; the retried batch last
 
 
+def test_a_per_minute_quota_is_not_mistaken_for_a_daily_one(monkeypatch):
+    from types import SimpleNamespace
+    p = P.REGISTRY["gemini"]
+    per_minute = ('[{"error": {"code": 429, "message": "You exceeded your current quota.", "details": [{"violations": '
+                  '[{"quotaId": "GenerateRequestsPerMinutePerProjectPerModel-FreeTier"}]}, {"retryDelay": "17s"}]}}]')
+    per_day = per_minute.replace("PerMinute", "PerDay")
+    for body, low, high in ((per_minute, 19, 21), (per_day, 3599, 3601)):  # 17 s asked, 20 s at least
+        P._cooldown.clear()
+        with pytest.raises(P.ProviderError):
+            P._raise_for(p, SimpleNamespace(status_code=429, text=body, headers={}))
+        assert low <= P.wait_seconds(p, 100) <= high
+
+
 def test_think_filter_handles_tags_split_across_pieces():
     f = P.ThinkFilter()
     text = "".join(f.feed(p) for p in ["Ans", "<thi", "nk>secret</th", "ink>wer"]) + f.flush()
