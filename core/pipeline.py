@@ -376,11 +376,14 @@ class AgenticGraphRAGPipeline:
 
         return parsed_doc
 
-    def _index_chunks(self, title: str, chunks: List[Any], overview: str = "") -> None:
-        """Embeds chunks with their document/section context (and overview) and stores them."""
+    def _index_chunks(self, title: str, chunks: List[Any], overview: str = "", replace: bool = True) -> None:
+        """
+        Embeds chunks with their document/section context (and overview) and stores them; with
+        ``replace`` they become the document's only chunks, otherwise they join its others.
+        """
         search_texts = [contextual_text(title, c.section_title or "", c.text, overview) for c in chunks]
         embeddings = self.embed_service.embed_texts(search_texts)
-        self.lance_store.add_chunks(chunks, embeddings, search_texts=search_texts)
+        self.lance_store.add_chunks(chunks, embeddings, search_texts=search_texts, replace=replace)
 
     def _contextualize(self, doc_id: str, title: str, chunks: List[Any]) -> None:
         """Re-indexes a document's chunks with the first sentence of its summary as context."""
@@ -407,7 +410,7 @@ class AgenticGraphRAGPipeline:
                   for page, text in captions]
         summary = self.summarizer.load(doc_id) or {}
         first = re.split(r"(?<=[.!?])\s+", (summary.get("summary") or "").strip(), maxsplit=1)[0][:240]
-        self._index_chunks(title, chunks, first)
+        self._index_chunks(title, chunks, first, replace=False)  # added to the document's text, not instead of it
         logger.info(f"Indexed descriptions of {len(chunks)} picture page(s) of {doc_id}.")
         return len(chunks)
 
