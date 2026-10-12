@@ -1,0 +1,22 @@
+{
+ "label": "revision-c",
+ "split": "test",
+ "started": "2026-10-13T00:27:16",
+ "commit": "991bbaa",
+ "uncommitted_changes": false,
+ "benchmarks": [
+  "mmlongbench",
+  "financebench"
+ ],
+ "settings": {
+  "provider": "nvidia",
+  "model": "nvidia:nvidia/nemotron-3-super-120b-a12b",
+  "vision": "gemini:gemini-3.5-flash-lite",
+  "embed": "nomic-embed-text",
+  "judge": "groq:openai/gpt-oss-120b"
+ },
+ "work": "/Users/muditagrawal/Projects/zee work/OmniDoc/benchmarks/work/revC",
+ "scope": "each question is asked about its own document (document_ids = [doc]); web search off",
+ "pacing": "20s between questions; answers that failed are asked again up to 5 times",
+ "notes": "Revision C, on top of revision B with its indexing bug fixed (picture descriptions now join a document's text instead of replacing it). Evidence: retrieval hands on 10 passages (was 6); the financial statements a question needs and the pages it names are given whole and always kept by evidence selection (the reranker scores pages of numbers low); statements come from the page window where the three primary statements sit together, not from five-year summaries, and are also fetched for cash, leverage and return ratios; passages may be 2,400 characters (whole pages 7,000). Finance: a filing's names for the line items a question uses are searched too (net AR = trade receivables, COGS = cost of sales...), and the writer and the calculation step get the standard definitions of the metrics the question names. Writer: computes from the figures in the evidence instead of declining, answers yes/no and how-many questions first, says the documents lack a thing (not \"none\") when the evidence is silent, and is told which names in the question appear nowhere in the document. Vision: a hosted model reads the candidate pages together and answers from them; PDFs of up to 50 pages are read whole, at full resolution, for every question; questions about the whole document (how many photos, which page) scan every page. Robustness and speed: the graph database's cache is capped at 512 MB (it grew to 33 GB), the reranker moves to the CPU when the GPU runs out of memory, a per-minute quota no longer pauses a provider for an hour, page descriptions are paced, and a document's graph batches are asked three at a time. Index rebuilt in benchmarks/work/revC. During indexing one knowledge-graph batch of the MMLongBench-Doc report fdac8d1e... timed out on NVIDIA twice, so 4 of its 40 graph passages have no entities (its text was indexed in full)."
+}
