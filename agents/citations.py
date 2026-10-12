@@ -12,8 +12,9 @@ import json
 from typing import Any, Dict, List, Optional, Tuple
 
 SNIPPET_CHARS = 320
-PROMPT_TEXT_CHARS = 1600
-MAX_EVIDENCE_ITEMS = 12
+PROMPT_TEXT_CHARS = 2400
+FULL_PAGE_TEXT_CHARS = 7000   # a whole page (a financial statement, a page the question names)
+MAX_EVIDENCE_ITEMS = 18
 
 KIND_BY_SOURCE_TYPE = {
     "vector_chunk": "chunk",
@@ -88,7 +89,7 @@ def _chunk_title(section: str, page: Optional[int]) -> str:
 
 
 def _new_source(kind: str, text: str, *, doc_id: str = "", chunk_id: str = "", page: Optional[int] = None,
-                section: str = "", title: str = "", score: Optional[float] = None) -> Dict[str, Any]:
+                section: str = "", title: str = "", score: Optional[float] = None, full_page: bool = False) -> Dict[str, Any]:
     return {
         "kind": kind,
         "doc_id": str(doc_id or ""),
@@ -98,7 +99,7 @@ def _new_source(kind: str, text: str, *, doc_id: str = "", chunk_id: str = "", p
         "title": title or KIND_LABELS.get(kind, kind),
         "snippet": _snippet(text),
         "score": score,
-        "_text": str(text or "")[:PROMPT_TEXT_CHARS],
+        "_text": str(text or "")[:FULL_PAGE_TEXT_CHARS if full_page else PROMPT_TEXT_CHARS],
     }
 
 
@@ -118,7 +119,8 @@ def _from_evidence_item(item: Any) -> Dict[str, Any]:
         title = _chunk_title(section, page)
     chunk_id = prov.get("chunk_id") or (_get(item, "source_id", "") if kind == "chunk" else "")
     return _new_source(kind, content, doc_id=prov.get("doc_id", ""), chunk_id=chunk_id, page=page,
-                       section=section, title=title, score=_score(_get(item, "relevance_score")))
+                       section=section, title=title, score=_score(_get(item, "relevance_score")),
+                       full_page=bool(prov.get("full_page")))
 
 
 def _chunk_sources(chunks: List[Dict[str, Any]], limit: int) -> List[Dict[str, Any]]:
