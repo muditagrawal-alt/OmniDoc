@@ -124,6 +124,36 @@ def test_graph_batches_cut_off_ask_again_for_the_missing_chunks(monkeypatch):
     assert len(calls) == 2 and "[C1] Acme report part 1." in calls[1] and created == 3
 
 
+def test_graph_batches_are_asked_in_parallel_and_written_in_order(monkeypatch):
+    import threading
+    import time
+    from types import SimpleNamespace
+    from graph.extractor import GraphExtractor
+    lock, active, peak, seen = threading.Lock(), [0], [0], []
+
+    def reply(model, prompt, **k):
+        with lock:
+            active[0] += 1
+            peak[0] = max(peak[0], active[0])
+            seen.append(prompt)
+        time.sleep(0.15)
+        with lock:
+            active[0] -= 1
+        if "part 5." in prompt and sum("part 5." in p for p in seen) == 1:
+            raise RuntimeError("rate limit")  # the second batch fails once and is asked again at the end
+        ids = [i for i in ("C1", "C2", "C3", "C4") if f"[{i}]" in prompt]
+        return {"chunks": [{"id": i, "entities": [{"name": "Acme", "category": "org", "description": "x"}]} for i in ids]}
+    monkeypatch.setattr(U, "chat_json", reply)
+    written = []
+    store = SimpleNamespace(add_chunk=lambda **k: written.append(k["chunk_id"]), link_chunk_to_entity=lambda *a: None,
+                            add_relation=lambda **k: None, add_entity=lambda **k: None)
+    chunks = [SimpleNamespace(chunk_id=f"d_p1_c{i}", page_number=1, section_title="S", text=f"Acme report part {i}.")
+              for i in range(12)]
+    created = GraphExtractor(store, "nvidia:x").extract_batch("d", chunks)
+    assert peak[0] >= 2 and created == 12 and len(seen) == 4      # three batches at once, one asked again
+    assert written == [f"d_p1_c{i}" for i in (0, 1, 2, 3, 8, 9, 10, 11, 4, 5, 6, 7)]  # in order; the retried batch last
+
+
 def test_think_filter_handles_tags_split_across_pieces():
     f = P.ThinkFilter()
     text = "".join(f.feed(p) for p in ["Ans", "<thi", "nk>secret</th", "ink>wer"]) + f.flush()
