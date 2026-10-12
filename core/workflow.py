@@ -360,14 +360,15 @@ class OmniDocWorkflow:
 
     def _vision_retrieval_step(self, state: AgentWorkflowState) -> Dict[str, Any]:
         """
-        Reads figures when the question is about one, or when the best passages sit on pages
-        that are mostly pictures or charts (slides, brochures, infographics), whose content the
-        text layer misses.
+        Reads figures when the question is about one, when the best passages sit on pages that
+        are mostly pictures or charts (slides, brochures, infographics), whose content the text
+        layer misses, when the question is about the whole document, and for every question
+        about a short PDF (read whole by a hosted vision model).
         """
         if not self.vision_agent:
             return {}
         wanted = (self._needs(state).get("figures") or self.vision_agent.visual_pages(state)
-                  or scan_kind(state.get("user_query", "")))
+                  or scan_kind(state.get("user_query", "")) or self.vision_agent.short_document(state))
         if wanted and self._allow(state, "vision", 2):
             return self.vision_agent.run(state)
         return {}
