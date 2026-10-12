@@ -131,11 +131,13 @@ class LanceDBStore:
             logger.warning(f"FTS index build skipped: {e}")
 
     def add_chunks(self, chunks: List[RetrievedChunk], embeddings: List[List[float]],
-                   search_texts: Optional[List[str]] = None):
+                   search_texts: Optional[List[str]] = None, replace: bool = True):
         """
-        Adds document chunks and vectors to LanceDB (re-ingesting a document replaces its rows).
-        ``search_texts`` (the chunk with its document and section context) feed BM25 when the
-        table has that column; ``text`` stays the passage shown and cited.
+        Adds document chunks and vectors to LanceDB. With ``replace`` (re-ingesting a document)
+        the documents' existing rows are dropped first; otherwise the chunks join them (only
+        rows with the same ids are replaced). ``search_texts`` (the chunk with its document and
+        section context) feed BM25 when the table has that column; ``text`` stays the passage
+        shown and cited.
         """
         if not chunks or not embeddings:
             return
@@ -158,10 +160,14 @@ class LanceDBStore:
             records.append(row)
 
         if self._ensure_table():
-            # Idempotent re-ingest: drop existing rows of these documents first.
+            # Idempotent: a re-ingested document replaces all its rows, added chunks their own.
             doc_ids = sorted({r["doc_id"] for r in records})
             try:
-                expr = doc_filter_expr(doc_ids)
+                if replace:
+                    expr = doc_filter_expr(doc_ids)
+                else:
+                    ids = [r["id"] for r in records if is_safe_id(r["id"])]
+                    expr = "id IN (" + ", ".join(_quote(i) for i in ids) + ")" if ids else None
                 if expr:
                     self.table.delete(expr)
             except Exception as e:
