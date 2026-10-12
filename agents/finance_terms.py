@@ -93,7 +93,7 @@ NOT_MEANINGFUL = re.compile(r"not (a )?(useful|meaningful|relevant)", re.I)
 
 def notes_for(question: str) -> str:
     """Definitions and line-item names for the financial metrics the question names ("" when none)."""
-    q = question or ""
+    q = (question or "").replace("_", " ")  # "cash_ratio"
     lines = [d for pattern, d in DEFINITIONS if re.search(pattern, q, re.I)]
     lines += [n for pattern, n in NAMES if re.search(pattern, q, re.I)]
     if not lines:
@@ -115,7 +115,8 @@ def notes_for(question: str) -> str:
 def search_terms(question: str) -> str:
     """The words a filing uses for the items the question names, as one extra search query ("" if none)."""
     words: List[str] = []
+    question = (question or "").replace("_", " ")
     for pattern, terms in SYNONYMS:
-        if re.search(pattern, question or "", re.I):
+        if re.search(pattern, question, re.I):
             words += [w for w in terms.split() if w not in words]
     return " ".join(words)
