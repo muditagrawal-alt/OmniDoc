@@ -1,0 +1,198 @@
+{
+ "run": "2026-10-13_revision-c_991bbaa",
+ "label": "revision-c",
+ "commit": "991bbaa",
+ "uncommitted_changes": false,
+ "settings": {
+  "provider": "nvidia",
+  "model": "nvidia:nvidia/nemotron-3-super-120b-a12b",
+  "vision": "gemini:gemini-3.5-flash-lite",
+  "embed": "nomic-embed-text",
+  "judge": "groq:openai/gpt-oss-120b"
+ },
+ "notes": "Revision C, on top of revision B with its indexing bug fixed (picture descriptions now join a document's text instead of replacing it). Evidence: retrieval hands on 10 passages (was 6); the financial statements a question needs and the pages it names are given whole and always kept by evidence selection (the reranker scores pages of numbers low); statements come from the page window where the three primary statements sit together, not from five-year summaries, and are also fetched for cash, leverage and return ratios; passages may be 2,400 characters (whole pages 7,000). Finance: a filing's names for the line items a question uses are searched too (net AR = trade receivables, COGS = cost of sales...), and the writer and the calculation step get the standard definitions of the metrics the question names. Writer: computes from the figures in the evidence instead of declining, answers yes/no and how-many questions first, says the documents lack a thing (not \"none\") when the evidence is silent, and is told which names in the question appear nowhere in the document. Vision: a hosted model reads the candidate pages together and answers from them; PDFs of up to 50 pages are read whole, at full resolution, for every question; questions about the whole document (how many photos, which page) scan every page. Robustness and speed: the graph database's cache is capped at 512 MB (it grew to 33 GB), the reranker moves to the CPU when the GPU runs out of memory, a per-minute quota no longer pauses a provider for an hour, page descriptions are paced, and a document's graph batches are asked three at a time. Index rebuilt in benchmarks/work/revC. During indexing one knowledge-graph batch of the MMLongBench-Doc report fdac8d1e... timed out on NVIDIA twice, so 4 of its 40 graph passages have no entities (its text was indexed in full).",
+ "caveat": "",
+ "graded": 89,
+ "benchmarks": {
+  "mmlongbench": {
+   "n": 53,
+   "accuracy": 0.6415094339622641,
+   "accuracy_ci95": [
+    0.5069089329999881,
+    0.7569823015887636
+   ],
+   "wrong": 0.3018867924528302,
+   "declined": 0.05660377358490566,
+   "answerable_accuracy": 0.627906976744186,
+   "unanswerable_n": 10,
+   "unanswerable_accuracy": 0.7,
+   "f1": 0.627906976744186,
+   "gold_page_retrieved": 0.9523809523809523,
+   "gold_page_cited": 0.7380952380952381,
+   "first_word_p50_s": 9.67,
+   "first_word_p90_s": 15.27,
+   "answer_p50_s": 11.21,
+   "answer_p90_s": 18.89,
+   "model_calls_mean": 3.188679245283019,
+   "tokens_mean": 28559.490566037737,
+   "errors": 0,
+   "retried": 0,
+   "verified_mean": 0.9782608695652174,
+   "by_evidence": {
+    "(unspecified)": {
+     "n": 1,
+     "accuracy": 0.0
+    },
+    "Chart": {
+     "n": 5,
+     "accuracy": 0.6
+    },
+    "Figure": {
+     "n": 22,
+     "accuracy": 0.5909090909090909
+    },
+    "Generalized-text": {
+     "n": 4,
+     "accuracy": 0.5
+    },
+    "Multi-page": {
+     "n": 13,
+     "accuracy": 0.23076923076923078
+    },
+    "Not answerable": {
+     "n": 10,
+     "accuracy": 0.7
+    },
+    "Pure-text": {
+     "n": 11,
+     "accuracy": 0.7272727272727273
+    },
+    "Single-page": {
+     "n": 30,
+     "accuracy": 0.8
+    },
+    "Table": {
+     "n": 6,
+     "accuracy": 0.6666666666666666
+    }
+   },
+   "by_doc_type": {
+    "Academic paper": {
+     "n": 9,
+     "accuracy": 0.3333333333333333
+    },
+    "Administration/Industry file": {
+     "n": 7,
+     "accuracy": 0.5714285714285714
+    },
+    "Brochure": {
+     "n": 7,
+     "accuracy": 1.0
+    },
+    "Financial report": {
+     "n": 8,
+     "accuracy": 0.875
+    },
+    "Guidebook": {
+     "n": 9,
+     "accuracy": 0.5555555555555556
+    },
+    "Research report / Introduction": {
+     "n": 7,
+     "accuracy": 0.5714285714285714
+    },
+    "Tutorial/Workshop": {
+     "n": 6,
+     "accuracy": 0.6666666666666666
+    }
+   },
+   "ingestion": {
+    "documents": 7,
+    "chunks": 694,
+    "upload_s": 159.1,
+    "background_s": 1802.9,
+    "index_commit": "991bbaa"
+   }
+  },
+  "financebench": {
+   "n": 36,
+   "accuracy": 0.6944444444444444,
+   "accuracy_ci95": [
+    0.5314342132091627,
+    0.8199572971719464
+   ],
+   "wrong": 0.2222222222222222,
+   "declined": 0.08333333333333333,
+   "answerable_accuracy": 0.6944444444444444,
+   "unanswerable_n": 0,
+   "unanswerable_accuracy": null,
+   "f1": 0.7246376811594203,
+   "gold_page_retrieved": 0.9166666666666666,
+   "gold_page_cited": 0.8333333333333334,
+   "first_word_p50_s": 10.45,
+   "first_word_p90_s": 20.05,
+   "answer_p50_s": 15.44,
+   "answer_p90_s": 30.02,
+   "model_calls_mean": 4.861111111111111,
+   "tokens_mean": 24384.583333333332,
+   "errors": 0,
+   "retried": 0,
+   "verified_mean": 0.8384166666666667,
+   "by_type": {
+    "domain-relevant": {
+     "n": 12,
+     "accuracy": 0.5
+    },
+    "metrics-generated": {
+     "n": 12,
+     "accuracy": 0.9166666666666666
+    },
+    "novel-generated": {
+     "n": 12,
+     "accuracy": 0.6666666666666666
+    }
+   },
+   "by_reasoning": {
+    "-": {
+     "n": 12,
+     "accuracy": 0.6666666666666666
+    },
+    "Information extraction": {
+     "n": 5,
+     "accuracy": 0.8
+    },
+    "Logical reasoning (based on numerical reasoning)": {
+     "n": 2,
+     "accuracy": 0.5
+    },
+    "Logical reasoning (based on numerical reasoning) OR Logical reasoning": {
+     "n": 1,
+     "accuracy": 1.0
+    },
+    "Logical reasoning (based on numerical reasoning) OR Numerical reasoning OR Logical reasoning": {
+     "n": 1,
+     "accuracy": 0.0
+    },
+    "Numerical reasoning": {
+     "n": 11,
+     "accuracy": 0.9090909090909091
+    },
+    "Numerical reasoning OR Logical reasoning": {
+     "n": 3,
+     "accuracy": 0.3333333333333333
+    },
+    "Numerical reasoning OR information extraction": {
+     "n": 1,
+     "accuracy": 0.0
+    }
+   },
+   "ingestion": {
+    "documents": 24,
+    "chunks": 10574,
+    "upload_s": 1517.4,
+    "background_s": 3427.5,
+    "index_commit": "991bbaa"
+   }
+  }
+ }
+}
