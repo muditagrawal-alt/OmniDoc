@@ -744,6 +744,7 @@ def report(args: argparse.Namespace) -> None:
             rows.append(r)
         summary: Dict[str, Any] = {"run": run_dir.name, "label": config["label"], "commit": config["commit"],
                                    "uncommitted_changes": config.get("uncommitted_changes"), "settings": config["settings"],
+                                   "notes": config.get("notes") or "", "caveat": config.get("caveat") or "",
                                    "graded": sum(1 for r in rows if r["j"].get("correct") is not None), "benchmarks": {}}
         for bench in config["benchmarks"]:
             br = [r for r in rows if r["benchmark"] == bench]
@@ -779,6 +780,10 @@ def render_report(summary: Dict[str, Any], rows: List[Dict[str, Any]]) -> str:
            f"Commit `{summary['commit']}`{' (with uncommitted changes)' if summary.get('uncommitted_changes') else ''}. "
            f"Answer model `{st['model']}` (provider `{st['provider']}` only, no fallback), vision `{st['vision']}`, "
            f"embeddings `{st['embed']}`, judge `{st['judge']}`. Each question is asked about its own document, web search off.", ""]
+    if summary.get("caveat"):
+        out += [f"**Caveat:** {summary['caveat']}", ""]
+    if summary.get("notes"):
+        out += [f"Notes: {summary['notes']}", ""]
     for bench, s in summary["benchmarks"].items():
         lo, hi = s["accuracy_ci95"]
         out += [f"## {NAMES.get(bench, bench)} ({s['n']} questions)", "",
@@ -844,11 +849,13 @@ def write_history() -> None:
             f"{statistics.mean([b['model_calls_mean'] for b in both if b.get('model_calls_mean') is not None]):.1f}"
             if any(b.get("model_calls_mean") is not None for b in both) else "-",
         ]) + " |")
+    caveats = [f"- **{s['run']}**: {s['caveat']}" for s in (json.loads(p.read_text()) for p in sorted(RESULTS.glob("*/summary.json")))
+               if s.get("caveat")]
     text = ["# Benchmark history", "",
             "Every run of `benchmarks/bench.py` on the same fixed question sets (see `benchmarks/README.md`).",
             "Accuracy is graded by the judge model against the benchmark's reference answers.", "",
             "| Run | Commit | Answer model | FinanceBench | MMLongBench-Doc | MMLB F1 | Unanswerable declined | Gold page cited | First word (median) | Full answer (median) | Model calls / question |",
-            "|---|---|---|---|---|---|---|---|---|---|---|", *rows]
+            "|---|---|---|---|---|---|---|---|---|---|---|", *rows] + (["", "Caveats:", "", *caveats] if caveats else [])
     (RESULTS / "HISTORY.md").write_text("\n".join(text) + "\n")
 
 
