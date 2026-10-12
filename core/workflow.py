@@ -46,7 +46,7 @@ from agents.hybrid_agent import HybridRetrievalAgent
 from agents.document_intelligence_agent import DocumentIntelligenceAgent
 from agents.temporal_reasoning_agent import TemporalReasoningAgent
 from agents.structured_data_agent import StructuredDataAgent
-from agents.vision_agent import VisionAgent
+from agents.vision_agent import VisionAgent, scan_kind
 from agents.evidence_selection_agent import EvidenceSelectionAgent
 from agents.conflict_resolution_agent import ConflictResolutionAgent
 from agents.math_agent import MathematicsAgent
@@ -366,7 +366,8 @@ class OmniDocWorkflow:
         """
         if not self.vision_agent:
             return {}
-        wanted = self._needs(state).get("figures") or self.vision_agent.visual_pages(state)
+        wanted = (self._needs(state).get("figures") or self.vision_agent.visual_pages(state)
+                  or scan_kind(state.get("user_query", "")))
         if wanted and self._allow(state, "vision", 2):
             return self.vision_agent.run(state)
         return {}
@@ -484,6 +485,7 @@ class OmniDocWorkflow:
             "needs": {"web_mode": web_mode if web_mode in ("auto", "on", "off") else "auto"},
             "answer_language": "en",
             "time_filter": None,
+            "absent_terms": [],
             "timeline": [],
             "semantic_query": None,
             "memory_state": None,
