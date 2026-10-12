@@ -7,9 +7,16 @@ case nothing leaves the machine.
 For PDFs and images the agent looks at whole pages, rendered from the stored upload when the
 question is asked: the best-matching pages that carry pictures or charts, and pages the question
 names, so a figure is read together with its labels, legend and caption, as a person sees it.
-Pages are read in parallel. It also runs without being asked when the best passages sit on
-pages that are mostly pictures or charts (slides, brochures, infographics), whose content the
-text layer misses.
+A hosted model reads them together in one request and answers from them, citing the pages; a
+local model reads them one at a time. It also runs without being asked when the best passages
+sit on pages that are mostly pictures or charts (slides, brochures, infographics), whose
+content the text layer misses.
+
+A short PDF (at most OMNIDOC_VISION_WHOLE_PAGES pages) is read whole, every page in one request,
+so a picture or layout the text search cannot find is still seen. A question about the document
+as a whole ("how many photos does this report have?", "which page has the snowflake?") is
+answered from a scan of every page, a batch of pages per request, listing what each page shows
+of the thing asked about; the writer counts from that list.
 
 At ingestion it also describes the pages that are mostly pictures or charts and carry
 little text (``caption_pages``); the pipeline indexes those descriptions as passages, so a
@@ -28,7 +35,7 @@ import threading
 from typing import Any, Dict, List, Optional, Set, Tuple
 
 from core.state import AgentWorkflowState
-from agents.llm_utils import get_client, trace, vision_chat
+from agents.llm_utils import get_client, parse_llm_json, trace, vision_chat, vision_chat_pages
 from agents import llm_providers
 from agents.document_intelligence_agent import DocumentIntelligenceAgent
 
@@ -40,6 +47,15 @@ MAX_FIGURES = int(os.getenv("OMNIDOC_VISION_MAX_FIGURES", "2"))
 
 # Rendered page size: the longer side in pixels.
 RENDER_PX = int(os.getenv("OMNIDOC_VISION_RENDER_PX", "1600"))
+# Pages a hosted model reads together for one question; a PDF this short is read whole.
+READ_PAGES = int(os.getenv("OMNIDOC_VISION_PAGES", "6"))
+WHOLE_READ_PAGES = int(os.getenv("OMNIDOC_VISION_WHOLE_PAGES", "40"))
+MAX_PAGE_FINDINGS = 12    # page findings passed on from one reading (the answer comes first)
+# Whole-document scans: at most this many pages, a batch per request, rendered smaller.
+SCAN_MAX_PAGES = int(os.getenv("OMNIDOC_VISION_SCAN_PAGES", "160"))
+SCAN_BATCH = 12
+SCAN_RENDER_PX = 1100
+SCAN_WAIT_S = 60          # longest wait for the vision model's rate limit between batches
 # A page carries a real figure when images cover this share of it (small logos and banners
 # stay below), or when it has a chart drawn as vectors: curves, or many lines. Rectangles do not
 # count: financial statements and other tables are drawn with hundreds of filled cells.
@@ -57,6 +73,13 @@ CAPTION_MAX_PAGES = int(os.getenv("OMNIDOC_CAPTION_MAX_PAGES", "30"))
 CAPTION_TEXT_CHARS = 800
 
 _FIGURE_RE = re.compile(r"^p(\d+)_(?:img(\d+)|page)\.(?:png|jpe?g)$", re.IGNORECASE)
+# Questions about the document as a whole: counting things across it, or finding the page of one.
+_COUNT_Q = re.compile(r"\bhow many\b", re.I)
+_LOCATE_Q = re.compile(r"\b(which|what) (page|slide)s?\b|\bon which (page|slide)", re.I)
+_DOC_SCOPE = re.compile(r"\b(this|the) (paper|report|document|slides?|slide deck|deck|presentation|guide|manual|brochure|"
+                        r"booklet|book|file|handbook|tutorial|article)\b|\bin (the )?slides?\b|\bin (total|all)\b|\bacross\b", re.I)
+_VISUAL_ITEMS = re.compile(r"\b(photos?|photographs?|images?|pictures?|figures?|charts?|plots?|graphs?|diagrams?|maps?|"
+                           r"logos?|icons?|screenshots?|illustrations?|tables?|people|persons?|faces?)\b", re.I)
 _DOC_ID_RE = re.compile(r"^[A-Za-z0-9_\-.]+$")
 
 PROMPT = """You are reading a figure from a document to help answer a question.
@@ -79,6 +102,34 @@ tables and their titles, axis labels, legends, captions and annotations. Transcr
 names and labels exactly as printed; count items carefully when the question asks how many;
 do not estimate values you cannot read. If nothing on the page is relevant, say so in one sentence.
 Answer in plain prose, at most 180 words."""
+
+
+READ_PROMPT = """You are reading pages {pages} of a document, rendered as images (each image is preceded by its page number), to answer a question.
+
+Question: {query}
+
+Look at everything on these pages: text, tables, charts, maps, diagrams, photos, logos, screenshots, their colours and positions. Transcribe numbers, names and labels exactly; count carefully when the question asks how many; do not guess what you cannot read.
+Return JSON only:
+{{"pages": [{{"page": <page number>, "finding": "<what this page shows that bears on the question>"}}], "answer": "<the answer from these pages, or NOT FOUND>", "answer_pages": [<the pages the answer comes from>]}}
+Leave out pages with nothing relevant."""
+
+SCAN_PROMPT = """You are checking pages {first} to {last} of a document, rendered as images (each image is preceded by its page number), for this question about the whole document:
+
+{query}
+
+For every page, list each thing on it that the question asks about, one entry per occurrence, each described in a few words with its exact label, name or colour. Use an empty list for a page with none. Do not answer the question itself.
+Return JSON only: {{"pages": [{{"page": <page number>, "items": ["..."]}}]}}"""
+
+
+def scan_kind(query: str) -> Optional[str]:
+    """"count" or "locate" for a question about the document as a whole, else None (pages it names are read directly)."""
+    if any(k == "page" for k, _ in DocumentIntelligenceAgent.references(query or "")):
+        return None
+    if _LOCATE_Q.search(query or ""):
+        return "locate"
+    if _COUNT_Q.search(query or "") and (_DOC_SCOPE.search(query) or _VISUAL_ITEMS.search(query)):
+        return "count"
+    return None
 
 
 CAPTION_PROMPT = """Describe page {page} of the document "{title}" for a search index.
@@ -126,18 +177,35 @@ class VisionAgent:
 
     def run(self, state: AgentWorkflowState) -> Dict[str, Any]:
         started = time.perf_counter()
+        query = state.get("user_query", "")
+        model = self._resolve_model()
+        hosted = bool(model) and llm_providers.parse_spec(model)[0] != "ollama"
+        kind = scan_kind(query)
+        if kind and hosted:
+            findings, detail = self._scan(model, state, kind)
+            if findings:
+                return {"visual_context": findings, "agent_traces": [trace("vision_agent", "completed", detail, started)]}
+
         asked = bool((state.get("needs") or {}).get("figures"))
-        figures = self._page_candidates(state, strict=not asked) or (self._candidate_figures(state) if asked else [])
-        if not figures:
+        limit = READ_PAGES if hosted else self.max_figures
+        figures = self._page_candidates(state, strict=not asked, limit=limit) or (self._candidate_figures(state) if asked else [])
+        if not figures and not (hosted and self._whole_document(state)):
             return {"visual_context": [],
                     "agent_traces": [trace("vision_agent", "skipped", "No figures in the selected documents.", started)]}
-
-        model = self._resolve_model()
         if not model:
             return {"visual_context": [],
                     "agent_traces": [trace("vision_agent", "skipped", "No local vision model is installed.", started)]}
 
-        query = state.get("user_query", "")
+        whole = self._whole_document(state) if hosted else []
+        rendered = whole or [f for f in figures[:limit] if f.get("render")]
+        if hosted and rendered:
+            findings = self._read_pages(model, rendered, query, px=SCAN_RENDER_PX if whole else RENDER_PX)
+            if findings:
+                pages = sorted({f["page"] for f in rendered})
+                what = f"all {len(pages)} pages" if whole else f"pages {', '.join(map(str, pages))}"
+                detail = f"{what} read together with {model}" + ("" if asked or whole else " (pages mostly pictures or charts)")
+                return {"visual_context": findings, "agent_traces": [trace("vision_agent", "completed", detail, started)]}
+
         chosen = figures[: self.max_figures]
         with ThreadPoolExecutor(max_workers=max(1, len(chosen))) as pool:
             analyses = list(pool.map(lambda fig: self._analyze(model, fig, query), chosen))
@@ -185,7 +253,7 @@ class VisionAgent:
         chart = min(1.0, curves / 100 + lines / 1000) if curves >= CHART_CURVES or lines >= CHART_LINES else 0.0
         return min(1.0, covered / area), chart, scan
 
-    def _page_candidates(self, state: AgentWorkflowState, strict: bool) -> List[Dict[str, Any]]:
+    def _page_candidates(self, state: AgentWorkflowState, strict: bool, limit: Optional[int] = None) -> List[Dict[str, Any]]:
         """
         Pages worth looking at, best first. ``strict`` (the question did not ask about a figure)
         keeps only pages the question names and top retrieved pages that carry a real figure,
@@ -194,6 +262,7 @@ class VisionAgent:
         retrieved documents (a map or chart with no words around it is rarely found by the text
         search), then retrieved pages with any picture.
         """
+        limit = limit or self.max_figures
         page_scores = _page_scores(state.get("chunk_context") or [])
         scores = sorted(page_scores.items(), key=lambda kv: -kv[1])
         if strict:
@@ -248,7 +317,7 @@ class VisionAgent:
                     chosen.append((doc_id, page_no))
                 elif not strict and share > 0:
                     weaker.append((doc_id, page_no))
-            if not strict and len(chosen) < self.max_figures:
+            if not strict and len(chosen) < limit:
                 large: List[Tuple[float, str, int]] = []
                 for doc_id in list(dict.fromkeys(d for (d, _), _ in scores))[:2]:
                     doc = open_pdf(doc_id)
@@ -262,7 +331,7 @@ class VisionAgent:
                             large.append((-max(share, chart), doc_id, page_no))
                 chosen += [(d, p) for _, d, p in sorted(large)]
             chosen += [w for w in weaker if w not in chosen] if not strict else []
-            for doc_id, page_no in chosen[: max(0, self.max_figures - len(out))]:
+            for doc_id, page_no in chosen[: max(0, limit - len(out))]:
                 out.append({"figure_id": f"{doc_id}_p{page_no}_render", "doc_id": doc_id, "page": page_no,
                             "caption": f"Page {page_no}", "render": self._upload(doc_id)})
         except Exception as e:
@@ -339,12 +408,117 @@ class VisionAgent:
         return out
 
     @staticmethod
-    def _render(path: str, page_no: int) -> bytes:
+    def _render(path: str, page_no: int, px: int = RENDER_PX) -> bytes:
         import fitz
         with fitz.open(path) as doc:
             page = doc[page_no - 1]
-            zoom = min(3.0, RENDER_PX / max(float(page.rect.width), float(page.rect.height), 1.0))
+            zoom = min(3.0, px / max(float(page.rect.width), float(page.rect.height), 1.0))
             return page.get_pixmap(matrix=fitz.Matrix(zoom, zoom)).tobytes("png")
+
+    # ------------------------------------------------------------------ several pages at once
+    @staticmethod
+    def _pace(model: str, images: int) -> None:
+        """Waits (a minute at most) until the vision model's free tier takes a request of about this size."""
+        p = llm_providers.REGISTRY.get(llm_providers.parse_spec(model)[0])
+        wait = llm_providers.wait_seconds(p, 1100 * images) if p else 0
+        if wait and wait <= SCAN_WAIT_S:
+            time.sleep(wait)
+
+    def _whole_document(self, state: AgentWorkflowState) -> List[Dict[str, Any]]:
+        """Every page of the one short PDF in scope (to be read together), else nothing."""
+        scope = [str(d) for d in (state.get("document_ids") or []) if _DOC_ID_RE.match(str(d))]
+        path = self._upload(scope[0]) if len(scope) == 1 else None
+        if not path or not path.lower().endswith(".pdf"):
+            return []
+        import fitz
+        with fitz.open(path) as doc:
+            count = len(doc)
+        if count > WHOLE_READ_PAGES:
+            return []
+        return [{"figure_id": f"{scope[0]}_p{n}_render", "doc_id": scope[0], "page": n, "caption": f"Page {n}", "render": path}
+                for n in range(1, count + 1)]
+
+    def _read_pages(self, model: str, figs: List[Dict[str, Any]], query: str, px: int = RENDER_PX) -> List[Dict[str, Any]]:
+        """Reads the candidate pages of each document together; findings per page, and the answer they give first."""
+        out: List[Dict[str, Any]] = []
+        for doc_id in dict.fromkeys(f["doc_id"] for f in figs):
+            pages = [f for f in figs if f["doc_id"] == doc_id]
+            try:
+                images = [(f["page"], self._render(f["render"], f["page"], px=px)) for f in pages]
+                self._pace(model, len(images))
+                prompt = READ_PROMPT.format(pages=", ".join(str(n) for n, _ in images), query=query[:800])
+                data = parse_llm_json(vision_chat_pages(model, prompt, images, num_predict=1500))
+            except Exception as e:
+                logger.warning(f"Reading pages {[f['page'] for f in pages]} of {doc_id} failed: {e}")
+                continue
+            if not isinstance(data, dict):
+                continue
+            wanted = {f["page"] for f in pages}
+            answer = str(data.get("answer") or "").strip()
+            answer_pages = [int(n) for n in (data.get("answer_pages") or []) if str(n).isdigit() and int(n) in wanted]
+            if answer and "NOT FOUND" not in answer.upper():
+                where = ", ".join(map(str, answer_pages or sorted(wanted)))
+                out.append({"figure_id": f"{doc_id}_reading", "doc_id": doc_id, "page": (answer_pages or sorted(wanted))[0],
+                            "caption": f"Reading of page(s) {where}", "model": model,
+                            "analysis": f"Answer read from page(s) {where}: {answer}"})
+            kept = 0
+            for item in data.get("pages") or []:
+                try:
+                    page, finding = int(item.get("page")), str(item.get("finding") or "").strip()
+                except (AttributeError, TypeError, ValueError):
+                    continue
+                if page in wanted and finding and kept < MAX_PAGE_FINDINGS:
+                    kept += 1
+                    out.append({"figure_id": f"{doc_id}_p{page}_render", "doc_id": doc_id, "page": page,
+                                "caption": f"Page {page}", "analysis": finding, "model": model})
+        return out
+
+    def _scan(self, model: str, state: AgentWorkflowState, kind: str) -> Tuple[List[Dict[str, Any]], str]:
+        """Every page of the document in scope, a batch at a time: what each shows of the thing asked about."""
+        scope = [str(d) for d in (state.get("document_ids") or []) if _DOC_ID_RE.match(str(d))]
+        path = self._upload(scope[0]) if len(scope) == 1 else None
+        if not path or not path.lower().endswith(".pdf"):
+            return [], ""
+        import fitz
+        with fitz.open(path) as doc:
+            count = min(len(doc), SCAN_MAX_PAGES)
+        query = state.get("user_query", "")[:800]
+        found: Dict[int, List[str]] = {}
+        missed: List[int] = []
+        for first in range(1, count + 1, SCAN_BATCH):
+            batch = list(range(first, min(first + SCAN_BATCH, count + 1)))
+            try:
+                images = [(n, self._render(path, n, px=SCAN_RENDER_PX)) for n in batch]
+                self._pace(model, len(images))
+                data = parse_llm_json(vision_chat_pages(model, SCAN_PROMPT.format(first=batch[0], last=batch[-1], query=query),
+                                                        images, num_predict=1500))
+            except Exception as e:
+                logger.warning(f"Scan of pages {batch[0]}-{batch[-1]} failed: {e}")
+                missed += batch
+                continue
+            for item in (data.get("pages") if isinstance(data, dict) else None) or []:
+                try:
+                    page = int(item.get("page"))
+                except (AttributeError, TypeError, ValueError):
+                    continue
+                items = [str(i).strip() for i in (item.get("items") or []) if str(i).strip()]
+                if page in batch and items:
+                    found[page] = items
+        if len(missed) == count:
+            return [], ""
+        doc_id = scope[0]
+        total = sum(len(v) for v in found.values())
+        pages = sorted(found)
+        summary = (f"A page-by-page scan of all {count} pages for this question found {total} matching item(s) on "
+                   + (f"{len(pages)} page(s): " + ", ".join(f"page {p} ({len(found[p])})" for p in pages) if pages else "no page")
+                   + (f". Pages {missed[0]}-{missed[-1]} could not be read." if missed else "."))
+        out = [{"figure_id": f"{doc_id}_scan", "doc_id": doc_id, "page": pages[0] if pages else 1,
+                "caption": f"Scan of all {count} pages", "analysis": summary, "model": model}]
+        for page in pages[:24]:
+            out.append({"figure_id": f"{doc_id}_p{page}_scan", "doc_id": doc_id, "page": page, "caption": f"Page {page}",
+                        "analysis": f"Page {page}: " + "; ".join(found[page][:20]), "model": model})
+        detail = f"scanned {count} pages ({kind}) with {model}: {total} item(s) on {len(pages)} page(s)"
+        return out, detail
 
     def _scope_doc_ids(self, state: AgentWorkflowState) -> List[str]:
         doc_ids = [str(d) for d in (state.get("document_ids") or []) if _DOC_ID_RE.match(str(d))]
