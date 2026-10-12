@@ -393,6 +393,8 @@ def test_financial_statements_are_added_for_the_figures_a_question_needs():
     assert statements(state["user_query"]) == [59, 61]          # not the contents page that names them
     assert statements("What was the capital expenditure?") == []  # no cash flow statement in this filing
     assert statements("Who is the chief executive?") == []
+    assert statements("What is cash_ratio in FY2021 for Nike?") == [61]
+    assert statements("What is the cash conversion cycle in FY2021?") == [59, 61]
     added = [c for c in agent.run(state)["chunk_context"] if c["retrieval_method"] == "reference"]
     assert {c["chunk_id"] for c in added} == {"d_p59_page", "d_p61_page"} and all(c["full_page"] for c in added)
 
@@ -561,6 +563,7 @@ def test_vision_reads_rendered_pages_that_carry_figures(monkeypatch):
     seen.clear()
     assert agent.run({**state([2, 1], asked=True), "document_ids": ["doc_v"]})["visual_context"]
     assert [n for n, _ in seen] == [1, 2, 3]
+    assert agent.short_document({"document_ids": ["doc_v"]}) and not agent.short_document({"document_ids": []})
     reading, page = out["visual_context"]
     assert reading["page"] == 2 and reading["analysis"] == "Answer read from page(s) 2: Revenue by region; Asia is 42."
     assert page["page"] == 2 and "Asia 42" in page["analysis"] and "render" not in page
