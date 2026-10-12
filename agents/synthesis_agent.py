@@ -11,6 +11,7 @@ from typing import Dict, Any, List
 from core.state import AgentWorkflowState
 from core import streaming
 from agents.llm_utils import chat, chat_stream, trace
+from agents.finance_terms import notes_for
 from agents.citations import (
     sources_from_state,
     public_sources,
@@ -36,8 +37,13 @@ EDITORIAL & PRESENTATION GUIDELINES:
    - Begin with a concise summary sentence or paragraph that directly answers the question.
    - For multi-part or detailed answers, use clean markdown headings (## and ###) for distinct sections; short factual answers need no headings.
    - Present details in fluent prose or cleanly spaced bullet points with bold lead-ins. Never output raw unformatted dumps of the evidence.
-3. Strict Grounding:
-   - Use ONLY facts from the evidence. Do not add outside knowledge, estimates or examples that are not in the evidence. If the required information is genuinely missing, clearly state:
+3. Grounding:
+   - Use ONLY facts from the evidence. Do not add outside facts, figures or examples that are not in the evidence; general definitions (what a ratio means, how units convert) and arithmetic are fine.
+   - Derive what the evidence allows: when the figures needed are in the evidence, compute the answer (name the inputs with their citations, the formula and the result, rounded as asked) instead of saying the documents do not state it; read values off tables, charts and figure analyses; count items when asked how many.
+   - Figure analyses, page readings and page scans come from a vision model that looked at the page images: rely on them for what is visible on a page (pictures, colours, counts, labels, positions), and count from a page scan's list when asked how many.
+   - Answer the question that was asked, first: begin a yes/no answer with "Yes" or "No", give the number for "how many", name the item for "which" or "what".
+   - If the question is about something the evidence never mentions (a product, year, place, person, method, component or item other than the ones the evidence covers), do not answer with something similar: say that the documents do not contain it.
+   - If the required information is genuinely missing, clearly state:
      "{refusal}"
    - If only part of the question is answered by the evidence, answer that part and say plainly what is not covered.
    - If a conflict note is listed, mention the disagreement instead of silently picking one value.
@@ -100,6 +106,16 @@ class SynthesisAgent:
             previous = (state.get("draft_response") or "").strip()[:4000] or "(empty)"
             parts += ["", REFLECTION_SECTION.format(feedback=str(feedback).strip()[:1500], previous=previous)]
 
+        absent = [t for t in (state.get("absent_terms") or []) if isinstance(t, str)]
+        if absent:
+            parts += ["", "NAMES NOT IN THE DOCUMENT: the question mentions " + ", ".join(f'"{t}"' for t in absent)
+                      + ", which the document's text never mentions. Unless such a name is only another way of referring to "
+                        "something the document covers (an abbreviation, nickname or ticker of the same company or thing), or a "
+                        "figure analysis shows it in a picture, the document does not contain the answer: say so instead of "
+                        "answering about something similar."]
+        notes = notes_for(query)
+        if notes:
+            parts += ["", notes]
         parts += ["", f"Answer now, citing evidence as [n] with n between 1 and {len(sources)}."]
         return "\n".join(parts)
 
