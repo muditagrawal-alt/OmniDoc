@@ -109,6 +109,9 @@ Model and search keys are listed in [`.env.example`](.env.example). Other settin
 | `OMNIDOC_WEB_SEARCH` | `auto` | `auto`, `on` or `off` (the interface can override per question) |
 | `OMNIDOC_AUTO_EXTRACT` | `1` | Fill the detected type's template after upload |
 | `OMNIDOC_VISION_MODEL` | Gemini when configured, else the first installed of `qwen3.5:9b`, `gemma4:12b`, `qwen2.5vl:7b` | Model that reads figures |
+| `OMNIDOC_VISION_PAGES` / `OMNIDOC_VISION_WHOLE_PAGES` / `OMNIDOC_VISION_SCAN_PAGES` | `6` / `40` / `160` | Pages a hosted vision model reads together; PDFs this short are read whole; most pages scanned for questions about a whole document ("how many photos does this report have?") |
+| `OMNIDOC_RETRIEVAL_TOP_K` / `OMNIDOC_EVIDENCE_PASSAGES` / `OMNIDOC_EVIDENCE_CHARS` | `10` / `10` / `2400` | Passages retrieved and handed to the writer, and their length, sized for hosted models (a small local model may want `6` / `6` / `1500`); financial statements and pages a question names come whole on top |
+| `OMNIDOC_GRAPH_MEMORY_MB` | `512` | Memory the knowledge-graph database may use for its cache (Kùzu would otherwise take up to 80% of RAM) |
 | `OMNIDOC_DATA_DIR` | `./.data` | Database, indexes, graph, uploads, caches |
 | `OMNIDOC_AUTH` | none | `user:password` required from every visitor (deployments; use HTTPS) |
 | `OMNIDOC_GRAPH_CHUNKS` | `40` | Passages per document used for graph extraction (four per model call) |
