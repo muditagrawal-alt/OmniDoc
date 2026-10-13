@@ -179,7 +179,7 @@ class AgenticGraphRAGPipeline:
         self._check_index()
 
     # ------------------------------------------------------------------ index
-    INDEX_VERSION = 2  # 2: chunks embedded with document / section context
+    INDEX_VERSION = 3  # 2: chunks embedded with document / section context; 3: task prefixes (Nomic)
 
     def _index_meta_path(self) -> str:
         return os.path.join(self.data_dir, "index_meta.json")
