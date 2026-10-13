@@ -732,3 +732,16 @@ def test_nomic_embeddings_get_their_task_prefixes_and_cache_keys(tmp_path, monke
     assert sent == ["search_document: net sales rose", "search_query: net sales rose"]
     e5 = EmbeddingService(model_name="st:intfloat/multilingual-e5-small", cache_dir=str(tmp_path))
     assert e5._prefix("x", "query") == "query: x" and EmbeddingService("bge-m3", str(tmp_path))._prefix("x", "query") == "x"
+
+
+def test_search_fuses_the_cross_encoder_order_with_the_hybrid_order():
+    from types import SimpleNamespace
+    from agents.hybrid_agent import HybridRetrievalAgent
+    hybrid = [RetrievedChunk(chunk_id=c, doc_id="d", text=c) for c in "ABCD"]
+    relevance = {"A": 0.8, "B": 0.6, "C": 0.4, "D": 0.9}  # alone, the cross-encoder would put D (last in hybrid order) first
+    agent = HybridRetrievalAgent(SimpleNamespace(embed_queries=lambda qs: [[1.0]] * len(qs)),
+                                 SimpleNamespace(hybrid_search=lambda **k: hybrid),
+                                 SimpleNamespace(is_neural=True, score_pairs=lambda q, texts: [relevance[t] for t in texts]))
+    top, pool = agent.search(["q"], top_k=2)
+    assert [c.chunk_id for c in top] == ["A", "D"] and pool == 4
+    assert [c.score for c in top] == [0.8, 0.9] and top[0].retrieval_method == "neural_reranked"  # cross-encoder relevance kept
