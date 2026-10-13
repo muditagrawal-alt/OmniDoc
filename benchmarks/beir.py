@@ -6,6 +6,7 @@ numbers compare directly with published retrievers.
 
     .venv/bin/python -I benchmarks/beir.py fetch                  # SciFact: 5,183 abstracts, 300 test claims
     .venv/bin/python -I benchmarks/beir.py run --label baseline   # index (once), search, score, report
+    .venv/bin/python -I benchmarks/beir.py run --label try-x --split train   # try a change on 809 other claims
 
 The corpus is indexed with OmniDoc's own code in one batch: the chunker used for uploads, the
 passage context the app embeds and keyword-indexes (document title, then the passage), the
@@ -25,7 +26,9 @@ The app may add rephrasings from its understanding step, which needs a model; qu
 searched as written here. A document ranks by its best passage. Each run is stored in
 benchmarks/results/retrieval/<date>_<dataset>_<label>_<commit>/ with config.json, metrics.json,
 rankings.jsonl (the relevant and top 10 documents per question and mode) and report.md;
-HISTORY.md there compares the runs.
+HISTORY.md there compares the runs. Changes are tried out on the train questions first
+(``--split train``; stored under results/retrieval/dev/, out of the history), so the test
+questions only measure a finished change.
 """
 import argparse
 import csv
@@ -53,6 +56,7 @@ DATASETS = ROOT / "benchmarks" / "datasets" / "beir"   # git-ignored; read from 
 WORK = ROOT / "benchmarks" / "work"                    # indexes (git-ignored)
 RESULTS = ROOT / "benchmarks" / "results" / "retrieval"
 EMBED_MODEL = "nomic-embed-text"
+SPLITS = ("test", "train")
 MODES = ("bm25", "dense", "hybrid", "omnidoc", "rerank-100")
 SHALLOW = ("omnidoc", "rerank-100")  # rank only their pool: Recall@100 is not theirs to report
 DEPTH = 100         # documents ranked per question
@@ -72,11 +76,12 @@ REFERENCE_SOURCES = ["[1] Thakur et al. 2021, BEIR, table 2, https://arxiv.org/a
 def fetch(args: argparse.Namespace) -> None:
     path = download(BEIR_URL.format(name=args.dataset), DATASETS / f"{args.dataset}.zip")
     corpus, _, qrels = load(args.dataset)
-    log(f"{args.dataset}: {len(corpus)} documents, {len(qrels)} test questions with judgements ({path})")
+    train = load(args.dataset, "train")[2]
+    log(f"{args.dataset}: {len(corpus)} documents, {len(qrels)} test and {len(train)} train questions with judgements ({path})")
 
 
-def load(name: str) -> Tuple[Dict[str, Dict[str, str]], Dict[str, str], Dict[str, Dict[str, int]]]:
-    """Corpus id -> {title, text}; question id -> text; test question id -> {relevant corpus id: grade}."""
+def load(name: str, split: str = "test") -> Tuple[Dict[str, Dict[str, str]], Dict[str, str], Dict[str, Dict[str, int]]]:
+    """Corpus id -> {title, text}; question id -> text; judged question id of the split -> {relevant corpus id: grade}."""
     with zipfile.ZipFile(DATASETS / f"{name}.zip") as zf:
         def rows(member: str):
             with zf.open(f"{name}/{member}") as f:
@@ -87,7 +92,7 @@ def load(name: str) -> Tuple[Dict[str, Dict[str, str]], Dict[str, str], Dict[str
                   for d in rows("corpus.jsonl")}
         queries = {str(q["_id"]): str(q["text"]) for q in rows("queries.jsonl")}
         qrels: Dict[str, Dict[str, int]] = {}
-        with zf.open(f"{name}/qrels/test.tsv") as f:
+        with zf.open(f"{name}/qrels/{split}.tsv") as f:
             for row in csv.DictReader(io.TextIOWrapper(f, encoding="utf-8"), delimiter="\t"):
                 if int(row["score"]) > 0:
                     qrels.setdefault(str(row["query-id"]), {})[str(row["corpus-id"])] = int(row["score"])
@@ -221,21 +226,21 @@ def metrics(rankings: Dict[str, Dict[str, List[str]]], qrels: Dict[str, Dict[str
 # --------------------------------------------------------------------------- run
 def run(args: argparse.Namespace) -> None:
     name = args.dataset
-    corpus, queries, qrels = load(name)
+    corpus, queries, qrels = load(name, args.split)
     work = WORK / f"beir-{name}"
     work.mkdir(parents=True, exist_ok=True)
     index = build_index(name, corpus, work)
     ids = [q for q in qrels if q in queries]
     if args.limit:
         ids = ids[:args.limit]
-    log(f"{name}: searching {len(ids)} questions in {len(MODES)} modes")
+    log(f"{name}: searching {len(ids)} {args.split} questions in {len(MODES)} modes")
     started = time.perf_counter()
     rankings, timing = search_all(queries, ids, {doc_key(c): c for c in corpus}, work)
     scores = metrics(rankings, {q: qrels[q] for q in ids})
     from agents.hybrid_agent import CANDIDATES_PER_QUERY, FINAL_TOP_K, POOL_SIZE
     from retrieval.reranker import DEFAULT_RERANKER_MODEL
     commit = git("rev-parse", "--short", "HEAD")
-    config = {"label": args.label, "dataset": name, "commit": commit,
+    config = {"label": args.label, "dataset": name, "split": args.split, "commit": commit,
               "uncommitted_changes": bool(git("status", "--porcelain", "--untracked-files=no")),
               "documents": len(corpus), "questions": len(ids), "relevant_pairs": sum(len(qrels[q]) for q in ids),
               "index": index, "embedding_model": EMBED_MODEL, "reranker": DEFAULT_RERANKER_MODEL,
@@ -247,7 +252,9 @@ def run(args: argparse.Namespace) -> None:
     if args.limit:
         log("a --limit run is not stored")
         return
-    run_dir = RESULTS / f"{dt.date.today():%Y-%m-%d}_{name}_{args.label}_{commit}"
+    # Development runs (the train questions) are kept apart, out of the history.
+    run_dir = (RESULTS / f"{dt.date.today():%Y-%m-%d}_{name}_{args.label}_{commit}" if args.split == "test" else
+               RESULTS / "dev" / f"{dt.date.today():%Y-%m-%d}_{name}-{args.split}_{args.label}_{commit}")
     run_dir.mkdir(parents=True, exist_ok=True)
     (run_dir / "config.json").write_text(json.dumps(config, indent=1) + "\n")
     (run_dir / "metrics.json").write_text(json.dumps(scores, indent=1) + "\n")
@@ -268,7 +275,7 @@ def render(run: str, config: Dict[str, Any], scores: Dict[str, Dict[str, Any]]) 
     s, ix = config["omnidoc_search"], config["index"]
     out = [f"# Retrieval run {run}", "",
            f"BEIR {config['dataset']}: {config['documents']:,} documents ({ix['passages']:,} passages), "
-           f"{config['questions']} test questions with {config['relevant_pairs']} relevant documents. Commit `{config['commit']}`"
+           f"{config['questions']} {config.get('split', 'test')} questions with {config['relevant_pairs']} relevant documents. Commit `{config['commit']}`"
            + (" with uncommitted changes" if config["uncommitted_changes"] else "") + ".", "",
            f"Embeddings `{config['embedding_model']}`, reranker `{config['reranker']}`. OmniDoc's search takes "
            f"{s['candidates_per_query']} hybrid candidates per query, reranks up to {s['reranked_pool']} and hands the "
@@ -323,6 +330,8 @@ def main() -> None:
         p.add_argument("--dataset", default="scifact")
         if cmd == "run":
             p.add_argument("--label", required=True)
+            p.add_argument("--split", choices=SPLITS, default="test",
+                           help="test: the measured questions; train: other questions, for trying changes out")
             p.add_argument("--notes", default="")
             p.add_argument("--limit", type=int, default=0, help="search only the first N questions (not stored)")
     args = parser.parse_args()
