@@ -32,6 +32,19 @@ _STOP = {
 }
 
 
+def _device() -> str:
+    """
+    CUDA when there is one, otherwise the CPU. Not Apple GPUs (MPS): PyTorch keeps GPU memory for
+    every new input shape there, and passage batches of varying length grew one process by about
+    150 MB per question, past 30 GB; the small cross-encoder is only about 15% slower on the CPU.
+    """
+    try:
+        import torch
+        return "cuda" if torch.cuda.is_available() else "cpu"
+    except Exception:
+        return "cpu"
+
+
 def _load_cross_encoder(model_name: str):
     """Returns a cached CrossEncoder (or None if it cannot be loaded)."""
     if model_name in _MODEL_CACHE:
@@ -43,12 +56,13 @@ def _load_cross_encoder(model_name: str):
             return _MODEL_CACHE[model_name]
         try:
             from sentence_transformers import CrossEncoder
+            device = _device()
             try:
-                model = CrossEncoder(model_name, local_files_only=True)
+                model = CrossEncoder(model_name, device=device, local_files_only=True)
             except Exception:
-                model = CrossEncoder(model_name)
+                model = CrossEncoder(model_name, device=device)
             _MODEL_CACHE[model_name] = model
-            logger.info(f"CrossEncoder '{model_name}' loaded (cached for this process).")
+            logger.info(f"CrossEncoder '{model_name}' loaded on {device} (cached for this process).")
             return model
         except Exception as e:
             _FAILED_MODELS[model_name] = str(e)
