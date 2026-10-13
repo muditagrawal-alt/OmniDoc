@@ -1,0 +1,37 @@
+{
+ "label": "nomic-prefixes",
+ "dataset": "scifact",
+ "split": "train",
+ "modes": [
+  "bm25",
+  "dense",
+  "hybrid",
+  "omnidoc"
+ ],
+ "commit": "c3b15e4",
+ "uncommitted_changes": false,
+ "documents": 5183,
+ "questions": 809,
+ "relevant_pairs": 919,
+ "index": {
+  "fingerprint": "b500457057eb",
+  "commit": "c3b15e4",
+  "documents": 5183,
+  "passages": 5688,
+  "failed_embeddings": 0,
+  "seconds": 369.1,
+  "built": "2026-10-13T22:59:36"
+ },
+ "embedding_model": "nomic-embed-text",
+ "reranker": "cross-encoder/ms-marco-MiniLM-L-6-v2",
+ "omnidoc_search": {
+  "candidates_per_query": 12,
+  "reranked_pool": 30,
+  "top_k": 10
+ },
+ "search_seconds": 575.0,
+ "omnidoc_search_median_s": 0.48,
+ "omnidoc_search_p90_s": 1.245,
+ "questions_with_finance_terms_query": 61,
+ "notes": "search_query: / search_document: prefixes for nomic-embed-text"
+}
