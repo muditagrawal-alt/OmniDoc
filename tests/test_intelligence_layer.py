@@ -718,3 +718,17 @@ def test_the_reranker_moves_to_the_cpu_when_the_gpu_runs_out_of_memory():
     reranker.model, reranker.model_name, reranker._outputs_logits = Model(), "stub", True
     scores = reranker.score_pairs("net AR", ["Trade receivables, net 1,615.9", "The weather was fine"])
     assert reranker.model.device == "cpu" and scores[0] > 0.8 > 0.2 > scores[1]  # cross-encoder scores, not word overlap
+
+
+def test_nomic_embeddings_get_their_task_prefixes_and_cache_keys(tmp_path, monkeypatch):
+    from retrieval.embeddings import EmbeddingService
+    sent = []
+    svc = EmbeddingService(model_name="nomic-embed-text", cache_dir=str(tmp_path))
+    monkeypatch.setattr(svc, "_embed_ollama", lambda texts: sent.extend(texts) or [[1.0, 0.0]] * len(texts))
+    svc.embed_texts(["net sales rose"])
+    svc.embed_queries(["net sales rose"])
+    svc.embed_queries(["net sales rose"])  # cached
+    # A query and a passage of the same text are embedded (and cached) apart.
+    assert sent == ["search_document: net sales rose", "search_query: net sales rose"]
+    e5 = EmbeddingService(model_name="st:intfloat/multilingual-e5-small", cache_dir=str(tmp_path))
+    assert e5._prefix("x", "query") == "query: x" and EmbeddingService("bge-m3", str(tmp_path))._prefix("x", "query") == "x"
