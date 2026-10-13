@@ -10,7 +10,7 @@ The embedding model is a spec, like the chat models:
 
 Embeddings are batched and cached on disk; the cache key includes the model, so switching
 models never mixes vectors. Queries and passages are embedded differently where the model
-expects it (E5 "query:" / "passage:" prefixes).
+expects it (E5 "query:" / "passage:", Nomic "search_query:" / "search_document:" prefixes).
 """
 import os
 import pickle
@@ -63,8 +63,13 @@ class EmbeddingService:
         return parse_spec(self.model_name)[0]
 
     def _prefix(self, text: str, kind: str) -> str:
-        if "e5" in self.model_name.lower():
+        name = self.model_name.lower()
+        if "e5" in name:
             return ("query: " if kind == "query" else "passage: ") + text
+        if "nomic-embed" in name:
+            # Nomic's models are trained with task prefixes and need them (model card: the text "must
+            # include a task instruction prefix").
+            return ("search_query: " if kind == "query" else "search_document: ") + text
         return text
 
     def _embed_st(self, texts: List[str], kind: str) -> List[Optional[List[float]]]:
@@ -103,7 +108,7 @@ class EmbeddingService:
         if backend == "st":
             return self._embed_st(texts, kind)
         if backend == "ollama":
-            return self._embed_ollama(texts)
+            return self._embed_ollama([self._prefix(t, kind) for t in texts])
         from agents.llm_providers import REGISTRY, parse_spec, openai_embed
         provider, name = parse_spec(self.model_name)
         p = REGISTRY[provider]
@@ -111,7 +116,8 @@ class EmbeddingService:
 
     # -------------------------------------------------------------------- cache
     def _key(self, text: str, kind: str) -> str:
-        material = f"{self.model_name}\x00{kind if 'e5' in self.model_name.lower() else ''}\x00{text}"
+        # Models with task prefixes embed a query and a passage of the same text differently.
+        material = f"{self.model_name}\x00{kind if self._prefix('', kind) else ''}\x00{text}"
         return hashlib.md5(material.encode("utf-8"), usedforsecurity=False).hexdigest()  # cache file name only
 
     def _read_cache(self, key: str) -> Optional[List[float]]:
