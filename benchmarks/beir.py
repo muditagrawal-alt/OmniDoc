@@ -7,6 +7,7 @@ numbers compare directly with published retrievers.
     .venv/bin/python -I benchmarks/beir.py fetch                  # SciFact: 5,183 abstracts, 300 test claims
     .venv/bin/python -I benchmarks/beir.py run --label baseline   # index (once), search, score, report
     .venv/bin/python -I benchmarks/beir.py run --label try-x --split train   # try a change on 809 other claims
+    .venv/bin/python -I benchmarks/beir.py report                 # rebuild every report and HISTORY.md
 
 The corpus is indexed with OmniDoc's own code in one batch: the chunker used for uploads, the
 passage context the app embeds and keyword-indexes (document title, then the passage), the
@@ -157,7 +158,8 @@ def documents(doc_keys: List[str], keys: Dict[str, str]) -> List[str]:
     return out
 
 
-def search_all(queries: Dict[str, str], ids: List[str], keys: Dict[str, str], work: Path) -> Tuple[Dict[str, Dict[str, List[str]]], Dict[str, Any]]:
+def search_all(queries: Dict[str, str], ids: List[str], keys: Dict[str, str], work: Path,
+               modes: List[str]) -> Tuple[Dict[str, Dict[str, List[str]]], Dict[str, Any]]:
     """Question id -> mode -> ranked corpus ids, and timings of the app's search."""
     from agents.hybrid_agent import HybridRetrievalAgent
     from retrieval.embeddings import EmbeddingService
@@ -172,29 +174,36 @@ def search_all(queries: Dict[str, str], ids: List[str], keys: Dict[str, str], wo
     extra_queries = 0
     for i, qid in enumerate(ids, 1):
         q = queries[qid]
-        started = time.perf_counter()
-        app_queries = agent._queries({"user_query": q})
-        top, _ = agent.search(app_queries)
-        seconds.append(time.perf_counter() - started)
-        extra_queries += len(app_queries) > 1
+        row: Dict[str, List[str]] = {}
+        if "omnidoc" in modes:
+            started = time.perf_counter()
+            app_queries = agent._queries({"user_query": q})
+            top, _ = agent.search(app_queries)
+            seconds.append(time.perf_counter() - started)
+            extra_queries += len(app_queries) > 1
+            row["omnidoc"] = documents([c.doc_id for c in top], keys)
         vec = embed.embed_queries([q])[0]
-        hybrid = store.hybrid_search(query=q, query_vector=vec, top_k=CHUNK_DEPTH)
-        ranked = documents([h.doc_id for h in hybrid], keys)[:DEPTH]
-        pool = [h for h in hybrid if keys.get(h.doc_id) in set(ranked)]
-        scores = reranker.score_pairs(q, [h.text for h in pool])
-        reranked = [pool[j] for j in sorted(range(len(pool)), key=lambda j: (-scores[j], j))]
-        out[qid] = {
-            "bm25": documents([str(r["doc_id"]) for r in store._fts_search(q, CHUNK_DEPTH, None)], keys)[:DEPTH],
-            "dense": documents([str(r["doc_id"]) for r in store._vector_search(vec, CHUNK_DEPTH, None)], keys)[:DEPTH],
-            "hybrid": ranked,
-            "omnidoc": documents([c.doc_id for c in top], keys),
-            "rerank-100": documents([h.doc_id for h in reranked], keys),
-        }
+        if "bm25" in modes:
+            row["bm25"] = documents([str(r["doc_id"]) for r in store._fts_search(q, CHUNK_DEPTH, None)], keys)[:DEPTH]
+        if "dense" in modes:
+            row["dense"] = documents([str(r["doc_id"]) for r in store._vector_search(vec, CHUNK_DEPTH, None)], keys)[:DEPTH]
+        if "hybrid" in modes or "rerank-100" in modes:
+            hybrid = store.hybrid_search(query=q, query_vector=vec, top_k=CHUNK_DEPTH)
+            row["hybrid"] = documents([h.doc_id for h in hybrid], keys)[:DEPTH]
+            if "rerank-100" in modes:
+                keep = set(row["hybrid"])
+                pool = [h for h in hybrid if keys.get(h.doc_id) in keep]
+                scores = reranker.score_pairs(q, [h.text for h in pool])
+                order = sorted(range(len(pool)), key=lambda j: (-scores[j], j))
+                row["rerank-100"] = documents([pool[j].doc_id for j in order], keys)
+        out[qid] = {m: row[m] for m in modes}
         if i % 50 == 0:
             log(f"  {i}/{len(ids)} questions searched")
-    timing = {"omnidoc_search_median_s": round(statistics.median(seconds), 3),
-              "omnidoc_search_p90_s": round(sorted(seconds)[int(0.9 * (len(seconds) - 1))], 3),
-              "questions_with_finance_terms_query": extra_queries}
+    timing: Dict[str, Any] = {}
+    if seconds:
+        timing = {"omnidoc_search_median_s": round(statistics.median(seconds), 3),
+                  "omnidoc_search_p90_s": round(sorted(seconds)[int(0.9 * (len(seconds) - 1))], 3),
+                  "questions_with_finance_terms_query": extra_queries}
     return out, timing
 
 
@@ -205,7 +214,7 @@ def metrics(rankings: Dict[str, Dict[str, List[str]]], qrels: Dict[str, Dict[str
     Recall@10, Recall@100 and hit@10 (at least one relevant document in the top 10).
     """
     out: Dict[str, Dict[str, Any]] = {}
-    for mode in MODES:
+    for mode in next(iter(rankings.values())):
         per: Dict[str, List[float]] = {"ndcg@10": [], "mrr@10": [], "recall@10": [], "recall@100": [], "hit@10": []}
         for qid, rel in qrels.items():
             ranked = rankings[qid][mode]
@@ -233,20 +242,21 @@ def run(args: argparse.Namespace) -> None:
     ids = [q for q in qrels if q in queries]
     if args.limit:
         ids = ids[:args.limit]
-    log(f"{name}: searching {len(ids)} {args.split} questions in {len(MODES)} modes")
+    modes = [m for m in MODES if m in args.modes.split(",")]
+    log(f"{name}: searching {len(ids)} {args.split} questions ({', '.join(modes)})")
     started = time.perf_counter()
-    rankings, timing = search_all(queries, ids, {doc_key(c): c for c in corpus}, work)
+    rankings, timing = search_all(queries, ids, {doc_key(c): c for c in corpus}, work, modes)
     scores = metrics(rankings, {q: qrels[q] for q in ids})
     from agents.hybrid_agent import CANDIDATES_PER_QUERY, FINAL_TOP_K, POOL_SIZE
     from retrieval.reranker import DEFAULT_RERANKER_MODEL
     commit = git("rev-parse", "--short", "HEAD")
-    config = {"label": args.label, "dataset": name, "split": args.split, "commit": commit,
+    config = {"label": args.label, "dataset": name, "split": args.split, "modes": modes, "commit": commit,
               "uncommitted_changes": bool(git("status", "--porcelain", "--untracked-files=no")),
               "documents": len(corpus), "questions": len(ids), "relevant_pairs": sum(len(qrels[q]) for q in ids),
               "index": index, "embedding_model": EMBED_MODEL, "reranker": DEFAULT_RERANKER_MODEL,
               "omnidoc_search": {"candidates_per_query": CANDIDATES_PER_QUERY, "reranked_pool": POOL_SIZE, "top_k": FINAL_TOP_K},
               "search_seconds": round(time.perf_counter() - started, 1), **timing, "notes": args.notes}
-    for mode in MODES:
+    for mode in modes:
         log(f"  {mode:<11} nDCG@10 {scores[mode]['ndcg@10']:.3f}  MRR@10 {scores[mode]['mrr@10']:.3f}  "
             f"Recall@10 {scores[mode]['recall@10']:.3f}")
     if args.limit:
@@ -261,7 +271,7 @@ def run(args: argparse.Namespace) -> None:
     with open(run_dir / "rankings.jsonl", "w") as f:
         for qid in ids:
             f.write(json.dumps({"id": qid, "question": queries[qid], "relevant": sorted(qrels[qid]),
-                                **{m: rankings[qid][m][:10] for m in MODES}}) + "\n")
+                                **{m: rankings[qid][m][:10] for m in modes}}) + "\n")
     (run_dir / "report.md").write_text(render(run_dir.name, config, scores) + "\n")
     write_history()
     log(f"report written to {run_dir / 'report.md'}")
@@ -281,21 +291,24 @@ def render(run: str, config: Dict[str, Any], scores: Dict[str, Dict[str, Any]]) 
            f"{s['candidates_per_query']} hybrid candidates per query, reranks up to {s['reranked_pool']} and hands the "
            f"top {s['top_k']} passages to the writer. Exact metrics against the benchmark's judgements; no model grades anything.", "",
            "| Mode | nDCG@10 | MRR@10 | Recall@10 | Hit@10 | Recall@100 |", "|---|---|---|---|---|---|"]
-    for mode in MODES:
+    for mode in (m for m in MODES if m in scores):
         m = scores[mode]
         out.append(f"| {mode} | **{num(m['ndcg@10'])}** | {num(m['mrr@10'])} | {num(m['recall@10'])} | "
                    f"{num(m['hit@10'])} | {num(m['recall@100'])} |")
-    out += ["", "- **omnidoc** is what the app's answer writer receives; its documents come from 10 passages, so it can "
-                "list fewer than 10 documents when an abstract was split in two.",
-            "- **rerank-100** reranks the passages of the 100 best hybrid documents: the same documents as hybrid, in a "
-            "better order.",
-            "- Hit@10: questions with at least one relevant document in the top 10.",
+    out.append("")
+    if "omnidoc" in scores:
+        out.append("- **omnidoc** is what the app's answer writer receives; its documents come from 10 passages, so it can "
+                   "list fewer than 10 documents when an abstract was split in two.")
+    if "rerank-100" in scores:
+        out.append("- **rerank-100** puts the 100 best hybrid documents in the cross-encoder's order (by their best passage).")
+    out += ["- Hit@10: questions with at least one relevant document in the top 10.",
             "", "## Cost and speed", "",
             f"- Index: {ix['passages']:,} passages embedded and stored in {ix['seconds']:.0f} s (built at `{ix['commit']}`; "
-            f"{ix.get('failed_embeddings', 0)} could not be embedded). Local models only, no API calls.",
-            f"- OmniDoc's search per question: median {config['omnidoc_search_median_s'] * 1000:.0f} ms, 90th percentile "
-            f"{config['omnidoc_search_p90_s'] * 1000:.0f} ms (embedding the question, hybrid search, reranking).",
-            f"- Questions that also searched financial names: {config['questions_with_finance_terms_query']}."]
+            f"{ix.get('failed_embeddings', 0)} could not be embedded). Local models only, no API calls."]
+    if "omnidoc_search_median_s" in config:
+        out += [f"- OmniDoc's search per question: median {config['omnidoc_search_median_s'] * 1000:.0f} ms, 90th percentile "
+                f"{config['omnidoc_search_p90_s'] * 1000:.0f} ms (embedding the question, hybrid search, reranking).",
+                f"- Questions that also searched financial names: {config['questions_with_finance_terms_query']}."]
     if config["dataset"] in REFERENCES:
         out += ["", "## Published results", "", "nDCG@10 on the same questions; setups differ.", ""]
         out += [f"- {label}: {value:.3f}" for label, value in REFERENCES[config["dataset"]]]
@@ -310,10 +323,12 @@ def write_history() -> None:
     for p in sorted(RESULTS.glob("*/metrics.json")):
         config = json.loads((p.parent / "config.json").read_text())
         m = json.loads(p.read_text())
+
+        def cell(mode: str, metric: str = "ndcg@10") -> str:
+            return num(m.get(mode, {}).get(metric))
         rows.append(f"| [{p.parent.name}]({p.parent.name}/report.md) | {config['dataset']} | `{config['commit']}` | "
-                    f"{num(m['bm25']['ndcg@10'])} | {num(m['dense']['ndcg@10'])} | {num(m['hybrid']['ndcg@10'])} | "
-                    f"**{num(m['omnidoc']['ndcg@10'])}** | {num(m['omnidoc']['hit@10'])} | {num(m['rerank-100']['ndcg@10'])} | "
-                    f"{num(m['hybrid']['recall@100'])} |")
+                    f"{cell('bm25')} | {cell('dense')} | {cell('hybrid')} | **{cell('omnidoc')}** | {cell('omnidoc', 'hit@10')} | "
+                    f"{cell('rerank-100')} | {cell('hybrid', 'recall@100')} |")
     text = ["# Retrieval history", "",
             "Every run of `benchmarks/beir.py`: nDCG@10 per search mode on the BEIR test questions (exact metrics, no judge). "
             "OmniDoc's search is the column that matters: it is what the answer writer receives.", "",
@@ -322,10 +337,19 @@ def write_history() -> None:
     (RESULTS / "HISTORY.md").write_text("\n".join(text) + "\n")
 
 
+def report(args: argparse.Namespace) -> None:
+    """Rebuilds every run's report.md and HISTORY.md from the stored config.json and metrics.json."""
+    for p in sorted(RESULTS.glob("*/metrics.json")) + sorted(RESULTS.glob("dev/*/metrics.json")):
+        config = json.loads((p.parent / "config.json").read_text())
+        (p.parent / "report.md").write_text(render(p.parent.name, config, json.loads(p.read_text())) + "\n")
+    write_history()
+    log(f"reports and {RESULTS / 'HISTORY.md'} rebuilt")
+
+
 def main() -> None:
     parser = argparse.ArgumentParser(description=__doc__.split("\n\n")[0])
     sub = parser.add_subparsers(dest="command", required=True)
-    for cmd in ("fetch", "run"):
+    for cmd in ("fetch", "run", "report"):
         p = sub.add_parser(cmd)
         p.add_argument("--dataset", default="scifact")
         if cmd == "run":
@@ -334,10 +358,12 @@ def main() -> None:
                            help="test: the measured questions; train: other questions, for trying changes out")
             p.add_argument("--notes", default="")
             p.add_argument("--limit", type=int, default=0, help="search only the first N questions (not stored)")
+            p.add_argument("--modes", default=",".join(MODES),
+                           help="comma-separated modes to score (rerank-100 takes most of the time)")
     args = parser.parse_args()
     # Anything the imported app code writes stays in the benchmark's own folder.
     os.environ.setdefault("OMNIDOC_DATA_DIR", str(WORK / f"beir-{args.dataset}" / "data"))
-    {"fetch": fetch, "run": run}[args.command](args)
+    {"fetch": fetch, "run": run, "report": report}[args.command](args)
 
 
 if __name__ == "__main__":
