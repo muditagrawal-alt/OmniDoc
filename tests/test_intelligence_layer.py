@@ -745,3 +745,19 @@ def test_search_fuses_the_cross_encoder_order_with_the_hybrid_order():
     top, pool = agent.search(["q"], top_k=2)
     assert [c.chunk_id for c in top] == ["A", "D"] and pool == 4
     assert [c.score for c in top] == [0.8, 0.9] and top[0].retrieval_method == "neural_reranked"  # cross-encoder relevance kept
+
+
+def test_the_cross_encoder_avoids_apple_gpus(monkeypatch):
+    import types
+    import torch
+    from retrieval import reranker as R
+    seen = {}
+
+    class CrossEncoder:
+        def __init__(self, name, **kw):
+            seen.update(kw)
+    monkeypatch.setitem(sys.modules, "sentence_transformers", types.SimpleNamespace(CrossEncoder=CrossEncoder))
+    monkeypatch.setattr(R, "_MODEL_CACHE", {})
+    monkeypatch.setattr(R, "_FAILED_MODELS", {})
+    assert R._load_cross_encoder("stub") is not None
+    assert seen["device"] == ("cuda" if torch.cuda.is_available() else "cpu")  # never "mps": memory grows per input shape
