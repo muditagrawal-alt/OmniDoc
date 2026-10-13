@@ -1,7 +1,8 @@
 # Benchmarks
 
-OmniDoc is measured on two public document question-answering benchmarks with reference
-answers and evidence pages. Every run is kept in [`results/`](results/), and
+OmniDoc's answers are measured on two public document question-answering benchmarks with
+reference answers and evidence pages, and its search on its own with a retrieval benchmark
+([below](#retrieval-benchmark-beir-scifact)). Every run is kept in [`results/`](results/), and
 [`results/HISTORY.md`](results/HISTORY.md) compares them, so the effect of each change can be seen.
 
 | Benchmark | What it tests | Sample used |
@@ -76,3 +77,32 @@ ingests about 4,000 pages (roughly 700 model calls in the background) and asks 8
 Each run folder holds `config.json` (commit, models, settings), `results.jsonl` (every answer
 with its sources, citations, timings and model usage), `judgments.jsonl`, `summary.json` and
 `report.md` (metrics, breakdowns and the questions it missed).
+
+## Retrieval benchmark: BEIR SciFact
+
+[`beir.py`](beir.py) measures the search alone, the way retrieval systems are compared in
+research. [BEIR](https://github.com/beir-cellar/beir) SciFact (Thakur et al., NeurIPS 2021
+Datasets & Benchmarks) has 5,183 scientific abstracts and 300 test claims, each with the abstracts
+judged to support or refute it. The abstracts are indexed with OmniDoc's own chunker, embeddings
+and LanceDB store (about 6 minutes, local models, no API calls), every claim is searched, and
+nDCG@10, MRR@10 and Recall@k are computed against the judgements. No model grades anything, so
+the numbers compare directly with published retrievers.
+
+Each run scores five ways of searching the same index: BM25 alone, embeddings alone, both fused
+(hybrid), **OmniDoc's search** (the 10 passages the answer writer receives: hybrid candidates
+reranked by the cross-encoder, fused with the hybrid order) and the cross-encoder alone over the
+100 best hybrid documents. OmniDoc's search scores nDCG@10 0.732, above published BM25 (0.665 to
+0.679) and BM25 reranked by the same MiniLM cross-encoder (0.688), below large rerankers such as
+monoT5-3B (0.766); see [`results/retrieval/HISTORY.md`](results/retrieval/HISTORY.md). Changes
+are tried on SciFact's 809 train claims first (`--split train`, stored under
+`results/retrieval/dev/`).
+
+```bash
+.venv/bin/python -I benchmarks/beir.py fetch                    # 2.8 MB
+.venv/bin/python -I benchmarks/beir.py run --label baseline     # index once, then about 15 minutes
+.venv/bin/python -I benchmarks/beir.py run --label try-x --split train --modes bm25,dense,hybrid,omnidoc
+.venv/bin/python -I benchmarks/beir.py report                   # rebuild every report and HISTORY.md
+```
+
+Each run folder holds `config.json`, `metrics.json`, `rankings.jsonl` (the relevant and the top
+10 documents of every claim in every mode) and `report.md`.
