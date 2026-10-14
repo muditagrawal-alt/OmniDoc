@@ -1,0 +1,49 @@
+{
+ "fingerprint": "df4a8682af68",
+ "commit": "408ac1a",
+ "docs": {
+  "NIKE_2021_10K.pdf": {
+   "doc_id": "doc_73b54e5e0b1b",
+   "upload_s": 36.8,
+   "chunks": 345,
+   "tables": 45,
+   "ocr_pages": 0,
+   "background_status": "done",
+   "has_summary": true,
+   "pages": 109
+  },
+  "SnapNTell.pdf": {
+   "doc_id": "doc_595241adee0b",
+   "upload_s": 8.7,
+   "chunks": 63,
+   "tables": 4,
+   "ocr_pages": 0,
+   "background_status": "done",
+   "has_summary": true,
+   "pages": 20
+  },
+  "disciplined-agile-business-analysis-160218012713_95.pdf": {
+   "doc_id": "doc_1d2c0cb82cb5",
+   "upload_s": 35.9,
+   "chunks": 37,
+   "tables": 0,
+   "ocr_pages": 40,
+   "background_status": "done",
+   "has_summary": true,
+   "pages": 41
+  },
+  "honor_watch_gs_pro.pdf": {
+   "doc_id": "doc_2d5559e514dc",
+   "upload_s": 8.6,
+   "chunks": 135,
+   "tables": 4,
+   "ocr_pages": 0,
+   "background_status": "done",
+   "has_summary": true,
+   "pages": 42
+  }
+ },
+ "background_s": 901.3,
+ "built": "2026-10-12T23:11:18",
+ "kept_from": "6b8b4877bb2b"
+}
