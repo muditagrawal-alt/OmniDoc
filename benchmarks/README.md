@@ -1,8 +1,9 @@
 # Benchmarks
 
 OmniDoc's answers are measured on two public document question-answering benchmarks with
-reference answers and evidence pages, and its search on its own with a retrieval benchmark
-([below](#retrieval-benchmark-beir-scifact)). Every run is kept in [`results/`](results/), and
+reference answers and evidence pages, its search on its own with a retrieval benchmark
+([below](#retrieval-benchmark-beir-scifact)), and its answers on that benchmark's library with RAGAS
+([below](#answers-on-scifact-with-ragas)). Every run is kept in [`results/`](results/), and
 [`results/HISTORY.md`](results/HISTORY.md) compares them, so the effect of each change can be seen.
 
 | Benchmark | What it tests | Sample used |
@@ -106,3 +107,37 @@ are tried on SciFact's 809 train claims first (`--split train`, stored under
 
 Each run folder holds `config.json`, `metrics.json`, `rankings.jsonl` (the relevant and the top
 10 documents of every claim in every mode) and `report.md`.
+
+## Answers on SciFact with RAGAS
+
+[`ragas_eval.py`](ragas_eval.py) measures whole answers on the same library: OmniDoc answers each
+of the 300 BEIR SciFact test claims as a user would ask it ("Is it true that ...?"), searching all
+5,183 abstracts, with the QA benchmarks' models pinned and web search off. The 300 claims are
+SciFact's labelled dev set (Wadden et al., EMNLP 2020): 124 supported, 64 refuted and 112 for which
+the cited abstract holds no evidence. Each answer is scored against the gold label and evidence, and
+with [RAGAS](https://github.com/explodinggradients/ragas) (Es et al., EACL 2024):
+
+| Measure | How |
+|---|---|
+| Verdict accuracy (supported / refuted / not enough evidence) | the judge reads the answer's verdict; compared with the gold label. Also on the 188 claims with gold evidence alone, since an open library may hold evidence for the others |
+| Gold evidence among the passages the answer was written from, and cited | exact |
+| Faithfulness: are the answer's statements backed by the passages it was given? | RAGAS, judge |
+| Answer relevancy | RAGAS, judge and embeddings |
+| Factual correctness (recall of the gold rationale) | RAGAS, judge; recall because the rationale is a few sentences and a good answer says more |
+
+The judge is `openai/gpt-oss-20b` on NVIDIA's free API (another family than the Nemotron answer
+model; low reasoning effort, which gave the same verdicts in half the time). RAGAS runs in its own
+environment so its LangChain pins never touch the app's:
+
+```bash
+python3.12 -m venv benchmarks/work/ragas-venv
+benchmarks/work/ragas-venv/bin/pip install ragas==0.4.3 langchain-community==0.3.31 "langchain<1" "langchain-core<1" "langchain-openai<1"
+.venv/bin/python -I benchmarks/ragas_eval.py fetch                          # gold labels and rationales
+.venv/bin/python -I benchmarks/ragas_eval.py answer --label baseline         # about 2 hours (free-tier pacing)
+benchmarks/work/ragas-venv/bin/python -I benchmarks/ragas_eval.py score benchmarks/results/ragas/<run>   # 2 to 4 hours
+.venv/bin/python -I benchmarks/ragas_eval.py report                         # rebuild reports and HISTORY.md
+```
+
+`answer --code <folder>` answers with another copy of the app (a revision being tried), `--split
+train --sample N` uses other claims for development, and `score --metrics verdict` grades verdicts
+only. Runs are kept in [`results/ragas/`](results/ragas/) and compared in `results/ragas/HISTORY.md`.
