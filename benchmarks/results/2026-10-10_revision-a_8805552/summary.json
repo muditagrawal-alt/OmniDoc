@@ -10,6 +10,8 @@
   "embed": "nomic-embed-text",
   "judge": "groq:openai/gpt-oss-120b"
  },
+ "notes": "Revision A (question-time): vision reads rendered pages (content trigger, named pages, chart detection), financial statements are fetched for figure questions, paused providers are waited out, cut-off JSON is salvaged. Same indexes as the baseline. Interrupted at 18:42 after 36 of the 53 MMLongBench-Doc answers when the session running it ended; resumed at 18:44 with --resume (FinanceBench first, then the remaining 17 MMLongBench-Doc questions). Same code (8805552) and indexes throughout; no answer needed a retry.",
+ "caveat": "",
  "graded": 89,
  "benchmarks": {
   "mmlongbench": {
@@ -35,6 +37,8 @@
    "tokens_mean": 4198.358490566037,
    "errors": 0,
    "retried": 0,
+   "rewritten": 1,
+   "rewritten_correct": 0,
    "verified_mean": 0.9803921568627451,
    "by_evidence": {
     "(unspecified)": {
@@ -135,6 +139,8 @@
    "tokens_mean": 9507.416666666666,
    "errors": 0,
    "retried": 0,
+   "rewritten": 5,
+   "rewritten_correct": 2,
    "verified_mean": 0.9518611111111112,
    "by_type": {
     "domain-relevant": {
