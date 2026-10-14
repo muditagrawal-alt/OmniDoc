@@ -10,6 +10,8 @@
   "embed": "nomic-embed-text",
   "judge": "groq:openai/gpt-oss-120b"
  },
+ "notes": "Code at 08db0eb. Answers: NVIDIA Nemotron 3 Super; figures: Gemini 3.5 Flash-Lite; judge: Groq gpt-oss-120b. Resumed on 2026-10-10 after the session stopped: 19 answers that were NVIDIA rate-limit errors (the FinanceBench phase overlapped with an index build on the same key) and the 18 FinanceBench questions not yet asked were asked again with pacing; product code unchanged (08db0eb).",
+ "caveat": "",
  "graded": 89,
  "benchmarks": {
   "mmlongbench": {
@@ -35,6 +37,8 @@
    "tokens_mean": 4241.245283018868,
    "errors": 0,
    "retried": 4,
+   "rewritten": 6,
+   "rewritten_correct": 1,
    "verified_mean": 0.9411764705882353,
    "by_evidence": {
     "(unspecified)": {
@@ -135,6 +139,8 @@
    "tokens_mean": 6805.4857142857145,
    "errors": 1,
    "retried": 27,
+   "rewritten": 2,
+   "rewritten_correct": 0,
    "verified_mean": 0.9827586206896551,
    "by_type": {
     "domain-relevant": {
