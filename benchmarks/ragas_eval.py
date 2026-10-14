@@ -63,6 +63,7 @@ CLAIM_FILES = {"test": "claims_dev.jsonl", "train": "claims_train.jsonl"}
 JUDGE = "nvidia:openai/gpt-oss-20b"      # another family than the answer model (NVIDIA Nemotron)
 JUDGE_EMBED = "nomic-embed-text"         # answer relevancy compares questions by embedding (local Ollama)
 JUDGE_CONCURRENCY = 3
+JUDGE_MAX_TOKENS = 8192
 PAUSE_S = 15
 # As a user would ask; the writer answers yes / no questions with "Yes" or "No" first. (A format
 # instruction such as "start with Supported or Refuted" is not followed and adds words to the search.)
@@ -291,7 +292,8 @@ def score(args: argparse.Namespace) -> None:
     client = AsyncOpenAI(base_url="https://integrate.api.nvidia.com/v1", api_key=env_value("NVIDIA_API_KEY", "NVIDIA_NIM_API_KEY"),
                          max_retries=8, timeout=180)
     cache = DiskCacheBackend(cache_dir=str(WORK / "judge-cache"))
-    judge = llm_factory(model, client=client, cache=cache)
+    # gpt-oss reasons before it answers: RAGAS's default of 1,024 output tokens cuts replies short.
+    judge = llm_factory(model, client=client, cache=cache, max_tokens=JUDGE_MAX_TOKENS)
     embeddings = OpenAIEmbeddings(client=AsyncOpenAI(base_url="http://localhost:11434/v1", api_key="ollama"), model=JUDGE_EMBED)
     metrics = {
         "faithfulness": C.Faithfulness(llm=judge),
@@ -300,6 +302,7 @@ def score(args: argparse.Namespace) -> None:
     }
     config = json.loads((run_dir / "config.json").read_text())
     config["judge"] = {"model": args.judge, "embeddings": JUDGE_EMBED, "ragas": __import__("ragas").__version__,
+                       "max_tokens": JUDGE_MAX_TOKENS,
                        "metrics": ["verdict", *METRICS], "factual_correctness": "recall mode, against the gold rationale",
                        "verdict_prompt": VERDICT_PROMPT}
     (run_dir / "config.json").write_text(json.dumps(config, indent=1) + "\n")
