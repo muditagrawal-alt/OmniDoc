@@ -1,0 +1,23 @@
+{
+ "label": "revision-d",
+ "split": "test",
+ "started": "2026-10-14T21:32:26",
+ "commit": "6231730",
+ "uncommitted_changes": false,
+ "benchmarks": [
+  "financebench",
+  "mmlongbench"
+ ],
+ "settings": {
+  "provider": "nvidia",
+  "model": "nvidia:nvidia/nemotron-3-super-120b-a12b",
+  "vision": "gemini:gemini-3.5-flash-lite",
+  "embed": "nomic-embed-text",
+  "judge": "groq:openai/gpt-oss-120b"
+ },
+ "work": "/Users/muditagrawal/Projects/zee work/OmniDoc/benchmarks/work/revC",
+ "scope": "each question is asked about its own document (document_ids = [doc]); web search off",
+ "pacing": "20s between questions; answers that failed are asked again up to 5 times",
+ "kept_index": "the index was kept although the indexing files changed (--keep-index)",
+ "notes": "Revision D: retrieval embeds with nomic task prefixes and orders passages by the cross-encoder fused with the hybrid order (the cross-encoder runs on the CPU: on Apple GPUs its memory grew past 30 GB); the sentence check accepts figures computed from figures the answer has just given, and a rewrite keeps such calculations with their inputs; yes/no questions are decided from what the evidence shows or implies (rounded figures match, negated questions are answered as asked). Revision C's test indexes (benchmarks/work/revC) kept; the server re-embedded them with the task prefixes. After the development run the yes/no rule lost a sentence that weakened declines on unanswerable questions and gained the negated-question rule."
+}
