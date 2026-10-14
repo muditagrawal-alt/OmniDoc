@@ -37,6 +37,8 @@
    "tokens_mean": 5766.943396226415,
    "errors": 0,
    "retried": 0,
+   "rewritten": 3,
+   "rewritten_correct": 1,
    "verified_mean": 0.9901960784313726,
    "by_evidence": {
     "(unspecified)": {
@@ -137,6 +139,8 @@
    "tokens_mean": 8432.083333333334,
    "errors": 0,
    "retried": 0,
+   "rewritten": 3,
+   "rewritten_correct": 0,
    "verified_mean": 0.9710555555555556,
    "by_type": {
     "domain-relevant": {
