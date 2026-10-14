@@ -1,0 +1,35 @@
+{
+ "label": "baseline",
+ "split": "test",
+ "started": "2026-10-14T18:38:45",
+ "commit": "5b02d5c",
+ "uncommitted_changes": false,
+ "settings": {
+  "provider": "nvidia",
+  "model": "nvidia:nvidia/nemotron-3-super-120b-a12b",
+  "vision": "gemini:gemini-3.5-flash-lite",
+  "embed": "nomic-embed-text",
+  "judge": "groq:openai/gpt-oss-120b"
+ },
+ "question": "Is it true that {claim}?",
+ "claims": 300,
+ "sample": null,
+ "scope": "the whole library of SciFact abstracts (no documents selected); web search off",
+ "pacing": "15s between questions; failed answers asked again up to 5 times",
+ "notes": "retrieval with task prefixes and fused reranking (4515e3e); synthesis as in revision C",
+ "judge": {
+  "model": "nvidia:openai/gpt-oss-20b",
+  "embeddings": "nomic-embed-text",
+  "ragas": "0.4.3",
+  "max_tokens": 8192,
+  "reasoning_effort": "low",
+  "metrics": [
+   "verdict",
+   "faithfulness",
+   "answer_relevancy",
+   "factual_correctness_recall"
+  ],
+  "factual_correctness": "recall mode, against the gold rationale",
+  "verdict_prompt": "A user asked whether a scientific claim is true, and an assistant answered from a library of research abstracts.\n\nClaim: {claim}\n\nAnswer:\n{answer}\n\nWhich verdict does the answer give about the claim? Reply with JSON only: {{\"verdict\": \"supported\"}}, {{\"verdict\": \"refuted\"}} or {{\"verdict\": \"not enough evidence\"}}.\n- supported: the answer says the evidence shows the claim is true (fully or for the most part).\n- refuted: the answer says the evidence shows the claim is false or contradicts it.\n- not enough evidence: the answer says the documents do not contain, do not address or do not settle the claim."
+ }
+}
