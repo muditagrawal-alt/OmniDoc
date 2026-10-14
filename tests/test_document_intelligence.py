@@ -264,3 +264,15 @@ def test_scanned_image_is_parsed_into_chunks_with_layout():
     assert "991,200" in " ".join(c.text for c in parsed.chunks)
     assert parsed.layout["pages"][0]["ocr"] and parsed.layout["ocr_words"]["1"]
     assert all(v.caption.endswith("(scanned)") for v in parsed.visual_elements)
+
+
+def test_check_sentences_accepts_figures_computed_from_the_figures_just_given():
+    sources = [{"n": 1, "kind": "chunk", "title": "Survey", "_text": "16 of 32,441 samples were positive: 493 per million."},
+               {"n": 2, "kind": "chunk", "title": "Cash flow", "_text": "Free cash flow was $7,396 million; net income $4,756 million."}]
+    judge = lambda prompt: {"sentences": [{"id": f"S{i}", "verdict": "supported", "supported_by": [1]} for i in range(1, 6)]}  # noqa: E731
+    answer = ("The prevalence was 493 per million [1]. That is about 1 in 2,000 people. "
+              "Free cash flow was $7,396 million and net income $4,756 million [2], a conversion of 1.56. "
+              "Revenue grew to $9,870 million [2].")
+    checks, _ = check_sentences(answer, "q", sources, judge=judge)
+    assert [c["verdict"] for c in checks] == ["supported", "supported", "supported", "unsupported"]
+    assert "9,870" in checks[3]["reason"]  # a figure computed from nothing the answer gave stays unsupported
