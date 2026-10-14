@@ -392,6 +392,31 @@ def ensure_index(bench: str, manifest: Dict[str, Any], settings: Dict[str, str],
             **({"code": str(CODE)} if CODE != ROOT else {})}
 
 
+def wait_reindex(server: Server, bench: str) -> None:
+    """
+    Waits while the server re-embeds a kept index in the background (the pipeline's index version
+    or embedding model changed), so no question is answered from a half re-embedded library.
+    """
+    import httpx
+    deadline, shown = time.time() + 3 * 3600, 0.0
+    while time.time() < deadline:
+        try:
+            status = httpx.get(f"{server.url}/api/providers", timeout=30).json().get("reindex")
+        except (httpx.HTTPError, ValueError):
+            status = None
+        if status is not None and status.get("status") != "running":  # None: the pipeline is still loading
+            if status.get("status") == "failed":
+                raise SystemExit(f"{bench}: the server's re-index failed; see {server.dir / 'server.log'}")
+            if status.get("status") == "done":
+                log(f"{bench}: the server re-indexed {status.get('total')} documents")
+            return
+        if status and time.time() - shown > 300:
+            log(f"{bench}: waiting for the server's re-index ({status.get('processed', 0)}/{status.get('total', 0)} documents)")
+            shown = time.time()
+        time.sleep(10)
+    raise SystemExit(f"{bench}: the server's re-index did not finish within 3 hours")
+
+
 def ingest(server: Server, bench: str, manifest: Dict[str, Any], state: Dict[str, Any]) -> Dict[str, Any]:
     import httpx
     if not state.get("pending"):
@@ -513,6 +538,7 @@ def run(args: argparse.Namespace) -> None:
         server.start()
         try:
             state = ingest(server, bench, manifest, state)
+            wait_reindex(server, bench)
             todo = [q for q in manifest["questions"] if q["id"] not in done][: args.limit or None]
             log(f"{bench}: asking {len(todo)} questions")
             for i, q in enumerate(todo, 1):
