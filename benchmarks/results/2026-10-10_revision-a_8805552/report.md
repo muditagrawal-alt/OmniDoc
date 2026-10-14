@@ -2,6 +2,8 @@
 
 Commit `8805552`. Answer model `nvidia:nvidia/nemotron-3-super-120b-a12b` (provider `nvidia` only, no fallback), vision `gemini:gemini-3.5-flash-lite`, embeddings `nomic-embed-text`, judge `groq:openai/gpt-oss-120b`. Each question is asked about its own document, web search off.
 
+Notes: Revision A (question-time): vision reads rendered pages (content trigger, named pages, chart detection), financial statements are fetched for figure questions, paused providers are waited out, cut-off JSON is salvaged. Same indexes as the baseline. Interrupted at 18:42 after 36 of the 53 MMLongBench-Doc answers when the session running it ended; resumed at 18:44 with --resume (FinanceBench first, then the remaining 17 MMLongBench-Doc questions). Same code (8805552) and indexes throughout; no answer needed a retry.
+
 ## MMLongBench-Doc (53 questions)
 
 | Metric | Value |
@@ -20,6 +22,7 @@ Commit `8805552`. Answer model `nvidia:nvidia/nemotron-3-super-120b-a12b` (provi
 | Tokens per question | 4198 |
 | Answers with errors | 0 |
 | Answers that needed a retry (rate limit or model error) | 0 |
+| Answers rewritten after the sentence check (graded correct) | 1 (0) |
 | Ingestion | 7 documents, 596 chunks; upload 61.3s, background 1471.8s (index built at `fb1d133`) |
 
 **By evidence**
@@ -96,6 +99,7 @@ Commit `8805552`. Answer model `nvidia:nvidia/nemotron-3-super-120b-a12b` (provi
 | Tokens per question | 9507 |
 | Answers with errors | 0 |
 | Answers that needed a retry (rate limit or model error) | 0 |
+| Answers rewritten after the sentence check (graded correct) | 5 (2) |
 | Ingestion | 24 documents, 10575 chunks; upload 1104.5s, background 5124.3s (index built at `fb1d133`) |
 
 **By question type**
