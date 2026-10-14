@@ -22,6 +22,7 @@ Notes: Revision C, on top of revision B with its indexing bug fixed (picture des
 | Tokens per question | 28559 |
 | Answers with errors | 0 |
 | Answers that needed a retry (rate limit or model error) | 0 |
+| Answers rewritten after the sentence check (graded correct) | 3 (1) |
 | Ingestion | 7 documents, 694 chunks; upload 159.1s, background 1802.9s (index built at `991bbaa`) |
 
 **By evidence**
@@ -89,6 +90,7 @@ Notes: Revision C, on top of revision B with its indexing bug fixed (picture des
 | Tokens per question | 24385 |
 | Answers with errors | 0 |
 | Answers that needed a retry (rate limit or model error) | 0 |
+| Answers rewritten after the sentence check (graded correct) | 13 (7) |
 | Ingestion | 24 documents, 10574 chunks; upload 1517.4s, background 3427.5s (index built at `991bbaa`) |
 
 **By question type**
