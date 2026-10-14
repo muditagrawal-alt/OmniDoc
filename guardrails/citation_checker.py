@@ -137,6 +137,30 @@ def figure_supported(values: List[float], decimals: int, text: str, text_numbers
     return any(abs(c - values[0]) <= tolerance + 1e-12 for c in text_numbers)
 
 
+_APPROX = re.compile(r"\b(?:about|approximately|approx|roughly|around|nearly|almost|close to)\b|[~≈]", re.I)
+_UNITS = (1.0, 100.0, 0.01, 1e3, 1e-3, 1e6, 1e-6, 1e9, 1e-9)
+
+
+def figure_derived(values: List[float], decimals: int, operands: List[float], approximate: bool) -> bool:
+    """
+    Whether a figure follows in one step from figures the answer gives in the same sentence or the one
+    before: one of them in other units or inverted ("about 1 in 2,000" after "493 per million"), or
+    the sum, difference, product, ratio, mean or percentage change of two (a ratio of the two
+    amounts just quoted). Rounding as written, or within 5% when the sentence says "about" or "roughly".
+    """
+    ops = [x for x in dict.fromkeys(operands) if x][:16]
+    results = ops + [1.0 / x for x in ops]
+    for i, x in enumerate(ops):
+        for j, y in enumerate(ops):
+            if i != j:
+                results += [x + y, x - y, x * y, x / y, (x + y) / 2, (x - y) / y * 100]
+    for v in values:
+        tolerance = max(0.5 * 10 ** (-decimals), abs(v) * (0.05 if approximate else 0.005))
+        if any(abs(r * unit - v) <= tolerance for r in results for unit in _UNITS):
+            return True
+    return False
+
+
 def check_sentences(
     answer: str,
     query: str,
@@ -175,6 +199,7 @@ def check_sentences(
             logger.warning(f"Sentence judge failed: {e}")
 
     checks = []
+    operands: List[float] = []  # figures of the previous sentence (stated in the evidence or derived)
     for s in sentences:
         item = verdicts.get(s["id"], {})
         verdict = str(item.get("verdict") or "").strip().lower()
@@ -200,6 +225,15 @@ def check_sentences(
                 needed.append((preferred or holders)[0])
             else:
                 missing.append(token)
+        # A figure no passage states may be computed from figures the answer has just given (the
+        # writer is asked to show inputs, formula and result): those are not missing.
+        approximate = bool(_APPROX.search(s["text"]))
+        stated = [v for t, vs, _ in figures if t not in missing for v in vs]
+        derived = [token for token, values, decimals in figures
+                   if token in missing and figure_derived(values, decimals, operands + stated, approximate)]
+        for token in derived:
+            missing.remove(token)
+        operands = [v for t, vs, _ in figures if t not in missing for v in vs]  # for the next sentence
         if missing and verdict not in ("no_claim",):
             verdict = "unsupported"
             reason = f"{', '.join(missing[:3])} does not appear in the evidence."
