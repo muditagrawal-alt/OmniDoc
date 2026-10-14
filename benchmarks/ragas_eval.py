@@ -207,6 +207,9 @@ def run_dir_for(label: str, split: str, commit: str) -> Path:
 
 
 def answer(args: argparse.Namespace) -> None:
+    if args.code:
+        # Another copy of the app (a revision being tried) answers; the harness and the index stay.
+        sys.path.insert(0, str(Path(args.code).resolve()))
     settings = dict(DEFAULTS)
     claims = gold(args.split)
     ids = sorted(claims, key=int)
@@ -225,6 +228,7 @@ def answer(args: argparse.Namespace) -> None:
             "label": args.label, "split": args.split, "started": dt.datetime.now().isoformat(timespec="seconds"),
             "commit": commit, "uncommitted_changes": bool(git("status", "--porcelain", "--untracked-files=no")),
             "settings": settings, "question": QUESTION, "claims": len(ids), "sample": args.sample or None,
+            **({"code": str(Path(args.code).resolve())} if args.code else {}),
             "scope": "the whole library of SciFact abstracts (no documents selected); web search off",
             "pacing": f"{args.pause}s between questions; failed answers asked again up to {ATTEMPTS} times",
             "notes": args.notes,
@@ -301,6 +305,7 @@ def score(args: argparse.Namespace) -> None:
     (run_dir / "config.json").write_text(json.dumps(config, indent=1) + "\n")
     claims = gold(config.get("split", "test"))
     answers = [r for r in latest_rows(run_dir / "answers.jsonl") if not r.get("error")]
+    wanted = set(args.metrics.split(",")) if args.metrics else {"verdict", *METRICS}
     scores_path = run_dir / "scores.jsonl"
     done = {(r["id"], r["metric"]) for r in latest_rows_by(scores_path, ("id", "metric")) if r.get("value") is not None}
     jobs = []
@@ -313,7 +318,7 @@ def score(args: argparse.Namespace) -> None:
             "answer_relevancy": dict(user_input=r["question"], response=r["answer"]),
             "factual_correctness_recall": dict(response=r["answer"], reference=g["reference"]) if g["reference"] else None,
         }
-        jobs += [(r["id"], m, kw) for m, kw in inputs.items() if kw and (r["id"], m) not in done]
+        jobs += [(r["id"], m, kw) for m, kw in inputs.items() if kw and m in wanted and (r["id"], m) not in done]
     log(f"{run_dir.name}: {len(jobs)} judge jobs ({len(answers)} answers, judge {args.judge})")
     sem = asyncio.Semaphore(args.concurrency)
 
@@ -530,11 +535,13 @@ def main() -> None:
     a.add_argument("--limit", type=int, default=0, help="only the first N claims (a smoke test, kept out of the results)")
     a.add_argument("--pause", type=int, default=PAUSE_S)
     a.add_argument("--resume", default="", help="a run folder to continue")
+    a.add_argument("--code", default="", help="answer with another copy of the app (e.g. benchmarks/work/code/revD)")
     a.add_argument("--notes", default="")
     s = sub.add_parser("score")
     s.add_argument("run")
     s.add_argument("--judge", default=JUDGE)
     s.add_argument("--concurrency", type=int, default=JUDGE_CONCURRENCY)
+    s.add_argument("--metrics", default="", help="comma-separated subset: verdict," + ",".join(METRICS))
     r = sub.add_parser("report")
     r.add_argument("run", nargs="?", default="")
     args = parser.parse_args()
