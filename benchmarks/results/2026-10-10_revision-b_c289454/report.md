@@ -24,6 +24,7 @@ Notes: Revision B (ingestion), on top of revision A: picture-only pages are read
 | Tokens per question | 5767 |
 | Answers with errors | 0 |
 | Answers that needed a retry (rate limit or model error) | 0 |
+| Answers rewritten after the sentence check (graded correct) | 3 (1) |
 | Ingestion | 7 documents, 694 chunks; upload 158.7s, background 1772.3s (index built at `c289454`) |
 
 **By evidence**
@@ -99,6 +100,7 @@ Notes: Revision B (ingestion), on top of revision A: picture-only pages are read
 | Tokens per question | 8432 |
 | Answers with errors | 0 |
 | Answers that needed a retry (rate limit or model error) | 0 |
+| Answers rewritten after the sentence check (graded correct) | 3 (0) |
 | Ingestion | 24 documents, 10574 chunks; upload 1247.6s, background 6942.5s (index built at `c289454`) |
 
 **By question type**
