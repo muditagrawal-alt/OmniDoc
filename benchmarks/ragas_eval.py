@@ -64,6 +64,7 @@ JUDGE = "nvidia:openai/gpt-oss-20b"      # another family than the answer model 
 JUDGE_EMBED = "nomic-embed-text"         # answer relevancy compares questions by embedding (local Ollama)
 JUDGE_CONCURRENCY = 3
 JUDGE_MAX_TOKENS = 8192
+JUDGE_TIMEOUT_S = 600  # a congested free endpoint can take minutes; a timed-out call is retried from scratch
 JUDGE_EFFORT = "low"   # gpt-oss reasoning effort: the same verdicts in half the time on the checks tried
 PAUSE_S = 15
 # As a user would ask; the writer answers yes / no questions with "Yes" or "No" first. (A format
@@ -291,7 +292,7 @@ def score(args: argparse.Namespace) -> None:
     if provider != "nvidia":
         raise SystemExit("Only NVIDIA-hosted judges are wired up (an OpenAI-compatible endpoint).")
     client = AsyncOpenAI(base_url="https://integrate.api.nvidia.com/v1", api_key=env_value("NVIDIA_API_KEY", "NVIDIA_NIM_API_KEY"),
-                         max_retries=8, timeout=180)
+                         max_retries=4, timeout=JUDGE_TIMEOUT_S)
     cache = DiskCacheBackend(cache_dir=str(WORK / "judge-cache" / args.effort))  # one cache per judge setting
     # gpt-oss reasons before it answers: RAGAS's default of 1,024 output tokens cuts replies short.
     judge = llm_factory(model, client=client, cache=cache, max_tokens=JUDGE_MAX_TOKENS, reasoning_effort=args.effort)
