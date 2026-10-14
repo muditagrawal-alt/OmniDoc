@@ -1,0 +1,108 @@
+{
+ "answers": 300,
+ "failed_answers": 0,
+ "verdict": {
+  "accuracy": {
+   "n": 300,
+   "mean": 0.78,
+   "low": 0.7297,
+   "high": 0.8232
+  },
+  "no_verdict": 0,
+  "accuracy_supported": {
+   "n": 124,
+   "mean": 0.8468,
+   "low": 0.773,
+   "high": 0.8997
+  },
+  "accuracy_refuted": {
+   "n": 64,
+   "mean": 0.9219,
+   "low": 0.8298,
+   "high": 0.9662
+  },
+  "accuracy_not_enough_evidence": {
+   "n": 112,
+   "mean": 0.625,
+   "low": 0.5326,
+   "high": 0.7091
+  },
+  "macro_f1": 0.7755,
+  "accuracy_with_evidence": {
+   "n": 188,
+   "mean": 0.8723,
+   "low": 0.8171,
+   "high": 0.9127
+  },
+  "read_by": "judge",
+  "rules_agree_with_judge": 0.9696
+ },
+ "confusion": {
+  "supported": {
+   "supported": 105,
+   "refuted": 9,
+   "not enough evidence": 10,
+   "none": 0
+  },
+  "refuted": {
+   "supported": 3,
+   "refuted": 59,
+   "not enough evidence": 2,
+   "none": 0
+  },
+  "not enough evidence": {
+   "supported": 23,
+   "refuted": 19,
+   "not enough evidence": 70,
+   "none": 0
+  }
+ },
+ "evidence": {
+  "in_context": {
+   "n": 188,
+   "mean": 0.9787,
+   "low": 0.9466,
+   "high": 0.9917
+  },
+  "cited": {
+   "n": 188,
+   "mean": 0.9202,
+   "low": 0.8725,
+   "high": 0.9511
+  }
+ },
+ "ragas": {
+  "faithfulness": {
+   "n": 300,
+   "mean": 0.7568,
+   "low": 0.718,
+   "high": 0.7956
+  },
+  "answer_relevancy": {
+   "n": 300,
+   "mean": 0.801,
+   "low": 0.7736,
+   "high": 0.8284
+  },
+  "factual_correctness_recall": {
+   "n": 188,
+   "mean": 0.4454,
+   "low": 0.3982,
+   "high": 0.4927
+  },
+  "faithfulness_of_verdicts": {
+   "n": 218,
+   "mean": 0.8596,
+   "low": 0.8332,
+   "high": 0.886
+  }
+ },
+ "judge_errors": 0,
+ "speed": {
+  "median_s": 6.8,
+  "p90_s": 14.4,
+  "first_word_median_s": 3.1
+ },
+ "model_calls_per_answer": 2.55,
+ "tokens_per_answer": 9172
+}
