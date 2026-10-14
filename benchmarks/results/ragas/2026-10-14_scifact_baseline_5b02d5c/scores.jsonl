@@ -1,0 +1,1089 @@
+{"id": "1", "metric": "verdict", "value": 1.0, "verdict": "not enough evidence", "error": "", "seconds": 13.6}
+{"id": "3", "metric": "verdict", "value": 0.0, "verdict": "not enough evidence", "error": "", "seconds": 13.4}
+{"id": "1", "metric": "faithfulness", "value": 1.0, "error": "", "seconds": 36.8}
+{"id": "3", "metric": "answer_relevancy", "value": 0.8578840869301647, "error": "", "seconds": 6.8}
+{"id": "3", "metric": "faithfulness", "value": 1.0, "error": "", "seconds": 26.5}
+{"id": "5", "metric": "verdict", "value": 0.0, "verdict": "refuted", "error": "", "seconds": 5.6}
+{"id": "3", "metric": "factual_correctness_recall", "value": 0.0, "error": "", "seconds": 31.3}
+{"id": "5", "metric": "faithfulness", "value": 0.75, "error": "", "seconds": 31.3}
+{"id": "5", "metric": "factual_correctness_recall", "value": 0.5, "error": "", "seconds": 52.6}
+{"id": "13", "metric": "verdict", "value": 1.0, "verdict": "not enough evidence", "error": "", "seconds": 1.0}
+{"id": "5", "metric": "answer_relevancy", "value": 0.7541402601455035, "error": "", "seconds": 75.5}
+{"id": "13", "metric": "answer_relevancy", "value": 0.0, "error": "", "seconds": 5.7}
+{"id": "36", "metric": "verdict", "value": 0.0, "verdict": "supported", "error": "", "seconds": 1.6}
+{"id": "13", "metric": "faithfulness", "value": 0.0, "error": "", "seconds": 15.6}
+{"id": "36", "metric": "answer_relevancy", "value": 0.9408634993762689, "error": "", "seconds": 7.8}
+{"id": "42", "metric": "verdict", "value": 1.0, "verdict": "refuted", "error": "", "seconds": 12.4}
+{"id": "36", "metric": "faithfulness", "value": 1.0, "error": "", "seconds": 34.6}
+{"id": "42", "metric": "answer_relevancy", "value": 0.8351198002302903, "error": "", "seconds": 10.7}
+{"id": "1", "metric": "answer_relevancy", "value": 0.9263645543496496, "error": "", "seconds": 225.1}
+{"id": "48", "metric": "verdict", "value": 1.0, "verdict": "refuted", "error": "", "seconds": 55.2}
+{"id": "42", "metric": "faithfulness", "value": 0.8888888888888888, "error": "", "seconds": 111.2}
+{"id": "48", "metric": "answer_relevancy", "value": 0.8529601079936461, "error": "", "seconds": 5.1}
+{"id": "42", "metric": "factual_correctness_recall", "value": 0.67, "error": "", "seconds": 103.0}
+{"id": "48", "metric": "faithfulness", "value": 0.6, "error": "", "seconds": 26.5}
+{"id": "49", "metric": "verdict", "value": 1.0, "verdict": "supported", "error": "", "seconds": 3.2}
+{"id": "49", "metric": "answer_relevancy", "value": 0.7855168013056987, "error": "", "seconds": 7.6}
+{"id": "48", "metric": "factual_correctness_recall", "value": 0.5, "error": "", "seconds": 38.5}
+{"id": "50", "metric": "verdict", "value": 1.0, "verdict": "supported", "error": "", "seconds": 7.6}
+{"id": "49", "metric": "faithfulness", "value": 1.0, "error": "", "seconds": 47.6}
+{"id": "49", "metric": "factual_correctness_recall", "value": 0.5, "error": "", "seconds": 40.0}
+{"id": "50", "metric": "faithfulness", "value": 1.0, "error": "", "seconds": 34.9}
+{"id": "50", "metric": "answer_relevancy", "value": 0.8991949105515523, "error": "", "seconds": 25.9}
+{"id": "51", "metric": "verdict", "value": 1.0, "verdict": "refuted", "error": "", "seconds": 18.6}
+{"id": "51", "metric": "answer_relevancy", "value": 0.9214434783407265, "error": "", "seconds": 14.9}
+{"id": "51", "metric": "faithfulness", "value": 0.6666666666666666, "error": "", "seconds": 83.1}
+{"id": "50", "metric": "factual_correctness_recall", "value": 0.33, "error": "", "seconds": 164.4}
+{"id": "51", "metric": "factual_correctness_recall", "value": 0.5, "error": "", "seconds": 168.5}
+{"id": "53", "metric": "faithfulness", "value": 1.0, "error": "", "seconds": 96.3}
+{"id": "53", "metric": "verdict", "value": 1.0, "verdict": "supported", "error": "", "seconds": 256.2}
+{"id": "54", "metric": "verdict", "value": 1.0, "verdict": "refuted", "error": "", "seconds": 12.9}
+{"id": "53", "metric": "factual_correctness_recall", "value": 0.67, "error": "", "seconds": 120.1}
+{"id": "54", "metric": "answer_relevancy", "value": 0.9268105541818249, "error": "", "seconds": 8.7}
+{"id": "54", "metric": "faithfulness", "value": 0.75, "error": "", "seconds": 27.4}
+{"id": "56", "metric": "verdict", "value": 1.0, "verdict": "supported", "error": "", "seconds": 4.5}
+{"id": "53", "metric": "answer_relevancy", "value": 0.9758969942858166, "error": "", "seconds": 190.9}
+{"id": "54", "metric": "factual_correctness_recall", "value": 0.5, "error": "", "seconds": 118.2}
+{"id": "56", "metric": "factual_correctness_recall", "value": 0.67, "error": "", "seconds": 55.0}
+{"id": "57", "metric": "verdict", "value": 1.0, "verdict": "refuted", "error": "", "seconds": 3.4}
+{"id": "57", "metric": "faithfulness", "value": 0.75, "error": "", "seconds": 20.3}
+{"id": "57", "metric": "answer_relevancy", "value": 0.9201568162369953, "error": "", "seconds": 16.0}
+{"id": "56", "metric": "answer_relevancy", "value": 0.8564704060469813, "error": "", "seconds": 196.9}
+{"id": "56", "metric": "faithfulness", "value": 0.875, "error": "", "seconds": 284.7}
+{"id": "70", "metric": "faithfulness", "value": 1.0, "error": "", "seconds": 26.8}
+{"id": "70", "metric": "answer_relevancy", "value": 0.9499236871953874, "error": "", "seconds": 6.1}
+{"id": "70", "metric": "verdict", "value": 1.0, "verdict": "supported", "error": "", "seconds": 115.3}
+{"id": "72", "metric": "verdict", "value": 0.0, "verdict": "refuted", "error": "", "seconds": 3.6}
+{"id": "57", "metric": "factual_correctness_recall", "value": 0.5, "error": "", "seconds": 130.1}
+{"id": "72", "metric": "answer_relevancy", "value": 0.7554558705674425, "error": "", "seconds": 6.5}
+{"id": "75", "metric": "verdict", "value": 1.0, "verdict": "not enough evidence", "error": "", "seconds": 5.8}
+{"id": "72", "metric": "faithfulness", "value": 0.5, "error": "", "seconds": 22.4}
+{"id": "75", "metric": "answer_relevancy", "value": 0.9139006429122354, "error": "", "seconds": 22.8}
+{"id": "94", "metric": "verdict", "value": 1.0, "verdict": "not enough evidence", "error": "", "seconds": 107.5}
+{"id": "75", "metric": "faithfulness", "value": 0.0, "error": "", "seconds": 195.3}
+{"id": "70", "metric": "factual_correctness_recall", "value": 0.4, "error": "", "seconds": 222.6}
+{"id": "94", "metric": "answer_relevancy", "value": 0.8402294358636673, "error": "", "seconds": 10.0}
+{"id": "99", "metric": "verdict", "value": 1.0, "verdict": "not enough evidence", "error": "", "seconds": 2.3}
+{"id": "99", "metric": "answer_relevancy", "value": 0.9037232371479783, "error": "", "seconds": 5.9}
+{"id": "100", "metric": "verdict", "value": 1.0, "verdict": "supported", "error": "", "seconds": 4.7}
+{"id": "100", "metric": "faithfulness", "value": 1.0, "error": "", "seconds": 15.6}
+{"id": "99", "metric": "faithfulness", "value": 0.0, "error": "", "seconds": 27.5}
+{"id": "100", "metric": "answer_relevancy", "value": 0.9782761195381277, "error": "", "seconds": 5.0}
+{"id": "113", "metric": "verdict", "value": 1.0, "verdict": "supported", "error": "", "seconds": 5.0}
+{"id": "113", "metric": "faithfulness", "value": 1.0, "error": "", "seconds": 26.4}
+{"id": "100", "metric": "factual_correctness_recall", "value": 0.5, "error": "", "seconds": 38.4}
+{"id": "113", "metric": "answer_relevancy", "value": 0.88359936139812, "error": "", "seconds": 6.5}
+{"id": "115", "metric": "verdict", "value": 0.0, "verdict": "not enough evidence", "error": "", "seconds": 1.1}
+{"id": "115", "metric": "faithfulness", "value": 1.0, "error": "", "seconds": 14.8}
+{"id": "115", "metric": "answer_relevancy", "value": 0.9012144447360204, "error": "", "seconds": 4.7}
+{"id": "113", "metric": "factual_correctness_recall", "value": 0.33, "error": "", "seconds": 25.8}
+{"id": "118", "metric": "verdict", "value": 1.0, "verdict": "supported", "error": "", "seconds": 0.8}
+{"id": "118", "metric": "faithfulness", "value": 1.0, "error": "", "seconds": 7.0}
+{"id": "118", "metric": "answer_relevancy", "value": 0.9852554937399017, "error": "", "seconds": 5.0}
+{"id": "115", "metric": "factual_correctness_recall", "value": 0.67, "error": "", "seconds": 21.0}
+{"id": "124", "metric": "verdict", "value": 1.0, "verdict": "supported", "error": "", "seconds": 1.6}
+{"id": "118", "metric": "factual_correctness_recall", "value": 0.33, "error": "", "seconds": 18.3}
+{"id": "94", "metric": "faithfulness", "value": 0.0, "error": "", "seconds": 192.5}
+{"id": "124", "metric": "answer_relevancy", "value": 0.8856627593096732, "error": "", "seconds": 4.2}
+{"id": "127", "metric": "verdict", "value": 1.0, "verdict": "not enough evidence", "error": "", "seconds": 1.6}
+{"id": "124", "metric": "faithfulness", "value": 1.0, "error": "", "seconds": 17.4}
+{"id": "127", "metric": "answer_relevancy", "value": 0.0, "error": "", "seconds": 4.6}
+{"id": "128", "metric": "verdict", "value": 1.0, "verdict": "not enough evidence", "error": "", "seconds": 0.9}
+{"id": "127", "metric": "faithfulness", "value": 1.0, "error": "", "seconds": 9.0}
+{"id": "128", "metric": "answer_relevancy", "value": 0.0, "error": "", "seconds": 5.1}
+{"id": "129", "metric": "verdict", "value": 1.0, "verdict": "refuted", "error": "", "seconds": 5.2}
+{"id": "128", "metric": "faithfulness", "value": 1.0, "error": "", "seconds": 13.3}
+{"id": "124", "metric": "factual_correctness_recall", "value": 1.0, "error": "", "seconds": 29.0}
+{"id": "129", "metric": "answer_relevancy", "value": 0.9442862948519101, "error": "", "seconds": 8.1}
+{"id": "130", "metric": "verdict", "value": 1.0, "verdict": "supported", "error": "", "seconds": 5.0}
+{"id": "129", "metric": "faithfulness", "value": 1.0, "error": "", "seconds": 44.9}
+{"id": "130", "metric": "faithfulness", "value": 1.0, "error": "", "seconds": 42.1}
+{"id": "130", "metric": "answer_relevancy", "value": 0.8638460623053877, "error": "", "seconds": 18.1}
+{"id": "129", "metric": "factual_correctness_recall", "value": 1.0, "error": "", "seconds": 59.6}
+{"id": "132", "metric": "verdict", "value": 0.0, "verdict": "supported", "error": "", "seconds": 14.1}
+{"id": "132", "metric": "answer_relevancy", "value": 0.8335392194339816, "error": "", "seconds": 17.8}
+{"id": "133", "metric": "verdict", "value": 1.0, "verdict": "supported", "error": "", "seconds": 6.6}
+{"id": "132", "metric": "faithfulness", "value": 0.75, "error": "", "seconds": 48.0}
+{"id": "133", "metric": "answer_relevancy", "value": 0.586385212953918, "error": "", "seconds": 15.5}
+{"id": "130", "metric": "factual_correctness_recall", "value": 0.5, "error": "", "seconds": 73.0}
+{"id": "133", "metric": "faithfulness", "value": 1.0, "error": "", "seconds": 47.5}
+{"id": "137", "metric": "verdict", "value": 1.0, "verdict": "supported", "error": "", "seconds": 54.9}
+{"id": "137", "metric": "answer_relevancy", "value": 0.9603676637962671, "error": "", "seconds": 13.3}
+{"id": "137", "metric": "factual_correctness_recall", "value": 0.5, "error": "", "seconds": 147.5}
+{"id": "141", "metric": "verdict", "value": 1.0, "verdict": "supported", "error": "", "seconds": 14.9}
+{"id": "141", "metric": "faithfulness", "value": 1.0, "error": "", "seconds": 30.0}
+{"id": "141", "metric": "answer_relevancy", "value": 0.8708041637255343, "error": "", "seconds": 251.8}
+{"id": "137", "metric": "faithfulness", "value": 1.0, "error": "", "seconds": 524.8}
+{"id": "133", "metric": "factual_correctness_recall", "value": 0.67, "error": "", "seconds": 580.3}
+{"id": "142", "metric": "verdict", "value": 1.0, "verdict": "refuted", "error": "", "seconds": 99.0}
+{"id": "142", "metric": "answer_relevancy", "value": 0.9359675899344838, "error": "", "seconds": 11.0}
+{"id": "141", "metric": "factual_correctness_recall", "value": 0.4, "error": "", "seconds": 144.3}
+{"id": "143", "metric": "verdict", "value": 1.0, "verdict": "supported", "error": "", "seconds": 3.5}
+{"id": "142", "metric": "faithfulness", "value": 1.0, "error": "", "seconds": 87.1}
+{"id": "143", "metric": "answer_relevancy", "value": 0.9028327834983089, "error": "", "seconds": 8.6}
+{"id": "143", "metric": "faithfulness", "value": 1.0, "error": "", "seconds": 36.6}
+{"id": "146", "metric": "verdict", "value": 1.0, "verdict": "supported", "error": "", "seconds": 1.6}
+{"id": "142", "metric": "factual_correctness_recall", "value": 0.33, "error": "", "seconds": 59.9}
+{"id": "146", "metric": "answer_relevancy", "value": 0.8530418569228043, "error": "", "seconds": 6.4}
+{"id": "146", "metric": "faithfulness", "value": 1.0, "error": "", "seconds": 25.2}
+{"id": "143", "metric": "factual_correctness_recall", "value": 0.5, "error": "", "seconds": 49.5}
+{"id": "148", "metric": "verdict", "value": 1.0, "verdict": "supported", "error": "", "seconds": 1.0}
+{"id": "148", "metric": "answer_relevancy", "value": 0.9231412028117881, "error": "", "seconds": 4.5}
+{"id": "148", "metric": "faithfulness", "value": 0.8333333333333334, "error": "", "seconds": 28.1}
+{"id": "146", "metric": "factual_correctness_recall", "value": 0.5, "error": "", "seconds": 32.7}
+{"id": "148", "metric": "factual_correctness_recall", "value": 0.5, "error": "", "seconds": 27.6}
+{"id": "163", "metric": "verdict", "value": 1.0, "verdict": "supported", "error": "", "seconds": 5.7}
+{"id": "163", "metric": "answer_relevancy", "value": 0.895032121316368, "error": "", "seconds": 12.3}
+{"id": "163", "metric": "faithfulness", "value": 1.0, "error": "", "seconds": 39.3}
+{"id": "171", "metric": "verdict", "value": 1.0, "verdict": "refuted", "error": "", "seconds": 65.9}
+{"id": "171", "metric": "faithfulness", "value": 1.0, "error": "", "seconds": 69.3}
+{"id": "163", "metric": "factual_correctness_recall", "value": 0.0, "error": "", "seconds": 128.7}
+{"id": "171", "metric": "answer_relevancy", "value": 0.9583077417754566, "error": "", "seconds": 56.7}
+{"id": "179", "metric": "verdict", "value": 1.0, "verdict": "supported", "error": "", "seconds": 55.4}
+{"id": "179", "metric": "faithfulness", "value": 1.0, "error": "", "seconds": 128.2}
+{"id": "179", "metric": "answer_relevancy", "value": 0.9264785343713579, "error": "", "seconds": 197.8}
+{"id": "180", "metric": "verdict", "value": 1.0, "verdict": "refuted", "error": "", "seconds": 11.0}
+{"id": "180", "metric": "faithfulness", "value": 0.0, "error": "", "seconds": 40.0}
+{"id": "180", "metric": "answer_relevancy", "value": 0.9244840721117695, "error": "", "seconds": 45.5}
+{"id": "179", "metric": "factual_correctness_recall", "value": 0.25, "error": "", "seconds": 246.0}
+{"id": "180", "metric": "factual_correctness_recall", "value": 0.0, "error": "", "seconds": 31.8}
+{"id": "183", "metric": "verdict", "value": 1.0, "verdict": "refuted", "error": "", "seconds": 2.9}
+{"id": "183", "metric": "answer_relevancy", "value": 0.9100701874408831, "error": "", "seconds": 7.1}
+{"id": "183", "metric": "faithfulness", "value": 1.0, "error": "", "seconds": 24.2}
+{"id": "185", "metric": "verdict", "value": 1.0, "verdict": "refuted", "error": "", "seconds": 2.8}
+{"id": "171", "metric": "factual_correctness_recall", "value": 0.4, "error": "", "seconds": 474.5}
+{"id": "185", "metric": "answer_relevancy", "value": 0.9651793793500207, "error": "", "seconds": 11.1}
+{"id": "183", "metric": "factual_correctness_recall", "value": 0.5, "error": "", "seconds": 74.9}
+{"id": "185", "metric": "faithfulness", "value": 0.9473684210526315, "error": "", "seconds": 79.9}
+{"id": "198", "metric": "faithfulness", "value": 0.0, "error": "", "seconds": 28.8}
+{"id": "198", "metric": "answer_relevancy", "value": 0.8509740868011528, "error": "", "seconds": 12.2}
+{"id": "198", "metric": "verdict", "value": 1.0, "verdict": "not enough evidence", "error": "", "seconds": 66.5}
+{"id": "208", "metric": "verdict", "value": 1.0, "verdict": "supported", "error": "", "seconds": 19.3}
+{"id": "208", "metric": "answer_relevancy", "value": 0.8548214831535396, "error": "", "seconds": 13.6}
+{"id": "208", "metric": "faithfulness", "value": 0.6666666666666666, "error": "", "seconds": 40.0}
+{"id": "212", "metric": "verdict", "value": 1.0, "verdict": "refuted", "error": "", "seconds": 5.6}
+{"id": "212", "metric": "faithfulness", "value": 0.6, "error": "", "seconds": 26.5}
+{"id": "208", "metric": "factual_correctness_recall", "value": 0.67, "error": "", "seconds": 47.5}
+{"id": "212", "metric": "answer_relevancy", "value": 0.6976247965132258, "error": "", "seconds": 9.5}
+{"id": "213", "metric": "verdict", "value": 0.0, "verdict": "refuted", "error": "", "seconds": 4.4}
+{"id": "212", "metric": "factual_correctness_recall", "value": 0.67, "error": "", "seconds": 75.4}
+{"id": "213", "metric": "answer_relevancy", "value": 0.8204898482914896, "error": "", "seconds": 5.4}
+{"id": "216", "metric": "verdict", "value": 1.0, "verdict": "refuted", "error": "", "seconds": 2.6}
+{"id": "213", "metric": "faithfulness", "value": 0.875, "error": "", "seconds": 86.2}
+{"id": "216", "metric": "faithfulness", "value": 0.5, "error": "", "seconds": 12.8}
+{"id": "216", "metric": "answer_relevancy", "value": 0.8661321424371949, "error": "", "seconds": 6.6}
+{"id": "217", "metric": "verdict", "value": 1.0, "verdict": "supported", "error": "", "seconds": 2.1}
+{"id": "217", "metric": "faithfulness", "value": 1.0, "error": "", "seconds": 14.6}
+{"id": "217", "metric": "answer_relevancy", "value": 0.73099536278635, "error": "", "seconds": 10.5}
+{"id": "185", "metric": "factual_correctness_recall", "value": 0.0, "error": "", "seconds": 295.5}
+{"id": "218", "metric": "verdict", "value": 1.0, "verdict": "supported", "error": "", "seconds": 1.8}
+{"id": "217", "metric": "factual_correctness_recall", "value": 0.33, "error": "", "seconds": 28.0}
+{"id": "216", "metric": "factual_correctness_recall", "value": 0.33, "error": "", "seconds": 59.6}
+{"id": "218", "metric": "answer_relevancy", "value": 0.9346537141221948, "error": "", "seconds": 5.3}
+{"id": "219", "metric": "verdict", "value": 1.0, "verdict": "refuted", "error": "", "seconds": 1.7}
+{"id": "218", "metric": "faithfulness", "value": 1.0, "error": "", "seconds": 27.0}
+{"id": "219", "metric": "answer_relevancy", "value": 0.8499651969475718, "error": "", "seconds": 8.8}
+{"id": "230", "metric": "verdict", "value": 1.0, "verdict": "supported", "error": "", "seconds": 1.3}
+{"id": "219", "metric": "faithfulness", "value": 0.5, "error": "", "seconds": 12.7}
+{"id": "230", "metric": "answer_relevancy", "value": 0.8048881751634241, "error": "", "seconds": 4.1}
+{"id": "218", "metric": "factual_correctness_recall", "value": 1.0, "error": "", "seconds": 24.0}
+{"id": "232", "metric": "verdict", "value": 0.0, "verdict": "refuted", "error": "", "seconds": 1.8}
+{"id": "219", "metric": "factual_correctness_recall", "value": 0.67, "error": "", "seconds": 37.3}
+{"id": "232", "metric": "answer_relevancy", "value": 0.9484663181668013, "error": "", "seconds": 5.8}
+{"id": "230", "metric": "faithfulness", "value": 0.8333333333333334, "error": "", "seconds": 35.3}
+{"id": "233", "metric": "verdict", "value": 1.0, "verdict": "refuted", "error": "", "seconds": 2.2}
+{"id": "233", "metric": "answer_relevancy", "value": 0.9745287289980561, "error": "", "seconds": 5.0}
+{"id": "232", "metric": "faithfulness", "value": 1.0, "error": "", "seconds": 25.2}
+{"id": "230", "metric": "factual_correctness_recall", "value": 0.5, "error": "", "seconds": 35.9}
+{"id": "236", "metric": "verdict", "value": 0.0, "verdict": "not enough evidence", "error": "", "seconds": 1.6}
+{"id": "236", "metric": "answer_relevancy", "value": 0.8878193108588109, "error": "", "seconds": 6.2}
+{"id": "233", "metric": "faithfulness", "value": 1.0, "error": "", "seconds": 21.0}
+{"id": "236", "metric": "faithfulness", "value": 0.0, "error": "", "seconds": 15.4}
+{"id": "237", "metric": "verdict", "value": 1.0, "verdict": "not enough evidence", "error": "", "seconds": 1.9}
+{"id": "237", "metric": "answer_relevancy", "value": 0.0, "error": "", "seconds": 6.8}
+{"id": "238", "metric": "verdict", "value": 1.0, "verdict": "not enough evidence", "error": "", "seconds": 2.5}
+{"id": "236", "metric": "factual_correctness_recall", "value": 0.0, "error": "", "seconds": 26.3}
+{"id": "238", "metric": "faithfulness", "value": 1.0, "error": "", "seconds": 10.8}
+{"id": "237", "metric": "faithfulness", "value": 1.0, "error": "", "seconds": 21.0}
+{"id": "233", "metric": "factual_correctness_recall", "value": 0.4, "error": "", "seconds": 39.7}
+{"id": "239", "metric": "verdict", "value": 1.0, "verdict": "supported", "error": "", "seconds": 2.4}
+{"id": "239", "metric": "answer_relevancy", "value": 0.9628247146093057, "error": "", "seconds": 4.3}
+{"id": "248", "metric": "verdict", "value": 1.0, "verdict": "supported", "error": "", "seconds": 1.7}
+{"id": "248", "metric": "faithfulness", "value": 1.0, "error": "", "seconds": 10.7}
+{"id": "239", "metric": "faithfulness", "value": 0.5, "error": "", "seconds": 20.7}
+{"id": "239", "metric": "factual_correctness_recall", "value": 0.0, "error": "", "seconds": 23.6}
+{"id": "248", "metric": "answer_relevancy", "value": 0.928607099402828, "error": "", "seconds": 7.7}
+{"id": "249", "metric": "verdict", "value": 1.0, "verdict": "refuted", "error": "", "seconds": 2.2}
+{"id": "249", "metric": "answer_relevancy", "value": 0.976209548022943, "error": "", "seconds": 8.9}
+{"id": "238", "metric": "answer_relevancy", "value": 0.8704829672918897, "error": "", "seconds": 40.3}
+{"id": "261", "metric": "verdict", "value": 1.0, "verdict": "supported", "error": "", "seconds": 2.1}
+{"id": "249", "metric": "faithfulness", "value": 0.6666666666666666, "error": "", "seconds": 19.4}
+{"id": "248", "metric": "factual_correctness_recall", "value": 0.33, "error": "", "seconds": 29.5}
+{"id": "261", "metric": "answer_relevancy", "value": 0.8968502867943092, "error": "", "seconds": 6.5}
+{"id": "268", "metric": "verdict", "value": 0.0, "verdict": "supported", "error": "", "seconds": 0.8}
+{"id": "261", "metric": "faithfulness", "value": 1.0, "error": "", "seconds": 18.0}
+{"id": "268", "metric": "answer_relevancy", "value": 0.7285674541029987, "error": "", "seconds": 5.1}
+{"id": "269", "metric": "verdict", "value": 0.0, "verdict": "refuted", "error": "", "seconds": 1.3}
+{"id": "249", "metric": "factual_correctness_recall", "value": 0.5, "error": "", "seconds": 28.3}
+{"id": "269", "metric": "answer_relevancy", "value": 0.704932777393901, "error": "", "seconds": 6.4}
+{"id": "268", "metric": "faithfulness", "value": 0.75, "error": "", "seconds": 19.1}
+{"id": "274", "metric": "verdict", "value": 1.0, "verdict": "refuted", "error": "", "seconds": 2.0}
+{"id": "274", "metric": "answer_relevancy", "value": 0.9142571981724861, "error": "", "seconds": 4.6}
+{"id": "269", "metric": "faithfulness", "value": 0.75, "error": "", "seconds": 19.5}
+{"id": "275", "metric": "verdict", "value": 0.0, "verdict": "not enough evidence", "error": "", "seconds": 1.6}
+{"id": "261", "metric": "factual_correctness_recall", "value": 0.2, "error": "", "seconds": 39.6}
+{"id": "275", "metric": "answer_relevancy", "value": 0.9289196383782522, "error": "", "seconds": 6.0}
+{"id": "274", "metric": "faithfulness", "value": 1.0, "error": "", "seconds": 29.0}
+{"id": "279", "metric": "verdict", "value": 1.0, "verdict": "supported", "error": "", "seconds": 1.2}
+{"id": "274", "metric": "factual_correctness_recall", "value": 1.0, "error": "", "seconds": 25.6}
+{"id": "279", "metric": "answer_relevancy", "value": 0.8516537037196293, "error": "", "seconds": 4.9}
+{"id": "279", "metric": "faithfulness", "value": 1.0, "error": "", "seconds": 9.1}
+{"id": "275", "metric": "faithfulness", "value": 0.8333333333333334, "error": "", "seconds": 27.9}
+{"id": "294", "metric": "verdict", "value": 1.0, "verdict": "not enough evidence", "error": "", "seconds": 3.0}
+{"id": "294", "metric": "answer_relevancy", "value": 0.9576297364694536, "error": "", "seconds": 7.6}
+{"id": "294", "metric": "faithfulness", "value": 0.0, "error": "", "seconds": 10.0}
+{"id": "295", "metric": "verdict", "value": 1.0, "verdict": "supported", "error": "", "seconds": 1.0}
+{"id": "279", "metric": "factual_correctness_recall", "value": 0.33, "error": "", "seconds": 19.2}
+{"id": "295", "metric": "answer_relevancy", "value": 0.9370961500037548, "error": "", "seconds": 6.7}
+{"id": "298", "metric": "verdict", "value": 1.0, "verdict": "supported", "error": "", "seconds": 0.8}
+{"id": "275", "metric": "factual_correctness_recall", "value": 0.2, "error": "", "seconds": 34.6}
+{"id": "298", "metric": "answer_relevancy", "value": 0.880075793228403, "error": "", "seconds": 4.2}
+{"id": "295", "metric": "faithfulness", "value": 1.0, "error": "", "seconds": 14.0}
+{"id": "298", "metric": "faithfulness", "value": 1.0, "error": "", "seconds": 13.2}
+{"id": "300", "metric": "verdict", "value": 0.0, "verdict": "supported", "error": "", "seconds": 6.8}
+{"id": "300", "metric": "answer_relevancy", "value": 0.8739751937858347, "error": "", "seconds": 7.4}
+{"id": "303", "metric": "verdict", "value": 0.0, "verdict": "supported", "error": "", "seconds": 3.5}
+{"id": "298", "metric": "factual_correctness_recall", "value": 1.0, "error": "", "seconds": 26.7}
+{"id": "300", "metric": "faithfulness", "value": 0.4, "error": "", "seconds": 21.0}
+{"id": "303", "metric": "answer_relevancy", "value": 0.7932779760567014, "error": "", "seconds": 4.7}
+{"id": "312", "metric": "verdict", "value": 1.0, "verdict": "not enough evidence", "error": "", "seconds": 2.7}
+{"id": "312", "metric": "answer_relevancy", "value": 0.0, "error": "", "seconds": 5.0}
+{"id": "314", "metric": "verdict", "value": 1.0, "verdict": "supported", "error": "", "seconds": 3.1}
+{"id": "312", "metric": "faithfulness", "value": 0.0, "error": "", "seconds": 12.6}
+{"id": "295", "metric": "factual_correctness_recall", "value": 0.2, "error": "", "seconds": 54.9}
+{"id": "303", "metric": "faithfulness", "value": 0.6, "error": "", "seconds": 30.7}
+{"id": "314", "metric": "answer_relevancy", "value": 0.8303728913080238, "error": "", "seconds": 6.3}
+{"id": "324", "metric": "verdict", "value": 1.0, "verdict": "not enough evidence", "error": "", "seconds": 1.0}
+{"id": "314", "metric": "faithfulness", "value": 1.0, "error": "", "seconds": 15.8}
+{"id": "324", "metric": "answer_relevancy", "value": 0.0, "error": "", "seconds": 5.8}
+{"id": "327", "metric": "verdict", "value": 1.0, "verdict": "supported", "error": "", "seconds": 2.5}
+{"id": "327", "metric": "answer_relevancy", "value": 0.9613114070998444, "error": "", "seconds": 4.7}
+{"id": "327", "metric": "faithfulness", "value": 1.0, "error": "", "seconds": 14.2}
+{"id": "338", "metric": "verdict", "value": 1.0, "verdict": "refuted", "error": "", "seconds": 4.4}
+{"id": "324", "metric": "faithfulness", "value": 0.5, "error": "", "seconds": 27.0}
+{"id": "338", "metric": "answer_relevancy", "value": 0.8189271145754654, "error": "", "seconds": 15.9}
+{"id": "314", "metric": "factual_correctness_recall", "value": 0.33, "error": "", "seconds": 48.1}
+{"id": "327", "metric": "factual_correctness_recall", "value": 0.5, "error": "", "seconds": 41.1}
+{"id": "338", "metric": "faithfulness", "value": 0.75, "error": "", "seconds": 31.5}
+{"id": "343", "metric": "verdict", "value": 0.0, "verdict": "refuted", "error": "", "seconds": 10.4}
+{"id": "343", "metric": "answer_relevancy", "value": 0.8816682601280409, "error": "", "seconds": 18.6}
+{"id": "343", "metric": "faithfulness", "value": 0.6666666666666666, "error": "", "seconds": 49.8}
+{"id": "350", "metric": "verdict", "value": 0.0, "verdict": "supported", "error": "", "seconds": 50.3}
+{"id": "338", "metric": "factual_correctness_recall", "value": 0.5, "error": "", "seconds": 83.3}
+{"id": "350", "metric": "faithfulness", "value": 0.3333333333333333, "error": "", "seconds": 68.8}
+{"id": "354", "metric": "verdict", "value": 0.0, "verdict": "refuted", "error": "", "seconds": 66.4}
+{"id": "350", "metric": "answer_relevancy", "value": 0.8223473965456143, "error": "", "seconds": 70.7}
+{"id": "343", "metric": "factual_correctness_recall", "value": 0.0, "error": "", "seconds": 162.3}
+{"id": "354", "metric": "answer_relevancy", "value": 0.959271342773966, "error": "", "seconds": 47.0}
+{"id": "362", "metric": "verdict", "value": 0.0, "verdict": "supported", "error": "", "seconds": 44.6}
+{"id": "354", "metric": "faithfulness", "value": 0.5, "error": "", "seconds": 70.7}
+{"id": "362", "metric": "answer_relevancy", "value": 0.7814027852743339, "error": "", "seconds": 39.1}
+{"id": "380", "metric": "answer_relevancy", "value": 0.7731855129147212, "error": "", "seconds": 44.1}
+{"id": "380", "metric": "faithfulness", "value": 1.0, "error": "", "seconds": 83.4}
+{"id": "384", "metric": "verdict", "value": 0.0, "verdict": "supported", "error": "", "seconds": 35.6}
+{"id": "384", "metric": "faithfulness", "value": 0.3333333333333333, "error": "", "seconds": 45.6}
+{"id": "384", "metric": "answer_relevancy", "value": 0.765537364080832, "error": "", "seconds": 18.6}
+{"id": "380", "metric": "factual_correctness_recall", "value": 1.0, "error": "", "seconds": 105.8}
+{"id": "380", "metric": "verdict", "value": 1.0, "verdict": "supported", "error": "", "seconds": 198.4}
+{"id": "385", "metric": "verdict", "value": 1.0, "verdict": "supported", "error": "", "seconds": 17.6}
+{"id": "385", "metric": "answer_relevancy", "value": 0.7982101331467529, "error": "", "seconds": 32.4}
+{"id": "386", "metric": "verdict", "value": 1.0, "verdict": "supported", "error": "", "seconds": 12.0}
+{"id": "385", "metric": "faithfulness", "value": 1.0, "error": "", "seconds": 64.8}
+{"id": "386", "metric": "answer_relevancy", "value": 0.7823129768621188, "error": "", "seconds": 4.9}
+{"id": "362", "metric": "faithfulness", "value": 0.5, "error": "", "seconds": 292.8}
+{"id": "385", "metric": "factual_correctness_recall", "value": 0.33, "error": "", "seconds": 249.3}
+{"id": "388", "metric": "verdict", "value": 1.0, "verdict": "not enough evidence", "error": "", "seconds": 189.7}
+{"id": "388", "metric": "answer_relevancy", "value": 0.8738679563975319, "error": "", "seconds": 8.2}
+{"id": "399", "metric": "verdict", "value": 1.0, "verdict": "supported", "error": "", "seconds": 0.8}
+{"id": "388", "metric": "faithfulness", "value": 1.0, "error": "", "seconds": 18.8}
+{"id": "386", "metric": "factual_correctness_recall", "value": 0.5, "error": "", "seconds": 217.9}
+{"id": "399", "metric": "answer_relevancy", "value": 0.9110062126067486, "error": "", "seconds": 5.6}
+{"id": "410", "metric": "verdict", "value": 0.0, "verdict": "refuted", "error": "", "seconds": 2.2}
+{"id": "399", "metric": "faithfulness", "value": 1.0, "error": "", "seconds": 18.0}
+{"id": "410", "metric": "answer_relevancy", "value": 0.9651470849622474, "error": "", "seconds": 6.6}
+{"id": "411", "metric": "verdict", "value": 0.0, "verdict": "supported", "error": "", "seconds": 1.8}
+{"id": "399", "metric": "factual_correctness_recall", "value": 1.0, "error": "", "seconds": 26.5}
+{"id": "410", "metric": "faithfulness", "value": 0.6, "error": "", "seconds": 27.3}
+{"id": "411", "metric": "answer_relevancy", "value": 0.9407320838611043, "error": "", "seconds": 4.9}
+{"id": "415", "metric": "verdict", "value": 1.0, "verdict": "supported", "error": "", "seconds": 1.0}
+{"id": "411", "metric": "faithfulness", "value": 0.75, "error": "", "seconds": 15.5}
+{"id": "415", "metric": "answer_relevancy", "value": 0.957234950186609, "error": "", "seconds": 7.9}
+{"id": "421", "metric": "verdict", "value": 1.0, "verdict": "not enough evidence", "error": "", "seconds": 11.7}
+{"id": "421", "metric": "faithfulness", "value": 0.0, "error": "", "seconds": 17.5}
+{"id": "421", "metric": "answer_relevancy", "value": 0.0, "error": "", "seconds": 4.8}
+{"id": "431", "metric": "verdict", "value": 0.0, "verdict": "refuted", "error": "", "seconds": 2.7}
+{"id": "415", "metric": "factual_correctness_recall", "value": 0.0, "error": "", "seconds": 49.3}
+{"id": "415", "metric": "faithfulness", "value": 1.0, "error": "", "seconds": 54.6}
+{"id": "431", "metric": "answer_relevancy", "value": 0.9493658163333768, "error": "", "seconds": 4.3}
+{"id": "436", "metric": "verdict", "value": 1.0, "verdict": "supported", "error": "", "seconds": 2.7}
+{"id": "431", "metric": "faithfulness", "value": 1.0, "error": "", "seconds": 23.6}
+{"id": "436", "metric": "answer_relevancy", "value": 0.814296396832217, "error": "", "seconds": 8.4}
+{"id": "436", "metric": "faithfulness", "value": 1.0, "error": "", "seconds": 18.1}
+{"id": "437", "metric": "verdict", "value": 0.0, "verdict": "refuted", "error": "", "seconds": 1.2}
+{"id": "431", "metric": "factual_correctness_recall", "value": 0.0, "error": "", "seconds": 31.6}
+{"id": "437", "metric": "answer_relevancy", "value": 0.9495145776382167, "error": "", "seconds": 6.4}
+{"id": "439", "metric": "verdict", "value": 1.0, "verdict": "not enough evidence", "error": "", "seconds": 8.7}
+{"id": "437", "metric": "faithfulness", "value": 0.8, "error": "", "seconds": 24.7}
+{"id": "439", "metric": "answer_relevancy", "value": 0.9606324408218918, "error": "", "seconds": 15.4}
+{"id": "440", "metric": "verdict", "value": 1.0, "verdict": "not enough evidence", "error": "", "seconds": 2.8}
+{"id": "386", "metric": "faithfulness", "value": 0.6666666666666666, "error": "", "seconds": 394.2}
+{"id": "436", "metric": "factual_correctness_recall", "value": 0.33, "error": "", "seconds": 55.5}
+{"id": "440", "metric": "answer_relevancy", "value": 0.9606931436388905, "error": "", "seconds": 7.6}
+{"id": "443", "metric": "verdict", "value": 1.0, "verdict": "supported", "error": "", "seconds": 5.0}
+{"id": "443", "metric": "answer_relevancy", "value": 0.9127143188706542, "error": "", "seconds": 4.6}
+{"id": "440", "metric": "faithfulness", "value": 0.0, "error": "", "seconds": 22.4}
+{"id": "452", "metric": "verdict", "value": 1.0, "verdict": "refuted", "error": "", "seconds": 1.8}
+{"id": "443", "metric": "faithfulness", "value": 1.0, "error": "", "seconds": 13.7}
+{"id": "439", "metric": "faithfulness", "value": 0.0, "error": "", "seconds": 56.2}
+{"id": "452", "metric": "answer_relevancy", "value": 0.87537523030756, "error": "", "seconds": 7.4}
+{"id": "475", "metric": "verdict", "value": 1.0, "verdict": "supported", "error": "", "seconds": 2.0}
+{"id": "452", "metric": "faithfulness", "value": 1.0, "error": "", "seconds": 14.3}
+{"id": "475", "metric": "answer_relevancy", "value": 0.9136283683640979, "error": "", "seconds": 6.2}
+{"id": "443", "metric": "factual_correctness_recall", "value": 0.67, "error": "", "seconds": 26.5}
+{"id": "478", "metric": "verdict", "value": 1.0, "verdict": "not enough evidence", "error": "", "seconds": 2.9}
+{"id": "475", "metric": "faithfulness", "value": 0.8, "error": "", "seconds": 19.5}
+{"id": "452", "metric": "factual_correctness_recall", "value": 0.5, "error": "", "seconds": 23.1}
+{"id": "491", "metric": "verdict", "value": 1.0, "verdict": "not enough evidence", "error": "", "seconds": 2.1}
+{"id": "478", "metric": "answer_relevancy", "value": 0.9505255446232871, "error": "", "seconds": 6.5}
+{"id": "491", "metric": "answer_relevancy", "value": 0.9150060193055398, "error": "", "seconds": 4.7}
+{"id": "475", "metric": "factual_correctness_recall", "value": 0.0, "error": "", "seconds": 24.9}
+{"id": "501", "metric": "verdict", "value": 1.0, "verdict": "supported", "error": "", "seconds": 1.4}
+{"id": "501", "metric": "answer_relevancy", "value": 0.9408778231003087, "error": "", "seconds": 4.9}
+{"id": "478", "metric": "faithfulness", "value": 0.5, "error": "", "seconds": 26.0}
+{"id": "491", "metric": "faithfulness", "value": 0.0, "error": "", "seconds": 16.3}
+{"id": "502", "metric": "verdict", "value": 1.0, "verdict": "not enough evidence", "error": "", "seconds": 1.8}
+{"id": "501", "metric": "faithfulness", "value": 1.0, "error": "", "seconds": 10.4}
+{"id": "507", "metric": "verdict", "value": 0.0, "verdict": "supported", "error": "", "seconds": 1.4}
+{"id": "502", "metric": "answer_relevancy", "value": 0.0, "error": "", "seconds": 6.0}
+{"id": "507", "metric": "answer_relevancy", "value": 0.8759859008964671, "error": "", "seconds": 5.7}
+{"id": "508", "metric": "verdict", "value": 1.0, "verdict": "not enough evidence", "error": "", "seconds": 1.0}
+{"id": "501", "metric": "factual_correctness_recall", "value": 1.0, "error": "", "seconds": 21.3}
+{"id": "502", "metric": "faithfulness", "value": 0.0, "error": "", "seconds": 20.4}
+{"id": "513", "metric": "verdict", "value": 1.0, "verdict": "refuted", "error": "", "seconds": 1.6}
+{"id": "508", "metric": "faithfulness", "value": 0.0, "error": "", "seconds": 10.2}
+{"id": "508", "metric": "answer_relevancy", "value": 0.0, "error": "", "seconds": 7.7}
+{"id": "513", "metric": "answer_relevancy", "value": 0.8167434434914537, "error": "", "seconds": 6.4}
+{"id": "514", "metric": "verdict", "value": 0.0, "verdict": "supported", "error": "", "seconds": 1.7}
+{"id": "513", "metric": "faithfulness", "value": 0.8, "error": "", "seconds": 26.7}
+{"id": "513", "metric": "factual_correctness_recall", "value": 0.0, "error": "", "seconds": 22.3}
+{"id": "507", "metric": "faithfulness", "value": 0.9166666666666666, "error": "", "seconds": 58.2}
+{"id": "514", "metric": "faithfulness", "value": 0.8, "error": "", "seconds": 32.2}
+{"id": "516", "metric": "answer_relevancy", "value": 0.8008850577876562, "error": "", "seconds": 7.8}
+{"id": "516", "metric": "verdict", "value": 1.0, "verdict": "refuted", "error": "", "seconds": 33.7}
+{"id": "514", "metric": "answer_relevancy", "value": 0.8354581864900474, "error": "", "seconds": 40.3}
+{"id": "517", "metric": "verdict", "value": 1.0, "verdict": "not enough evidence", "error": "", "seconds": 7.3}
+{"id": "517", "metric": "answer_relevancy", "value": 0.7886741830228919, "error": "", "seconds": 11.0}
+{"id": "517", "metric": "faithfulness", "value": 1.0, "error": "", "seconds": 17.9}
+{"id": "521", "metric": "verdict", "value": 1.0, "verdict": "supported", "error": "", "seconds": 5.3}
+{"id": "521", "metric": "answer_relevancy", "value": 0.7755084725738531, "error": "", "seconds": 15.1}
+{"id": "516", "metric": "faithfulness", "value": 0.8, "error": "", "seconds": 162.2}
+{"id": "521", "metric": "faithfulness", "value": 1.0, "error": "", "seconds": 121.8}
+{"id": "516", "metric": "factual_correctness_recall", "value": 0.5, "error": "", "seconds": 167.8}
+{"id": "525", "metric": "verdict", "value": 1.0, "verdict": "supported", "error": "", "seconds": 64.1}
+{"id": "525", "metric": "answer_relevancy", "value": 0.8246798283022464, "error": "", "seconds": 68.5}
+{"id": "525", "metric": "faithfulness", "value": 0.75, "error": "", "seconds": 216.3}
+{"id": "527", "metric": "verdict", "value": 1.0, "verdict": "not enough evidence", "error": "", "seconds": 166.5}
+{"id": "527", "metric": "answer_relevancy", "value": 0.9802818458642156, "error": "", "seconds": 31.3}
+{"id": "528", "metric": "verdict", "value": 1.0, "verdict": "supported", "error": "", "seconds": 11.3}
+{"id": "528", "metric": "faithfulness", "value": 1.0, "error": "", "seconds": 12.6}
+{"id": "528", "metric": "answer_relevancy", "value": 0.8595234379327014, "error": "", "seconds": 5.7}
+{"id": "525", "metric": "factual_correctness_recall", "value": 1.0, "error": "", "seconds": 265.2}
+{"id": "532", "metric": "verdict", "value": 1.0, "verdict": "refuted", "error": "", "seconds": 1.0}
+{"id": "528", "metric": "factual_correctness_recall", "value": 0.0, "error": "", "seconds": 25.4}
+{"id": "532", "metric": "answer_relevancy", "value": 0.8205332453131411, "error": "", "seconds": 4.5}
+{"id": "532", "metric": "faithfulness", "value": 0.6, "error": "", "seconds": 18.4}
+{"id": "533", "metric": "verdict", "value": 1.0, "verdict": "supported", "error": "", "seconds": 1.1}
+{"id": "532", "metric": "factual_correctness_recall", "value": 0.2, "error": "", "seconds": 32.4}
+{"id": "533", "metric": "answer_relevancy", "value": 0.7963041355260033, "error": "", "seconds": 6.1}
+{"id": "521", "metric": "factual_correctness_recall", "value": 0.67, "error": "", "seconds": 483.2}
+{"id": "533", "metric": "faithfulness", "value": 0.8571428571428571, "error": "", "seconds": 32.6}
+{"id": "535", "metric": "verdict", "value": 1.0, "verdict": "not enough evidence", "error": "", "seconds": 2.8}
+{"id": "535", "metric": "answer_relevancy", "value": 0.0, "error": "", "seconds": 5.5}
+{"id": "536", "metric": "verdict", "value": 1.0, "verdict": "supported", "error": "", "seconds": 1.3}
+{"id": "535", "metric": "faithfulness", "value": 1.0, "error": "", "seconds": 14.9}
+{"id": "536", "metric": "faithfulness", "value": 1.0, "error": "", "seconds": 12.9}
+{"id": "536", "metric": "answer_relevancy", "value": 0.7493443766015767, "error": "", "seconds": 5.8}
+{"id": "539", "metric": "verdict", "value": 1.0, "verdict": "supported", "error": "", "seconds": 0.8}
+{"id": "533", "metric": "factual_correctness_recall", "value": 0.25, "error": "", "seconds": 34.2}
+{"id": "527", "metric": "faithfulness", "value": 0.5, "error": "", "seconds": 198.4}
+{"id": "539", "metric": "answer_relevancy", "value": 0.8772096128468498, "error": "", "seconds": 6.0}
+{"id": "540", "metric": "verdict", "value": 1.0, "verdict": "supported", "error": "", "seconds": 1.0}
+{"id": "539", "metric": "faithfulness", "value": 1.0, "error": "", "seconds": 22.0}
+{"id": "536", "metric": "factual_correctness_recall", "value": 1.0, "error": "", "seconds": 27.3}
+{"id": "540", "metric": "answer_relevancy", "value": 0.9470598744016957, "error": "", "seconds": 6.3}
+{"id": "544", "metric": "verdict", "value": 1.0, "verdict": "not enough evidence", "error": "", "seconds": 1.3}
+{"id": "539", "metric": "factual_correctness_recall", "value": 1.0, "error": "", "seconds": 23.1}
+{"id": "544", "metric": "answer_relevancy", "value": 0.9896163958276252, "error": "", "seconds": 6.3}
+{"id": "549", "metric": "verdict", "value": 1.0, "verdict": "supported", "error": "", "seconds": 9.3}
+{"id": "540", "metric": "faithfulness", "value": 0.9, "error": "", "seconds": 44.1}
+{"id": "544", "metric": "faithfulness", "value": 0.2, "error": "", "seconds": 31.8}
+{"id": "540", "metric": "factual_correctness_recall", "value": 0.0, "error": "", "seconds": 52.1}
+{"id": "549", "metric": "faithfulness", "value": 1.0, "error": "", "seconds": 44.1}
+{"id": "549", "metric": "answer_relevancy", "value": 0.8738210562510114, "error": "", "seconds": 75.4}
+{"id": "551", "metric": "answer_relevancy", "value": 0.8700967202549794, "error": "", "seconds": 19.0}
+{"id": "552", "metric": "verdict", "value": 0.0, "verdict": "refuted", "error": "", "seconds": 41.2}
+{"id": "552", "metric": "faithfulness", "value": 0.5, "error": "", "seconds": 19.1}
+{"id": "552", "metric": "answer_relevancy", "value": 0.9352580053310365, "error": "", "seconds": 6.5}
+{"id": "551", "metric": "verdict", "value": 0.0, "verdict": "refuted", "error": "", "seconds": 185.8}
+{"id": "554", "metric": "faithfulness", "value": 0.75, "error": "", "seconds": 47.2}
+{"id": "549", "metric": "factual_correctness_recall", "value": 0.33, "error": "", "seconds": 250.0}
+{"id": "554", "metric": "answer_relevancy", "value": 0.9757178513632155, "error": "", "seconds": 5.9}
+{"id": "551", "metric": "faithfulness", "value": 0.2, "error": "", "seconds": 224.1}
+{"id": "560", "metric": "answer_relevancy", "value": 0.7228663136146155, "error": "", "seconds": 6.7}
+{"id": "569", "metric": "verdict", "value": 1.0, "verdict": "supported", "error": "", "seconds": 1.2}
+{"id": "569", "metric": "faithfulness", "value": 1.0, "error": "", "seconds": 6.7}
+{"id": "569", "metric": "answer_relevancy", "value": 0.9527802625045353, "error": "", "seconds": 4.2}
+{"id": "560", "metric": "verdict", "value": 0.0, "verdict": "supported", "error": "", "seconds": 32.6}
+{"id": "575", "metric": "verdict", "value": 1.0, "verdict": "not enough evidence", "error": "", "seconds": 1.5}
+{"id": "560", "metric": "faithfulness", "value": 0.9, "error": "", "seconds": 38.5}
+{"id": "575", "metric": "faithfulness", "value": 1.0, "error": "", "seconds": 12.6}
+{"id": "577", "metric": "verdict", "value": 0.0, "verdict": "refuted", "error": "", "seconds": 2.6}
+{"id": "575", "metric": "answer_relevancy", "value": 0.8747988256062658, "error": "", "seconds": 6.7}
+{"id": "569", "metric": "factual_correctness_recall", "value": 0.5, "error": "", "seconds": 24.9}
+{"id": "578", "metric": "verdict", "value": 1.0, "verdict": "refuted", "error": "", "seconds": 1.9}
+{"id": "577", "metric": "answer_relevancy", "value": 0.9166540406527783, "error": "", "seconds": 6.3}
+{"id": "578", "metric": "answer_relevancy", "value": 0.9494162104211906, "error": "", "seconds": 5.5}
+{"id": "577", "metric": "faithfulness", "value": 0.75, "error": "", "seconds": 18.6}
+{"id": "578", "metric": "faithfulness", "value": 0.5, "error": "", "seconds": 16.5}
+{"id": "587", "metric": "verdict", "value": 1.0, "verdict": "not enough evidence", "error": "", "seconds": 5.7}
+{"id": "587", "metric": "answer_relevancy", "value": 0.0, "error": "", "seconds": 12.9}
+{"id": "589", "metric": "verdict", "value": 1.0, "verdict": "supported", "error": "", "seconds": 12.2}
+{"id": "554", "metric": "verdict", "value": 1.0, "verdict": "not enough evidence", "error": "", "seconds": 193.8}
+{"id": "589", "metric": "answer_relevancy", "value": 0.9300775874115893, "error": "", "seconds": 19.3}
+{"id": "578", "metric": "factual_correctness_recall", "value": 0.33, "error": "", "seconds": 71.9}
+{"id": "593", "metric": "verdict", "value": 0.0, "verdict": "refuted", "error": "", "seconds": 12.9}
+{"id": "589", "metric": "faithfulness", "value": 1.0, "error": "", "seconds": 58.3}
+{"id": "593", "metric": "answer_relevancy", "value": 0.8397553979176041, "error": "", "seconds": 23.4}
+{"id": "587", "metric": "faithfulness", "value": 1.0, "error": "", "seconds": 134.6}
+{"id": "597", "metric": "verdict", "value": 1.0, "verdict": "supported", "error": "", "seconds": 17.0}
+{"id": "589", "metric": "factual_correctness_recall", "value": 0.5, "error": "", "seconds": 274.7}
+{"id": "597", "metric": "faithfulness", "value": 1.0, "error": "", "seconds": 344.7}
+{"id": "597", "metric": "answer_relevancy", "value": 0.7838449524507247, "error": "", "seconds": 186.0}
+{"id": "598", "metric": "verdict", "value": 1.0, "verdict": "refuted", "error": "", "seconds": 39.3}
+{"id": "593", "metric": "factual_correctness_recall", "value": 0.5, "error": "", "seconds": 446.4}
+{"id": "598", "metric": "faithfulness", "value": 0.8888888888888888, "error": "", "seconds": 80.7}
+{"id": "598", "metric": "answer_relevancy", "value": 0.9209908844091635, "error": "", "seconds": 6.3}
+{"id": "593", "metric": "faithfulness", "value": 0.5, "error": "", "seconds": 12.7}
+{"id": "613", "metric": "verdict", "value": 1.0, "verdict": "supported", "error": "", "seconds": 0.8}
+{"id": "613", "metric": "faithfulness", "value": 1.0, "error": "", "seconds": 15.8}
+{"id": "598", "metric": "factual_correctness_recall", "value": 0.33, "error": "", "seconds": 26.9}
+{"id": "597", "metric": "factual_correctness_recall", "value": 0.2, "error": "", "seconds": 34.0}
+{"id": "613", "metric": "answer_relevancy", "value": 0.8699846430325427, "error": "", "seconds": 6.3}
+{"id": "619", "metric": "verdict", "value": 1.0, "verdict": "refuted", "error": "", "seconds": 3.3}
+{"id": "619", "metric": "answer_relevancy", "value": 0.8102373805583879, "error": "", "seconds": 5.3}
+{"id": "619", "metric": "faithfulness", "value": 0.5, "error": "", "seconds": 16.2}
+{"id": "623", "metric": "verdict", "value": 0.0, "verdict": "supported", "error": "", "seconds": 1.0}
+{"id": "613", "metric": "factual_correctness_recall", "value": 0.0, "error": "", "seconds": 28.7}
+{"id": "623", "metric": "answer_relevancy", "value": 0.9467088958802613, "error": "", "seconds": 4.9}
+{"id": "619", "metric": "factual_correctness_recall", "value": 0.0, "error": "", "seconds": 25.1}
+{"id": "623", "metric": "faithfulness", "value": 0.75, "error": "", "seconds": 15.8}
+{"id": "628", "metric": "verdict", "value": 0.0, "verdict": "refuted", "error": "", "seconds": 1.9}
+{"id": "636", "metric": "verdict", "value": 1.0, "verdict": "supported", "error": "", "seconds": 2.2}
+{"id": "628", "metric": "answer_relevancy", "value": 0.908004973871592, "error": "", "seconds": 4.0}
+{"id": "636", "metric": "answer_relevancy", "value": 0.8237633292067196, "error": "", "seconds": 8.4}
+{"id": "628", "metric": "faithfulness", "value": 1.0, "error": "", "seconds": 18.0}
+{"id": "637", "metric": "verdict", "value": 1.0, "verdict": "not enough evidence", "error": "", "seconds": 1.1}
+{"id": "636", "metric": "faithfulness", "value": 0.6, "error": "", "seconds": 19.2}
+{"id": "637", "metric": "answer_relevancy", "value": 0.0, "error": "", "seconds": 5.8}
+{"id": "637", "metric": "faithfulness", "value": 0.5, "error": "", "seconds": 10.6}
+{"id": "641", "metric": "verdict", "value": 1.0, "verdict": "supported", "error": "", "seconds": 1.7}
+{"id": "641", "metric": "answer_relevancy", "value": 0.8908159310272872, "error": "", "seconds": 5.4}
+{"id": "636", "metric": "factual_correctness_recall", "value": 0.5, "error": "", "seconds": 27.4}
+{"id": "644", "metric": "verdict", "value": 1.0, "verdict": "not enough evidence", "error": "", "seconds": 3.4}
+{"id": "644", "metric": "faithfulness", "value": 0.0, "error": "", "seconds": 6.4}
+{"id": "644", "metric": "answer_relevancy", "value": 0.0, "error": "", "seconds": 5.0}
+{"id": "649", "metric": "verdict", "value": 1.0, "verdict": "not enough evidence", "error": "", "seconds": 0.7}
+{"id": "641", "metric": "factual_correctness_recall", "value": 0.67, "error": "", "seconds": 23.6}
+{"id": "641", "metric": "faithfulness", "value": 1.0, "error": "", "seconds": 29.8}
+{"id": "659", "metric": "verdict", "value": 1.0, "verdict": "not enough evidence", "error": "", "seconds": 1.2}
+{"id": "649", "metric": "faithfulness", "value": 0.0, "error": "", "seconds": 9.8}
+{"id": "649", "metric": "answer_relevancy", "value": 0.8040355282439725, "error": "", "seconds": 9.4}
+{"id": "659", "metric": "faithfulness", "value": 0.0, "error": "", "seconds": 9.2}
+{"id": "659", "metric": "answer_relevancy", "value": 0.830637938088094, "error": "", "seconds": 7.3}
+{"id": "660", "metric": "verdict", "value": 1.0, "verdict": "not enough evidence", "error": "", "seconds": 5.1}
+{"id": "674", "metric": "verdict", "value": 1.0, "verdict": "refuted", "error": "", "seconds": 1.1}
+{"id": "660", "metric": "answer_relevancy", "value": 0.8011352723265391, "error": "", "seconds": 6.3}
+{"id": "660", "metric": "faithfulness", "value": 0.5, "error": "", "seconds": 11.3}
+{"id": "674", "metric": "answer_relevancy", "value": 0.86046934811079, "error": "", "seconds": 5.5}
+{"id": "684", "metric": "verdict", "value": 1.0, "verdict": "not enough evidence", "error": "", "seconds": 1.1}
+{"id": "674", "metric": "faithfulness", "value": 0.75, "error": "", "seconds": 17.0}
+{"id": "684", "metric": "answer_relevancy", "value": 0.0, "error": "", "seconds": 7.9}
+{"id": "674", "metric": "factual_correctness_recall", "value": 1.0, "error": "", "seconds": 19.6}
+{"id": "684", "metric": "faithfulness", "value": 1.0, "error": "", "seconds": 15.4}
+{"id": "690", "metric": "verdict", "value": 1.0, "verdict": "not enough evidence", "error": "", "seconds": 3.7}
+{"id": "691", "metric": "verdict", "value": 1.0, "verdict": "not enough evidence", "error": "", "seconds": 1.4}
+{"id": "690", "metric": "answer_relevancy", "value": 0.8999884798221854, "error": "", "seconds": 7.6}
+{"id": "690", "metric": "faithfulness", "value": 0.0, "error": "", "seconds": 12.6}
+{"id": "691", "metric": "answer_relevancy", "value": 0.9470045191421933, "error": "", "seconds": 8.4}
+{"id": "692", "metric": "verdict", "value": 1.0, "verdict": "refuted", "error": "", "seconds": 5.5}
+{"id": "691", "metric": "faithfulness", "value": 0.0, "error": "", "seconds": 21.5}
+{"id": "692", "metric": "answer_relevancy", "value": 0.9365090971359034, "error": "", "seconds": 9.8}
+{"id": "693", "metric": "verdict", "value": 0.0, "verdict": "refuted", "error": "", "seconds": 4.0}
+{"id": "692", "metric": "faithfulness", "value": 1.0, "error": "", "seconds": 31.5}
+{"id": "693", "metric": "faithfulness", "value": 1.0, "error": "", "seconds": 25.0}
+{"id": "693", "metric": "answer_relevancy", "value": 0.9418225170558915, "error": "", "seconds": 10.5}
+{"id": "700", "metric": "verdict", "value": 1.0, "verdict": "not enough evidence", "error": "", "seconds": 1.5}
+{"id": "692", "metric": "factual_correctness_recall", "value": 0.5, "error": "", "seconds": 45.3}
+{"id": "700", "metric": "faithfulness", "value": 0.5, "error": "", "seconds": 13.6}
+{"id": "702", "metric": "verdict", "value": 1.0, "verdict": "not enough evidence", "error": "", "seconds": 1.7}
+{"id": "700", "metric": "answer_relevancy", "value": 0.8703832231407418, "error": "", "seconds": 9.2}
+{"id": "702", "metric": "answer_relevancy", "value": 0.0, "error": "", "seconds": 6.8}
+{"id": "693", "metric": "factual_correctness_recall", "value": 0.5, "error": "", "seconds": 31.3}
+{"id": "715", "metric": "verdict", "value": 1.0, "verdict": "not enough evidence", "error": "", "seconds": 1.9}
+{"id": "702", "metric": "faithfulness", "value": 1.0, "error": "", "seconds": 16.8}
+{"id": "716", "metric": "verdict", "value": 1.0, "verdict": "not enough evidence", "error": "", "seconds": 2.3}
+{"id": "715", "metric": "answer_relevancy", "value": 0.8394007041704952, "error": "", "seconds": 10.3}
+{"id": "716", "metric": "answer_relevancy", "value": 0.8836662560897338, "error": "", "seconds": 9.5}
+{"id": "716", "metric": "faithfulness", "value": 0.0, "error": "", "seconds": 17.9}
+{"id": "718", "metric": "verdict", "value": 1.0, "verdict": "refuted", "error": "", "seconds": 7.3}
+{"id": "718", "metric": "answer_relevancy", "value": 0.9449146437128236, "error": "", "seconds": 13.6}
+{"id": "715", "metric": "faithfulness", "value": 0.0, "error": "", "seconds": 52.1}
+{"id": "721", "metric": "verdict", "value": 1.0, "verdict": "supported", "error": "", "seconds": 12.1}
+{"id": "718", "metric": "faithfulness", "value": 0.4, "error": "", "seconds": 62.9}
+{"id": "721", "metric": "faithfulness", "value": 0.6666666666666666, "error": "", "seconds": 36.4}
+{"id": "718", "metric": "factual_correctness_recall", "value": 0.33, "error": "", "seconds": 74.0}
+{"id": "723", "metric": "verdict", "value": 1.0, "verdict": "supported", "error": "", "seconds": 29.5}
+{"id": "723", "metric": "faithfulness", "value": 1.0, "error": "", "seconds": 59.1}
+{"id": "721", "metric": "factual_correctness_recall", "value": 0.5, "error": "", "seconds": 119.8}
+{"id": "723", "metric": "factual_correctness_recall", "value": 1.0, "error": "", "seconds": 168.9}
+{"id": "723", "metric": "answer_relevancy", "value": 0.9172036705419733, "error": "", "seconds": 190.1}
+{"id": "727", "metric": "verdict", "value": 0.0, "verdict": "refuted", "error": "", "seconds": 7.8}
+{"id": "727", "metric": "answer_relevancy", "value": 0.9629357661785433, "error": "", "seconds": 8.2}
+{"id": "728", "metric": "verdict", "value": 1.0, "verdict": "refuted", "error": "", "seconds": 2.9}
+{"id": "728", "metric": "faithfulness", "value": 0.8333333333333334, "error": "", "seconds": 25.2}
+{"id": "727", "metric": "faithfulness", "value": 0.8181818181818182, "error": "", "seconds": 46.3}
+{"id": "728", "metric": "answer_relevancy", "value": 0.8916229527177036, "error": "", "seconds": 9.1}
+{"id": "729", "metric": "verdict", "value": 1.0, "verdict": "supported", "error": "", "seconds": 1.0}
+{"id": "721", "metric": "answer_relevancy", "value": 0.9642419382646016, "error": "", "seconds": 368.0}
+{"id": "729", "metric": "answer_relevancy", "value": 0.8240293389081405, "error": "", "seconds": 4.6}
+{"id": "729", "metric": "faithfulness", "value": 1.0, "error": "", "seconds": 19.4}
+{"id": "742", "metric": "verdict", "value": 1.0, "verdict": "supported", "error": "", "seconds": 3.3}
+{"id": "742", "metric": "faithfulness", "value": 1.0, "error": "", "seconds": 25.9}
+{"id": "742", "metric": "answer_relevancy", "value": 0.8814422578986107, "error": "", "seconds": 5.9}
+{"id": "728", "metric": "factual_correctness_recall", "value": 0.25, "error": "", "seconds": 83.6}
+{"id": "743", "metric": "verdict", "value": 1.0, "verdict": "refuted", "error": "", "seconds": 7.0}
+{"id": "729", "metric": "factual_correctness_recall", "value": 0.5, "error": "", "seconds": 84.0}
+{"id": "743", "metric": "answer_relevancy", "value": 0.9066075602723264, "error": "", "seconds": 132.5}
+{"id": "743", "metric": "factual_correctness_recall", "value": 0.67, "error": "", "seconds": 52.9}
+{"id": "744", "metric": "verdict", "value": 1.0, "verdict": "supported", "error": "", "seconds": 21.9}
+{"id": "743", "metric": "faithfulness", "value": 0.8, "error": "", "seconds": 230.9}
+{"id": "744", "metric": "answer_relevancy", "value": 0.9534678391069374, "error": "", "seconds": 14.6}
+{"id": "744", "metric": "faithfulness", "value": 1.0, "error": "", "seconds": 63.0}
+{"id": "756", "metric": "verdict", "value": 1.0, "verdict": "supported", "error": "", "seconds": 8.4}
+{"id": "742", "metric": "factual_correctness_recall", "value": 0.67, "error": "", "seconds": 404.5}
+{"id": "756", "metric": "answer_relevancy", "value": 0.8881417476318813, "error": "", "seconds": 6.3}
+{"id": "756", "metric": "faithfulness", "value": 1.0, "error": "", "seconds": 111.8}
+{"id": "756", "metric": "factual_correctness_recall", "value": 0.0, "error": "", "seconds": 28.3}
+{"id": "759", "metric": "verdict", "value": 1.0, "verdict": "refuted", "error": "", "seconds": 5.9}
+{"id": "759", "metric": "answer_relevancy", "value": 0.9271266502177552, "error": "", "seconds": 17.2}
+{"id": "759", "metric": "faithfulness", "value": 0.9333333333333333, "error": "", "seconds": 65.5}
+{"id": "744", "metric": "factual_correctness_recall", "value": 0.0, "error": "", "seconds": 233.6}
+{"id": "768", "metric": "verdict", "value": 1.0, "verdict": "not enough evidence", "error": "", "seconds": 51.7}
+{"id": "768", "metric": "answer_relevancy", "value": 0.8468303275167762, "error": "", "seconds": 29.3}
+{"id": "768", "metric": "faithfulness", "value": 1.0, "error": "", "seconds": 76.0}
+{"id": "770", "metric": "verdict", "value": 0.0, "verdict": "refuted", "error": "", "seconds": 25.2}
+{"id": "770", "metric": "faithfulness", "value": 0.6, "error": "", "seconds": 78.6}
+{"id": "759", "metric": "factual_correctness_recall", "value": 0.0, "error": "", "seconds": 247.0}
+{"id": "775", "metric": "verdict", "value": 1.0, "verdict": "not enough evidence", "error": "", "seconds": 9.0}
+{"id": "775", "metric": "faithfulness", "value": 0.0, "error": "", "seconds": 11.7}
+{"id": "775", "metric": "answer_relevancy", "value": 0.8498056214192933, "error": "", "seconds": 6.3}
+{"id": "770", "metric": "factual_correctness_recall", "value": 0.5, "error": "", "seconds": 68.3}
+{"id": "781", "metric": "verdict", "value": 1.0, "verdict": "refuted", "error": "", "seconds": 2.4}
+{"id": "781", "metric": "answer_relevancy", "value": 0.8911778958997566, "error": "", "seconds": 9.5}
+{"id": "781", "metric": "faithfulness", "value": 0.8, "error": "", "seconds": 44.8}
+{"id": "781", "metric": "factual_correctness_recall", "value": 0.33, "error": "", "seconds": 36.7}
+{"id": "783", "metric": "verdict", "value": 0.0, "verdict": "refuted", "error": "", "seconds": 2.2}
+{"id": "783", "metric": "answer_relevancy", "value": 0.8307079778880292, "error": "", "seconds": 5.7}
+{"id": "784", "metric": "verdict", "value": 1.0, "verdict": "supported", "error": "", "seconds": 1.5}
+{"id": "770", "metric": "answer_relevancy", "value": 0.8608873748457005, "error": "", "seconds": 186.0}
+{"id": "784", "metric": "answer_relevancy", "value": 0.9452491387327027, "error": "", "seconds": 7.2}
+{"id": "783", "metric": "faithfulness", "value": 1.0, "error": "", "seconds": 43.7}
+{"id": "785", "metric": "verdict", "value": 1.0, "verdict": "not enough evidence", "error": "", "seconds": 1.4}
+{"id": "785", "metric": "faithfulness", "value": 0.75, "error": "", "seconds": 21.2}
+{"id": "784", "metric": "factual_correctness_recall", "value": 0.5, "error": "", "seconds": 46.2}
+{"id": "793", "metric": "verdict", "value": 1.0, "verdict": "refuted", "error": "", "seconds": 2.1}
+{"id": "785", "metric": "answer_relevancy", "value": 0.9382515771106634, "error": "", "seconds": 5.6}
+{"id": "793", "metric": "answer_relevancy", "value": 0.8874381280692271, "error": "", "seconds": 4.0}
+{"id": "784", "metric": "faithfulness", "value": 1.0, "error": "", "seconds": 69.4}
+{"id": "800", "metric": "verdict", "value": 0.0, "verdict": "supported", "error": "", "seconds": 2.4}
+{"id": "793", "metric": "factual_correctness_recall", "value": 0.0, "error": "", "seconds": 32.2}
+{"id": "793", "metric": "faithfulness", "value": 1.0, "error": "", "seconds": 38.2}
+{"id": "805", "metric": "verdict", "value": 1.0, "verdict": "supported", "error": "", "seconds": 0.8}
+{"id": "800", "metric": "faithfulness", "value": 0.8888888888888888, "error": "", "seconds": 34.4}
+{"id": "800", "metric": "answer_relevancy", "value": 0.918578105619285, "error": "", "seconds": 6.1}
+{"id": "805", "metric": "answer_relevancy", "value": 0.8979870930531638, "error": "", "seconds": 5.7}
+{"id": "808", "metric": "verdict", "value": 0.0, "verdict": "refuted", "error": "", "seconds": 2.2}
+{"id": "808", "metric": "faithfulness", "value": 0.6, "error": "", "seconds": 21.8}
+{"id": "808", "metric": "answer_relevancy", "value": 0.8929104228250792, "error": "", "seconds": 8.4}
+{"id": "805", "metric": "factual_correctness_recall", "value": 0.5, "error": "", "seconds": 52.7}
+{"id": "805", "metric": "faithfulness", "value": 1.0, "error": "", "seconds": 61.9}
+{"id": "811", "metric": "verdict", "value": 1.0, "verdict": "refuted", "error": "", "seconds": 16.3}
+{"id": "811", "metric": "answer_relevancy", "value": 0.8779510981515651, "error": "", "seconds": 21.2}
+{"id": "811", "metric": "faithfulness", "value": 0.6666666666666666, "error": "", "seconds": 55.4}
+{"id": "814", "metric": "verdict", "value": 1.0, "verdict": "not enough evidence", "error": "", "seconds": 10.3}
+{"id": "808", "metric": "factual_correctness_recall", "value": 0.0, "error": "", "seconds": 87.2}
+{"id": "814", "metric": "answer_relevancy", "value": 0.9124490448151027, "error": "", "seconds": 21.9}
+{"id": "820", "metric": "verdict", "value": 1.0, "verdict": "not enough evidence", "error": "", "seconds": 12.5}
+{"id": "811", "metric": "factual_correctness_recall", "value": 0.33, "error": "", "seconds": 76.3}
+{"id": "820", "metric": "answer_relevancy", "value": 0.0, "error": "", "seconds": 8.7}
+{"id": "821", "metric": "verdict", "value": 1.0, "verdict": "not enough evidence", "error": "", "seconds": 2.3}
+{"id": "820", "metric": "faithfulness", "value": 1.0, "error": "", "seconds": 20.2}
+{"id": "821", "metric": "answer_relevancy", "value": 0.0, "error": "", "seconds": 5.0}
+{"id": "823", "metric": "verdict", "value": 1.0, "verdict": "supported", "error": "", "seconds": 2.5}
+{"id": "821", "metric": "faithfulness", "value": 0.0, "error": "", "seconds": 11.9}
+{"id": "814", "metric": "faithfulness", "value": 0.5, "error": "", "seconds": 70.4}
+{"id": "823", "metric": "answer_relevancy", "value": 0.8998501106531812, "error": "", "seconds": 6.0}
+{"id": "830", "metric": "verdict", "value": 1.0, "verdict": "not enough evidence", "error": "", "seconds": 1.2}
+{"id": "823", "metric": "faithfulness", "value": 1.0, "error": "", "seconds": 13.6}
+{"id": "830", "metric": "answer_relevancy", "value": 0.0, "error": "", "seconds": 7.3}
+{"id": "831", "metric": "verdict", "value": 1.0, "verdict": "not enough evidence", "error": "", "seconds": 1.1}
+{"id": "830", "metric": "faithfulness", "value": 0.5, "error": "", "seconds": 16.5}
+{"id": "823", "metric": "factual_correctness_recall", "value": 0.5, "error": "", "seconds": 24.1}
+{"id": "831", "metric": "answer_relevancy", "value": 0.8827328812864573, "error": "", "seconds": 8.1}
+{"id": "832", "metric": "verdict", "value": 1.0, "verdict": "supported", "error": "", "seconds": 4.4}
+{"id": "831", "metric": "faithfulness", "value": 1.0, "error": "", "seconds": 25.8}
+{"id": "832", "metric": "answer_relevancy", "value": 0.8264668542812531, "error": "", "seconds": 13.1}
+{"id": "834", "metric": "verdict", "value": 0.0, "verdict": "supported", "error": "", "seconds": 2.7}
+{"id": "832", "metric": "faithfulness", "value": 1.0, "error": "", "seconds": 27.2}
+{"id": "834", "metric": "answer_relevancy", "value": 0.8689796122521013, "error": "", "seconds": 22.9}
+{"id": "837", "metric": "verdict", "value": 1.0, "verdict": "supported", "error": "", "seconds": 13.3}
+{"id": "834", "metric": "faithfulness", "value": 0.875, "error": "", "seconds": 61.0}
+{"id": "837", "metric": "answer_relevancy", "value": 0.9265667393366869, "error": "", "seconds": 9.3}
+{"id": "837", "metric": "faithfulness", "value": 1.0, "error": "", "seconds": 36.9}
+{"id": "839", "metric": "verdict", "value": 1.0, "verdict": "supported", "error": "", "seconds": 1.3}
+{"id": "839", "metric": "faithfulness", "value": 1.0, "error": "", "seconds": 20.2}
+{"id": "832", "metric": "factual_correctness_recall", "value": 0.4, "error": "", "seconds": 114.8}
+{"id": "839", "metric": "answer_relevancy", "value": 0.8336305089231707, "error": "", "seconds": 39.6}
+{"id": "837", "metric": "factual_correctness_recall", "value": 0.67, "error": "", "seconds": 79.1}
+{"id": "845", "metric": "verdict", "value": 1.0, "verdict": "supported", "error": "", "seconds": 15.9}
+{"id": "845", "metric": "answer_relevancy", "value": 0.9841411927772201, "error": "", "seconds": 21.8}
+{"id": "845", "metric": "faithfulness", "value": 1.0, "error": "", "seconds": 40.6}
+{"id": "839", "metric": "factual_correctness_recall", "value": 0.4, "error": "", "seconds": 82.0}
+{"id": "847", "metric": "verdict", "value": 0.0, "verdict": "supported", "error": "", "seconds": 12.7}
+{"id": "847", "metric": "faithfulness", "value": 1.0, "error": "", "seconds": 31.6}
+{"id": "845", "metric": "factual_correctness_recall", "value": 0.5, "error": "", "seconds": 50.7}
+{"id": "852", "metric": "verdict", "value": 0.0, "verdict": "not enough evidence", "error": "", "seconds": 0.8}
+{"id": "847", "metric": "answer_relevancy", "value": 0.7997787820907645, "error": "", "seconds": 37.9}
+{"id": "852", "metric": "faithfulness", "value": 1.0, "error": "", "seconds": 11.2}
+{"id": "852", "metric": "answer_relevancy", "value": 0.8304066620708209, "error": "", "seconds": 6.2}
+{"id": "859", "metric": "verdict", "value": 1.0, "verdict": "refuted", "error": "", "seconds": 8.4}
+{"id": "847", "metric": "factual_correctness_recall", "value": 0.0, "error": "", "seconds": 43.8}
+{"id": "859", "metric": "answer_relevancy", "value": 0.9029019235114163, "error": "", "seconds": 17.3}
+{"id": "852", "metric": "factual_correctness_recall", "value": 0.0, "error": "", "seconds": 74.2}
+{"id": "870", "metric": "verdict", "value": 0.0, "verdict": "supported", "error": "", "seconds": 47.3}
+{"id": "859", "metric": "faithfulness", "value": 0.8888888888888888, "error": "", "seconds": 170.4}
+{"id": "870", "metric": "faithfulness", "value": 1.0, "error": "", "seconds": 78.7}
+{"id": "870", "metric": "answer_relevancy", "value": 0.874041271822578, "error": "", "seconds": 35.1}
+{"id": "873", "metric": "faithfulness", "value": 1.0, "error": "", "seconds": 94.7}
+{"id": "873", "metric": "verdict", "value": 1.0, "verdict": "refuted", "error": "", "seconds": 112.2}
+{"id": "859", "metric": "factual_correctness_recall", "value": 1.0, "error": "", "seconds": 325.1}
+{"id": "879", "metric": "verdict", "value": 0.0, "verdict": "supported", "error": "", "seconds": 37.1}
+{"id": "873", "metric": "answer_relevancy", "value": 0.9858489448622221, "error": "", "seconds": 94.4}
+{"id": "879", "metric": "answer_relevancy", "value": 0.8021725549532263, "error": "", "seconds": 20.9}
+{"id": "879", "metric": "faithfulness", "value": 1.0, "error": "", "seconds": 45.8}
+{"id": "880", "metric": "verdict", "value": 1.0, "verdict": "supported", "error": "", "seconds": 15.5}
+{"id": "873", "metric": "factual_correctness_recall", "value": 0.0, "error": "", "seconds": 194.6}
+{"id": "880", "metric": "answer_relevancy", "value": 0.7315848757527883, "error": "", "seconds": 27.7}
+{"id": "879", "metric": "factual_correctness_recall", "value": 0.5, "error": "", "seconds": 115.1}
+{"id": "880", "metric": "faithfulness", "value": 1.0, "error": "", "seconds": 78.1}
+{"id": "882", "metric": "verdict", "value": 1.0, "verdict": "refuted", "error": "", "seconds": 10.2}
+{"id": "882", "metric": "answer_relevancy", "value": 0.8515819688048035, "error": "", "seconds": 19.0}
+{"id": "882", "metric": "faithfulness", "value": 0.6666666666666666, "error": "", "seconds": 38.2}
+{"id": "887", "metric": "verdict", "value": 1.0, "verdict": "not enough evidence", "error": "", "seconds": 12.1}
+{"id": "887", "metric": "faithfulness", "value": 0.0, "error": "", "seconds": 21.9}
+{"id": "882", "metric": "factual_correctness_recall", "value": 0.5, "error": "", "seconds": 52.1}
+{"id": "887", "metric": "answer_relevancy", "value": 0.4231441749503606, "error": "", "seconds": 8.2}
+{"id": "903", "metric": "faithfulness", "value": 0.3333333333333333, "error": "", "seconds": 44.2}
+{"id": "903", "metric": "verdict", "value": 1.0, "verdict": "refuted", "error": "", "seconds": 55.6}
+{"id": "903", "metric": "answer_relevancy", "value": 0.8634767368898076, "error": "", "seconds": 15.4}
+{"id": "880", "metric": "factual_correctness_recall", "value": 0.33, "error": "", "seconds": 151.9}
+{"id": "904", "metric": "verdict", "value": 1.0, "verdict": "supported", "error": "", "seconds": 11.9}
+{"id": "904", "metric": "answer_relevancy", "value": 0.905310077807593, "error": "", "seconds": 20.1}
+{"id": "904", "metric": "faithfulness", "value": 0.75, "error": "", "seconds": 44.3}
+{"id": "903", "metric": "factual_correctness_recall", "value": 0.33, "error": "", "seconds": 54.1}
+{"id": "907", "metric": "verdict", "value": 0.0, "verdict": "supported", "error": "", "seconds": 3.0}
+{"id": "907", "metric": "answer_relevancy", "value": 0.94041598985117, "error": "", "seconds": 6.0}
+{"id": "911", "metric": "verdict", "value": 0.0, "verdict": "not enough evidence", "error": "", "seconds": 0.9}
+{"id": "907", "metric": "faithfulness", "value": 1.0, "error": "", "seconds": 19.9}
+{"id": "904", "metric": "factual_correctness_recall", "value": 1.0, "error": "", "seconds": 40.3}
+{"id": "911", "metric": "answer_relevancy", "value": 0.9088579735223733, "error": "", "seconds": 7.9}
+{"id": "913", "metric": "verdict", "value": 1.0, "verdict": "not enough evidence", "error": "", "seconds": 2.4}
+{"id": "911", "metric": "faithfulness", "value": 1.0, "error": "", "seconds": 37.9}
+{"id": "913", "metric": "faithfulness", "value": 0.5, "error": "", "seconds": 19.3}
+{"id": "914", "metric": "verdict", "value": 1.0, "verdict": "not enough evidence", "error": "", "seconds": 2.0}
+{"id": "913", "metric": "answer_relevancy", "value": 0.8337395968990052, "error": "", "seconds": 8.4}
+{"id": "911", "metric": "factual_correctness_recall", "value": 0.0, "error": "", "seconds": 38.3}
+{"id": "914", "metric": "answer_relevancy", "value": 0.8507520566879396, "error": "", "seconds": 10.4}
+{"id": "921", "metric": "verdict", "value": 1.0, "verdict": "supported", "error": "", "seconds": 11.2}
+{"id": "914", "metric": "faithfulness", "value": 1.0, "error": "", "seconds": 32.6}
+{"id": "921", "metric": "answer_relevancy", "value": 0.8398778196658515, "error": "", "seconds": 27.9}
+{"id": "922", "metric": "verdict", "value": 1.0, "verdict": "refuted", "error": "", "seconds": 12.7}
+{"id": "921", "metric": "faithfulness", "value": 1.0, "error": "", "seconds": 55.4}
+{"id": "922", "metric": "answer_relevancy", "value": 0.9074815453672499, "error": "", "seconds": 8.5}
+{"id": "921", "metric": "factual_correctness_recall", "value": 0.5, "error": "", "seconds": 72.9}
+{"id": "936", "metric": "verdict", "value": 1.0, "verdict": "supported", "error": "", "seconds": 9.7}
+{"id": "922", "metric": "faithfulness", "value": 1.0, "error": "", "seconds": 61.2}
+{"id": "936", "metric": "answer_relevancy", "value": 0.8283278876221786, "error": "", "seconds": 10.5}
+{"id": "936", "metric": "faithfulness", "value": 1.0, "error": "", "seconds": 59.8}
+{"id": "956", "metric": "verdict", "value": 0.0, "verdict": "supported", "error": "", "seconds": 18.7}
+{"id": "922", "metric": "factual_correctness_recall", "value": 0.67, "error": "", "seconds": 121.9}
+{"id": "956", "metric": "answer_relevancy", "value": 0.9098954251110607, "error": "", "seconds": 38.3}
+{"id": "957", "metric": "verdict", "value": 1.0, "verdict": "supported", "error": "", "seconds": 282.8}
+{"id": "956", "metric": "faithfulness", "value": 1.0, "error": "", "seconds": 446.3}
+{"id": "957", "metric": "answer_relevancy", "value": 0.9596240244922054, "error": "", "seconds": 91.7}
+{"id": "936", "metric": "factual_correctness_recall", "value": 0.5, "error": "", "seconds": 653.2}
+{"id": "960", "metric": "verdict", "value": 1.0, "verdict": "supported", "error": "", "seconds": 11.3}
+{"id": "957", "metric": "factual_correctness_recall", "value": 0.5, "error": "", "seconds": 492.6}
+{"id": "960", "metric": "faithfulness", "value": 0.6666666666666666, "error": "", "seconds": 442.1}
+{"id": "960", "metric": "answer_relevancy", "value": 0.889953255181667, "error": "", "seconds": 27.3}
+{"id": "967", "metric": "verdict", "value": 1.0, "verdict": "supported", "error": "", "seconds": 24.5}
+{"id": "957", "metric": "faithfulness", "value": 0.8888888888888888, "error": "", "seconds": 817.4}
+{"id": "967", "metric": "answer_relevancy", "value": 0.928233694424898, "error": "", "seconds": 54.8}
+{"id": "967", "metric": "factual_correctness_recall", "value": 0.0, "error": "", "seconds": 32.6}
+{"id": "971", "metric": "verdict", "value": 1.0, "verdict": "supported", "error": "", "seconds": 1.2}
+{"id": "971", "metric": "faithfulness", "value": 0.8, "error": "", "seconds": 73.1}
+{"id": "971", "metric": "answer_relevancy", "value": 0.9191138788821337, "error": "", "seconds": 13.2}
+{"id": "960", "metric": "factual_correctness_recall", "value": 0.33, "error": "", "seconds": 286.5}
+{"id": "967", "metric": "faithfulness", "value": 1.0, "error": "", "seconds": 253.9}
+{"id": "975", "metric": "verdict", "value": 0.0, "verdict": "supported", "error": "", "seconds": 6.5}
+{"id": "975", "metric": "answer_relevancy", "value": 0.8995020466973221, "error": "", "seconds": 8.7}
+{"id": "975", "metric": "faithfulness", "value": 0.8333333333333334, "error": "", "seconds": 34.1}
+{"id": "982", "metric": "verdict", "value": 0.0, "verdict": "not enough evidence", "error": "", "seconds": 35.4}
+{"id": "982", "metric": "answer_relevancy", "value": 0.9513448555396913, "error": "", "seconds": 29.5}
+{"id": "982", "metric": "factual_correctness_recall", "value": 0.0, "error": "", "seconds": 164.5}
+{"id": "985", "metric": "verdict", "value": 1.0, "verdict": "supported", "error": "", "seconds": 13.2}
+{"id": "971", "metric": "factual_correctness_recall", "value": 0.5, "error": "", "seconds": 325.3}
+{"id": "982", "metric": "faithfulness", "value": 0.5, "error": "", "seconds": 336.6}
+{"id": "985", "metric": "faithfulness", "value": 1.0, "error": "", "seconds": 227.0}
+{"id": "993", "metric": "verdict", "value": 1.0, "verdict": "refuted", "error": "", "seconds": 26.1}
+{"id": "985", "metric": "answer_relevancy", "value": 0.7998761114183305, "error": "", "seconds": 206.8}
+{"id": "993", "metric": "answer_relevancy", "value": 0.9789109228832217, "error": "", "seconds": 28.2}
+{"id": "993", "metric": "factual_correctness_recall", "value": 0.33, "error": "", "seconds": 518.8}
+{"id": "1012", "metric": "verdict", "value": 1.0, "verdict": "supported", "error": "", "seconds": 9.3}
+{"id": "985", "metric": "factual_correctness_recall", "value": 1.0, "error": "", "seconds": 723.7}
+{"id": "993", "metric": "faithfulness", "value": 0.5, "error": "", "seconds": 632.2}
+{"id": "1012", "metric": "faithfulness", "value": 1.0, "error": "", "seconds": 127.6}
+{"id": "1014", "metric": "verdict", "value": 1.0, "verdict": "not enough evidence", "error": "", "seconds": 17.6}
+{"id": "1014", "metric": "faithfulness", "value": 1.0, "error": "", "seconds": 58.5}
+{"id": "1014", "metric": "answer_relevancy", "value": 0.0, "error": "", "seconds": 13.5}
+{"id": "1019", "metric": "verdict", "value": 0.0, "verdict": "refuted", "error": "", "seconds": 4.9}
+{"id": "1019", "metric": "faithfulness", "value": 0.7142857142857143, "error": "", "seconds": 38.3}
+{"id": "1019", "metric": "answer_relevancy", "value": 0.6829906783294958, "error": "", "seconds": 9.4}
+{"id": "1012", "metric": "answer_relevancy", "value": 0.9176981167517889, "error": "", "seconds": 261.0}
+{"id": "1012", "metric": "factual_correctness_recall", "value": 0.5, "error": "", "seconds": 436.4}
+{"id": "1020", "metric": "faithfulness", "value": 1.0, "error": "", "seconds": 48.8}
+{"id": "1020", "metric": "verdict", "value": 0.0, "verdict": "not enough evidence", "error": "", "seconds": 300.6}
+{"id": "1020", "metric": "answer_relevancy", "value": 0.9887315013634339, "error": "", "seconds": 94.3}
+{"id": "1021", "metric": "verdict", "value": 1.0, "verdict": "refuted", "error": "", "seconds": 371.5}
+{"id": "1021", "metric": "faithfulness", "value": 0.8, "error": "", "seconds": 171.8}
+{"id": "1021", "metric": "answer_relevancy", "value": 0.9801780645928306, "error": "", "seconds": 40.9}
+{"id": "1019", "metric": "factual_correctness_recall", "value": 0.0, "error": "", "seconds": 1600.8}
+{"id": "1020", "metric": "factual_correctness_recall", "value": 0.33, "error": "", "seconds": 1315.9}
+{"id": "1024", "metric": "faithfulness", "value": 0.0, "error": "", "seconds": 628.4}
+{"id": "1021", "metric": "factual_correctness_recall", "value": 0.0, "error": "", "seconds": 1396.3}
+{"id": "1024", "metric": "answer_relevancy", "value": 0.9881197456503253, "error": "", "seconds": 187.2}
+{"id": "1029", "metric": "verdict", "value": 1.0, "verdict": "refuted", "error": "", "seconds": 565.3}
+{"id": "1024", "metric": "verdict", "value": null, "error": "APITimeoutError: Request timed out.", "seconds": 1657.0}
+{"id": "1024", "metric": "factual_correctness_recall", "value": 0.0, "error": "", "seconds": 1059.9}
+{"id": "1029", "metric": "answer_relevancy", "value": 0.8783983236784745, "error": "", "seconds": 297.3}
+{"id": "1029", "metric": "factual_correctness_recall", "value": 0.5, "error": "", "seconds": 592.4}
+{"id": "1041", "metric": "verdict", "value": 1.0, "verdict": "refuted", "error": "", "seconds": 515.2}
+{"id": "1041", "metric": "answer_relevancy", "value": 0.8810680073384725, "error": "", "seconds": 27.7}
+{"id": "1029", "metric": "faithfulness", "value": 0.8, "error": "", "seconds": 1106.4}
+{"id": "1041", "metric": "faithfulness", "value": 0.875, "error": "", "seconds": 605.0}
+{"id": "1049", "metric": "verdict", "value": 1.0, "verdict": "refuted", "error": "", "seconds": 546.1}
+{"id": "1049", "metric": "faithfulness", "value": 0.8333333333333334, "error": "", "seconds": 678.0}
+{"id": "1041", "metric": "factual_correctness_recall", "value": 0.0, "error": "", "seconds": 1374.3}
+{"id": "1062", "metric": "verdict", "value": 1.0, "verdict": "supported", "error": "", "seconds": 6.0}
+{"id": "1049", "metric": "answer_relevancy", "value": 0.9282142899078103, "error": "", "seconds": 936.0}
+{"id": "1062", "metric": "answer_relevancy", "value": 0.9464850393106486, "error": "", "seconds": 18.2}
+{"id": "1062", "metric": "faithfulness", "value": 1.0, "error": "", "seconds": 42.9}
+{"id": "1024", "metric": "verdict", "value": 0.0, "verdict": "not enough evidence", "error": "", "seconds": 75.0}
+{"id": "1086", "metric": "verdict", "value": 1.0, "verdict": "supported", "error": "", "seconds": 5.2}
+{"id": "1062", "metric": "factual_correctness_recall", "value": 0.67, "error": "", "seconds": 68.2}
+{"id": "1086", "metric": "faithfulness", "value": 1.0, "error": "", "seconds": 234.7}
+{"id": "1086", "metric": "answer_relevancy", "value": 0.9675251280745224, "error": "", "seconds": 411.5}
+{"id": "1049", "metric": "factual_correctness_recall", "value": 0.0, "error": "", "seconds": 536.2}
+{"id": "1088", "metric": "verdict", "value": 1.0, "verdict": "refuted", "error": "", "judge": "nvidia:openai/gpt-oss-20b", "seconds": 1.3}
+{"id": "1088", "metric": "answer_relevancy", "value": 0.8327463203968555, "error": "", "judge": "nvidia:openai/gpt-oss-20b", "seconds": 5.8}
+{"id": "1086", "metric": "factual_correctness_recall", "value": 0.33, "error": "", "judge": "nvidia:openai/gpt-oss-20b", "seconds": 8.3}
+{"id": "1089", "metric": "verdict", "value": 1.0, "verdict": "supported", "error": "", "judge": "nvidia:openai/gpt-oss-20b", "seconds": 2.5}
+{"id": "1089", "metric": "answer_relevancy", "value": 0.8113075707802023, "error": "", "judge": "nvidia:openai/gpt-oss-20b", "seconds": 3.8}
+{"id": "1089", "metric": "faithfulness", "value": 1.0, "error": "", "judge": "nvidia:openai/gpt-oss-20b", "seconds": 16.5}
+{"id": "1099", "metric": "verdict", "value": 0.0, "verdict": "supported", "error": "", "judge": "nvidia:openai/gpt-oss-20b", "seconds": 1.3}
+{"id": "1088", "metric": "faithfulness", "value": 0.7142857142857143, "error": "", "judge": "nvidia:openai/gpt-oss-20b", "seconds": 27.2}
+{"id": "1099", "metric": "answer_relevancy", "value": 0.8639306752612678, "error": "", "judge": "nvidia:openai/gpt-oss-20b", "seconds": 5.9}
+{"id": "1099", "metric": "faithfulness", "value": 1.0, "error": "", "judge": "nvidia:openai/gpt-oss-20b", "seconds": 9.7}
+{"id": "1100", "metric": "verdict", "value": 0.0, "verdict": "refuted", "error": "", "judge": "nvidia:openai/gpt-oss-20b", "seconds": 2.7}
+{"id": "1089", "metric": "factual_correctness_recall", "value": 0.5, "error": "", "judge": "nvidia:openai/gpt-oss-20b", "seconds": 25.8}
+{"id": "1100", "metric": "answer_relevancy", "value": 0.9714837628062377, "error": "", "judge": "nvidia:openai/gpt-oss-20b", "seconds": 5.5}
+{"id": "1104", "metric": "verdict", "value": 1.0, "verdict": "supported", "error": "", "judge": "nvidia:openai/gpt-oss-20b", "seconds": 3.4}
+{"id": "1088", "metric": "factual_correctness_recall", "value": 1.0, "error": "", "judge": "nvidia:openai/gpt-oss-20b", "seconds": 44.8}
+{"id": "1104", "metric": "answer_relevancy", "value": 0.7237799207008662, "error": "", "judge": "nvidia:openai/gpt-oss-20b", "seconds": 4.8}
+{"id": "1107", "metric": "verdict", "value": 1.0, "verdict": "supported", "error": "", "judge": "nvidia:openai/gpt-oss-20b", "seconds": 0.7}
+{"id": "1100", "metric": "faithfulness", "value": 1.0, "error": "", "judge": "nvidia:openai/gpt-oss-20b", "seconds": 14.4}
+{"id": "1107", "metric": "answer_relevancy", "value": 0.9820894989853298, "error": "", "judge": "nvidia:openai/gpt-oss-20b", "seconds": 4.8}
+{"id": "1107", "metric": "faithfulness", "value": 1.0, "error": "", "judge": "nvidia:openai/gpt-oss-20b", "seconds": 11.8}
+{"id": "1104", "metric": "faithfulness", "value": 0.75, "error": "", "judge": "nvidia:openai/gpt-oss-20b", "seconds": 19.1}
+{"id": "1110", "metric": "verdict", "value": 1.0, "verdict": "refuted", "error": "", "judge": "nvidia:openai/gpt-oss-20b", "seconds": 1.2}
+{"id": "1110", "metric": "answer_relevancy", "value": 0.9714294037391622, "error": "", "judge": "nvidia:openai/gpt-oss-20b", "seconds": 5.7}
+{"id": "1104", "metric": "factual_correctness_recall", "value": 0.33, "error": "", "judge": "nvidia:openai/gpt-oss-20b", "seconds": 31.1}
+{"id": "1121", "metric": "verdict", "value": 1.0, "verdict": "supported", "error": "", "judge": "nvidia:openai/gpt-oss-20b", "seconds": 1.1}
+{"id": "1107", "metric": "factual_correctness_recall", "value": 0.5, "error": "", "judge": "nvidia:openai/gpt-oss-20b", "seconds": 25.0}
+{"id": "1121", "metric": "answer_relevancy", "value": 0.8699729670019414, "error": "", "judge": "nvidia:openai/gpt-oss-20b", "seconds": 4.3}
+{"id": "1110", "metric": "faithfulness", "value": 0.7777777777777778, "error": "", "judge": "nvidia:openai/gpt-oss-20b", "seconds": 25.7}
+{"id": "1110", "metric": "factual_correctness_recall", "value": 0.5, "error": "", "judge": "nvidia:openai/gpt-oss-20b", "seconds": 20.6}
+{"id": "1130", "metric": "verdict", "value": 1.0, "verdict": "refuted", "error": "", "judge": "nvidia:openai/gpt-oss-20b", "seconds": 3.0}
+{"id": "1130", "metric": "answer_relevancy", "value": 0.8475301580800293, "error": "", "judge": "nvidia:openai/gpt-oss-20b", "seconds": 6.6}
+{"id": "1130", "metric": "faithfulness", "value": 1.0, "error": "", "judge": "nvidia:openai/gpt-oss-20b", "seconds": 13.4}
+{"id": "1132", "metric": "verdict", "value": 0.0, "verdict": "not enough evidence", "error": "", "judge": "nvidia:openai/gpt-oss-20b", "seconds": 1.7}
+{"id": "1121", "metric": "factual_correctness_recall", "value": 0.0, "error": "", "judge": "nvidia:openai/gpt-oss-20b", "seconds": 28.6}
+{"id": "1121", "metric": "faithfulness", "value": 1.0, "error": "", "judge": "nvidia:openai/gpt-oss-20b", "seconds": 38.6}
+{"id": "1132", "metric": "answer_relevancy", "value": 0.9390186058596591, "error": "", "judge": "nvidia:openai/gpt-oss-20b", "seconds": 5.6}
+{"id": "1137", "metric": "verdict", "value": 1.0, "verdict": "refuted", "error": "", "judge": "nvidia:openai/gpt-oss-20b", "seconds": 1.0}
+{"id": "1137", "metric": "faithfulness", "value": 0.8333333333333334, "error": "", "judge": "nvidia:openai/gpt-oss-20b", "seconds": 22.0}
+{"id": "1132", "metric": "faithfulness", "value": 0.9375, "error": "", "judge": "nvidia:openai/gpt-oss-20b", "seconds": 43.5}
+{"id": "1137", "metric": "answer_relevancy", "value": 0.8806358265215892, "error": "", "judge": "nvidia:openai/gpt-oss-20b", "seconds": 4.7}
+{"id": "1140", "metric": "verdict", "value": 1.0, "verdict": "refuted", "error": "", "judge": "nvidia:openai/gpt-oss-20b", "seconds": 1.4}
+{"id": "1132", "metric": "factual_correctness_recall", "value": 0.0, "error": "", "judge": "nvidia:openai/gpt-oss-20b", "seconds": 37.7}
+{"id": "1140", "metric": "answer_relevancy", "value": 0.842199696627473, "error": "", "judge": "nvidia:openai/gpt-oss-20b", "seconds": 5.4}
+{"id": "1140", "metric": "faithfulness", "value": 1.0, "error": "", "judge": "nvidia:openai/gpt-oss-20b", "seconds": 18.8}
+{"id": "1144", "metric": "verdict", "value": 1.0, "verdict": "refuted", "error": "", "judge": "nvidia:openai/gpt-oss-20b", "seconds": 0.8}
+{"id": "1137", "metric": "factual_correctness_recall", "value": 0.5, "error": "", "judge": "nvidia:openai/gpt-oss-20b", "seconds": 25.2}
+{"id": "1144", "metric": "answer_relevancy", "value": 0.8829745085843917, "error": "", "judge": "nvidia:openai/gpt-oss-20b", "seconds": 5.3}
+{"id": "1140", "metric": "factual_correctness_recall", "value": 0.0, "error": "", "judge": "nvidia:openai/gpt-oss-20b", "seconds": 26.8}
+{"id": "1146", "metric": "verdict", "value": 1.0, "verdict": "supported", "error": "", "judge": "nvidia:openai/gpt-oss-20b", "seconds": 2.0}
+{"id": "1144", "metric": "faithfulness", "value": 0.8, "error": "", "judge": "nvidia:openai/gpt-oss-20b", "seconds": 22.3}
+{"id": "1146", "metric": "answer_relevancy", "value": 0.9761684820158214, "error": "", "judge": "nvidia:openai/gpt-oss-20b", "seconds": 6.9}
+{"id": "1144", "metric": "factual_correctness_recall", "value": 0.67, "error": "", "judge": "nvidia:openai/gpt-oss-20b", "seconds": 24.9}
+{"id": "1146", "metric": "faithfulness", "value": 1.0, "error": "", "judge": "nvidia:openai/gpt-oss-20b", "seconds": 12.8}
+{"id": "1150", "metric": "verdict", "value": 0.0, "verdict": "not enough evidence", "error": "", "judge": "nvidia:openai/gpt-oss-20b", "seconds": 3.0}
+{"id": "1150", "metric": "answer_relevancy", "value": 0.9549516166208644, "error": "", "judge": "nvidia:openai/gpt-oss-20b", "seconds": 3.9}
+{"id": "1150", "metric": "faithfulness", "value": 0.6, "error": "", "judge": "nvidia:openai/gpt-oss-20b", "seconds": 14.0}
+{"id": "1163", "metric": "verdict", "value": 0.0, "verdict": "refuted", "error": "", "judge": "nvidia:openai/gpt-oss-20b", "seconds": 2.4}
+{"id": "1146", "metric": "factual_correctness_recall", "value": 0.4, "error": "", "judge": "nvidia:openai/gpt-oss-20b", "seconds": 34.0}
+{"id": "1150", "metric": "factual_correctness_recall", "value": 0.33, "error": "", "judge": "nvidia:openai/gpt-oss-20b", "seconds": 25.8}
+{"id": "1163", "metric": "answer_relevancy", "value": 0.8851369517238036, "error": "", "judge": "nvidia:openai/gpt-oss-20b", "seconds": 5.5}
+{"id": "1175", "metric": "verdict", "value": 1.0, "verdict": "not enough evidence", "error": "", "judge": "nvidia:openai/gpt-oss-20b", "seconds": 1.0}
+{"id": "1163", "metric": "faithfulness", "value": 0.6666666666666666, "error": "", "judge": "nvidia:openai/gpt-oss-20b", "seconds": 24.3}
+{"id": "1175", "metric": "faithfulness", "value": 1.0, "error": "", "judge": "nvidia:openai/gpt-oss-20b", "seconds": 9.6}
+{"id": "1175", "metric": "answer_relevancy", "value": 0.0, "error": "", "judge": "nvidia:openai/gpt-oss-20b", "seconds": 4.4}
+{"id": "1130", "metric": "factual_correctness_recall", "value": 1.0, "error": "", "judge": "nvidia:openai/gpt-oss-20b", "seconds": 152.7}
+{"id": "1179", "metric": "verdict", "value": 1.0, "verdict": "not enough evidence", "error": "", "judge": "nvidia:openai/gpt-oss-20b", "seconds": 1.7}
+{"id": "1180", "metric": "verdict", "value": 1.0, "verdict": "supported", "error": "", "judge": "nvidia:openai/gpt-oss-20b", "seconds": 0.9}
+{"id": "1179", "metric": "answer_relevancy", "value": 0.0, "error": "", "judge": "nvidia:openai/gpt-oss-20b", "seconds": 5.1}
+{"id": "1180", "metric": "answer_relevancy", "value": 0.8072724724067766, "error": "", "judge": "nvidia:openai/gpt-oss-20b", "seconds": 6.1}
+{"id": "1179", "metric": "faithfulness", "value": 0.0, "error": "", "judge": "nvidia:openai/gpt-oss-20b", "seconds": 14.2}
+{"id": "1185", "metric": "verdict", "value": 1.0, "verdict": "supported", "error": "", "judge": "nvidia:openai/gpt-oss-20b", "seconds": 0.8}
+{"id": "1163", "metric": "factual_correctness_recall", "value": 0.67, "error": "", "judge": "nvidia:openai/gpt-oss-20b", "seconds": 32.1}
+{"id": "1185", "metric": "answer_relevancy", "value": 0.9264687326829845, "error": "", "judge": "nvidia:openai/gpt-oss-20b", "seconds": 4.2}
+{"id": "1185", "metric": "faithfulness", "value": 1.0, "error": "", "judge": "nvidia:openai/gpt-oss-20b", "seconds": 9.2}
+{"id": "1187", "metric": "verdict", "value": 1.0, "verdict": "supported", "error": "", "judge": "nvidia:openai/gpt-oss-20b", "seconds": 2.1}
+{"id": "1180", "metric": "factual_correctness_recall", "value": 0.67, "error": "", "judge": "nvidia:openai/gpt-oss-20b", "seconds": 25.0}
+{"id": "1180", "metric": "faithfulness", "value": 1.0, "error": "", "judge": "nvidia:openai/gpt-oss-20b", "seconds": 36.1}
+{"id": "1187", "metric": "answer_relevancy", "value": 0.76129701905665, "error": "", "judge": "nvidia:openai/gpt-oss-20b", "seconds": 4.5}
+{"id": "1191", "metric": "verdict", "value": 1.0, "verdict": "not enough evidence", "error": "", "judge": "nvidia:openai/gpt-oss-20b", "seconds": 0.8}
+{"id": "1185", "metric": "factual_correctness_recall", "value": 0.5, "error": "", "judge": "nvidia:openai/gpt-oss-20b", "seconds": 20.8}
+{"id": "1187", "metric": "faithfulness", "value": 1.0, "error": "", "judge": "nvidia:openai/gpt-oss-20b", "seconds": 20.7}
+{"id": "1194", "metric": "verdict", "value": 0.0, "verdict": "refuted", "error": "", "judge": "nvidia:openai/gpt-oss-20b", "seconds": 1.6}
+{"id": "1191", "metric": "answer_relevancy", "value": 0.8868609562671229, "error": "", "judge": "nvidia:openai/gpt-oss-20b", "seconds": 7.1}
+{"id": "1191", "metric": "faithfulness", "value": 0.0, "error": "", "judge": "nvidia:openai/gpt-oss-20b", "seconds": 12.5}
+{"id": "1196", "metric": "verdict", "value": 1.0, "verdict": "not enough evidence", "error": "", "judge": "nvidia:openai/gpt-oss-20b", "seconds": 0.8}
+{"id": "1194", "metric": "answer_relevancy", "value": 0.933586309202365, "error": "", "judge": "nvidia:openai/gpt-oss-20b", "seconds": 7.2}
+{"id": "1196", "metric": "answer_relevancy", "value": 0.8015927400001693, "error": "", "judge": "nvidia:openai/gpt-oss-20b", "seconds": 6.9}
+{"id": "1197", "metric": "verdict", "value": 1.0, "verdict": "not enough evidence", "error": "", "judge": "nvidia:openai/gpt-oss-20b", "seconds": 0.6}
+{"id": "1187", "metric": "factual_correctness_recall", "value": 1.0, "error": "", "judge": "nvidia:openai/gpt-oss-20b", "seconds": 30.2}
+{"id": "1197", "metric": "answer_relevancy", "value": 0.7619347955886157, "error": "", "judge": "nvidia:openai/gpt-oss-20b", "seconds": 2.6}
+{"id": "1196", "metric": "faithfulness", "value": 0.0, "error": "", "judge": "nvidia:openai/gpt-oss-20b", "seconds": 14.9}
+{"id": "1194", "metric": "faithfulness", "value": 0.625, "error": "", "judge": "nvidia:openai/gpt-oss-20b", "seconds": 22.8}
+{"id": "1199", "metric": "verdict", "value": 1.0, "verdict": "not enough evidence", "error": "", "judge": "nvidia:openai/gpt-oss-20b", "seconds": 1.6}
+{"id": "1200", "metric": "verdict", "value": 1.0, "verdict": "not enough evidence", "error": "", "judge": "nvidia:openai/gpt-oss-20b", "seconds": 0.9}
+{"id": "1197", "metric": "faithfulness", "value": 1.0, "error": "", "judge": "nvidia:openai/gpt-oss-20b", "seconds": 10.3}
+{"id": "1199", "metric": "answer_relevancy", "value": 0.8995392210679171, "error": "", "judge": "nvidia:openai/gpt-oss-20b", "seconds": 6.5}
+{"id": "1202", "metric": "verdict", "value": 1.0, "verdict": "supported", "error": "", "judge": "nvidia:openai/gpt-oss-20b", "seconds": 2.9}
+{"id": "1199", "metric": "faithfulness", "value": 1.0, "error": "", "judge": "nvidia:openai/gpt-oss-20b", "seconds": 11.0}
+{"id": "1200", "metric": "answer_relevancy", "value": 0.9442239470407306, "error": "", "judge": "nvidia:openai/gpt-oss-20b", "seconds": 8.0}
+{"id": "1202", "metric": "answer_relevancy", "value": 0.7908232922556242, "error": "", "judge": "nvidia:openai/gpt-oss-20b", "seconds": 4.4}
+{"id": "1200", "metric": "faithfulness", "value": 0.0, "error": "", "judge": "nvidia:openai/gpt-oss-20b", "seconds": 15.3}
+{"id": "1204", "metric": "verdict", "value": 0.0, "verdict": "refuted", "error": "", "judge": "nvidia:openai/gpt-oss-20b", "seconds": 5.1}
+{"id": "1202", "metric": "faithfulness", "value": 1.0, "error": "", "judge": "nvidia:openai/gpt-oss-20b", "seconds": 16.0}
+{"id": "1204", "metric": "answer_relevancy", "value": 0.9565917589100059, "error": "", "judge": "nvidia:openai/gpt-oss-20b", "seconds": 9.0}
+{"id": "1207", "metric": "verdict", "value": 1.0, "verdict": "not enough evidence", "error": "", "judge": "nvidia:openai/gpt-oss-20b", "seconds": 2.2}
+{"id": "1202", "metric": "factual_correctness_recall", "value": 0.5, "error": "", "judge": "nvidia:openai/gpt-oss-20b", "seconds": 20.9}
+{"id": "1213", "metric": "verdict", "value": 0.0, "verdict": "supported", "error": "", "judge": "nvidia:openai/gpt-oss-20b", "seconds": 1.6}
+{"id": "1207", "metric": "answer_relevancy", "value": 0.7971069057309027, "error": "", "judge": "nvidia:openai/gpt-oss-20b", "seconds": 5.4}
+{"id": "1204", "metric": "faithfulness", "value": 1.0, "error": "", "judge": "nvidia:openai/gpt-oss-20b", "seconds": 22.6}
+{"id": "1213", "metric": "answer_relevancy", "value": 0.6801613032160699, "error": "", "judge": "nvidia:openai/gpt-oss-20b", "seconds": 5.1}
+{"id": "1216", "metric": "verdict", "value": 1.0, "verdict": "supported", "error": "", "judge": "nvidia:openai/gpt-oss-20b", "seconds": 1.9}
+{"id": "1216", "metric": "answer_relevancy", "value": 0.9880422768651367, "error": "", "judge": "nvidia:openai/gpt-oss-20b", "seconds": 6.2}
+{"id": "1216", "metric": "faithfulness", "value": 1.0, "error": "", "judge": "nvidia:openai/gpt-oss-20b", "seconds": 11.9}
+{"id": "1221", "metric": "verdict", "value": 1.0, "verdict": "refuted", "error": "", "judge": "nvidia:openai/gpt-oss-20b", "seconds": 1.6}
+{"id": "1207", "metric": "faithfulness", "value": 0.8333333333333334, "error": "", "judge": "nvidia:openai/gpt-oss-20b", "seconds": 26.4}
+{"id": "1221", "metric": "answer_relevancy", "value": 0.863092906567644, "error": "", "judge": "nvidia:openai/gpt-oss-20b", "seconds": 5.7}
+{"id": "1213", "metric": "faithfulness", "value": 1.0, "error": "", "judge": "nvidia:openai/gpt-oss-20b", "seconds": 34.2}
+{"id": "1225", "metric": "verdict", "value": 1.0, "verdict": "supported", "error": "", "judge": "nvidia:openai/gpt-oss-20b", "seconds": 1.1}
+{"id": "1221", "metric": "faithfulness", "value": 0.6, "error": "", "judge": "nvidia:openai/gpt-oss-20b", "seconds": 20.9}
+{"id": "1216", "metric": "factual_correctness_recall", "value": 0.33, "error": "", "judge": "nvidia:openai/gpt-oss-20b", "seconds": 28.9}
+{"id": "1225", "metric": "answer_relevancy", "value": 0.9802216292262806, "error": "", "judge": "nvidia:openai/gpt-oss-20b", "seconds": 6.0}
+{"id": "1226", "metric": "verdict", "value": 0.0, "verdict": "supported", "error": "", "judge": "nvidia:openai/gpt-oss-20b", "seconds": 1.3}
+{"id": "1225", "metric": "faithfulness", "value": 1.0, "error": "", "judge": "nvidia:openai/gpt-oss-20b", "seconds": 14.9}
+{"id": "1221", "metric": "factual_correctness_recall", "value": 0.67, "error": "", "judge": "nvidia:openai/gpt-oss-20b", "seconds": 25.0}
+{"id": "1232", "metric": "verdict", "value": 1.0, "verdict": "refuted", "error": "", "judge": "nvidia:openai/gpt-oss-20b", "seconds": 1.6}
+{"id": "1226", "metric": "answer_relevancy", "value": 0.9159453940800676, "error": "", "judge": "nvidia:openai/gpt-oss-20b", "seconds": 5.3}
+{"id": "1232", "metric": "answer_relevancy", "value": 0.9422479159990651, "error": "", "judge": "nvidia:openai/gpt-oss-20b", "seconds": 6.4}
+{"id": "1225", "metric": "factual_correctness_recall", "value": 0.25, "error": "", "judge": "nvidia:openai/gpt-oss-20b", "seconds": 27.1}
+{"id": "1241", "metric": "verdict", "value": 1.0, "verdict": "supported", "error": "", "judge": "nvidia:openai/gpt-oss-20b", "seconds": 2.0}
+{"id": "1232", "metric": "faithfulness", "value": 0.6666666666666666, "error": "", "judge": "nvidia:openai/gpt-oss-20b", "seconds": 18.3}
+{"id": "1226", "metric": "faithfulness", "value": 0.75, "error": "", "judge": "nvidia:openai/gpt-oss-20b", "seconds": 29.6}
+{"id": "1241", "metric": "answer_relevancy", "value": 0.8090962937525706, "error": "", "judge": "nvidia:openai/gpt-oss-20b", "seconds": 7.4}
+{"id": "1245", "metric": "verdict", "value": 1.0, "verdict": "not enough evidence", "error": "", "judge": "nvidia:openai/gpt-oss-20b", "seconds": 2.4}
+{"id": "1241", "metric": "faithfulness", "value": 1.0, "error": "", "judge": "nvidia:openai/gpt-oss-20b", "seconds": 19.4}
+{"id": "1245", "metric": "faithfulness", "value": 0.0, "error": "", "judge": "nvidia:openai/gpt-oss-20b", "seconds": 12.6}
+{"id": "1232", "metric": "factual_correctness_recall", "value": 0.5, "error": "", "judge": "nvidia:openai/gpt-oss-20b", "seconds": 34.9}
+{"id": "1259", "metric": "verdict", "value": 1.0, "verdict": "supported", "error": "", "judge": "nvidia:openai/gpt-oss-20b", "seconds": 2.2}
+{"id": "1245", "metric": "answer_relevancy", "value": 0.7413493195465225, "error": "", "judge": "nvidia:openai/gpt-oss-20b", "seconds": 8.0}
+{"id": "1259", "metric": "answer_relevancy", "value": 0.8204187495758425, "error": "", "judge": "nvidia:openai/gpt-oss-20b", "seconds": 5.2}
+{"id": "1262", "metric": "verdict", "value": 1.0, "verdict": "supported", "error": "", "judge": "nvidia:openai/gpt-oss-20b", "seconds": 2.4}
+{"id": "1241", "metric": "factual_correctness_recall", "value": 0.2, "error": "", "judge": "nvidia:openai/gpt-oss-20b", "seconds": 29.8}
+{"id": "1262", "metric": "faithfulness", "value": 1.0, "error": "", "judge": "nvidia:openai/gpt-oss-20b", "seconds": 7.5}
+{"id": "1259", "metric": "faithfulness", "value": 1.0, "error": "", "judge": "nvidia:openai/gpt-oss-20b", "seconds": 15.9}
+{"id": "1266", "metric": "verdict", "value": 1.0, "verdict": "supported", "error": "", "judge": "nvidia:openai/gpt-oss-20b", "seconds": 0.8}
+{"id": "1262", "metric": "answer_relevancy", "value": 0.9766448477440041, "error": "", "judge": "nvidia:openai/gpt-oss-20b", "seconds": 8.0}
+{"id": "1266", "metric": "answer_relevancy", "value": 0.9121961332966994, "error": "", "judge": "nvidia:openai/gpt-oss-20b", "seconds": 4.7}
+{"id": "1259", "metric": "factual_correctness_recall", "value": 1.0, "error": "", "judge": "nvidia:openai/gpt-oss-20b", "seconds": 23.6}
+{"id": "1270", "metric": "verdict", "value": 1.0, "verdict": "refuted", "error": "", "judge": "nvidia:openai/gpt-oss-20b", "seconds": 1.8}
+{"id": "1262", "metric": "factual_correctness_recall", "value": 0.0, "error": "", "judge": "nvidia:openai/gpt-oss-20b", "seconds": 18.1}
+{"id": "1266", "metric": "faithfulness", "value": 0.6, "error": "", "judge": "nvidia:openai/gpt-oss-20b", "seconds": 18.0}
+{"id": "1270", "metric": "answer_relevancy", "value": 0.8775447278162792, "error": "", "judge": "nvidia:openai/gpt-oss-20b", "seconds": 5.0}
+{"id": "1271", "metric": "verdict", "value": 1.0, "verdict": "supported", "error": "", "judge": "nvidia:openai/gpt-oss-20b", "seconds": 1.2}
+{"id": "1266", "metric": "factual_correctness_recall", "value": 0.0, "error": "", "judge": "nvidia:openai/gpt-oss-20b", "seconds": 24.1}
+{"id": "1271", "metric": "answer_relevancy", "value": 0.8728387776554621, "error": "", "judge": "nvidia:openai/gpt-oss-20b", "seconds": 4.2}
+{"id": "1271", "metric": "faithfulness", "value": 1.0, "error": "", "judge": "nvidia:openai/gpt-oss-20b", "seconds": 13.5}
+{"id": "1270", "metric": "faithfulness", "value": 0.5, "error": "", "judge": "nvidia:openai/gpt-oss-20b", "seconds": 26.4}
+{"id": "1270", "metric": "factual_correctness_recall", "value": 0.67, "error": "", "judge": "nvidia:openai/gpt-oss-20b", "seconds": 18.1}
+{"id": "1272", "metric": "verdict", "value": 0.0, "verdict": "supported", "error": "", "judge": "nvidia:openai/gpt-oss-20b", "seconds": 2.4}
+{"id": "1273", "metric": "verdict", "value": 1.0, "verdict": "supported", "error": "", "judge": "nvidia:openai/gpt-oss-20b", "seconds": 1.2}
+{"id": "1272", "metric": "answer_relevancy", "value": 0.8250437467161934, "error": "", "judge": "nvidia:openai/gpt-oss-20b", "seconds": 6.3}
+{"id": "1273", "metric": "answer_relevancy", "value": 0.9640234962522419, "error": "", "judge": "nvidia:openai/gpt-oss-20b", "seconds": 5.5}
+{"id": "1273", "metric": "faithfulness", "value": 1.0, "error": "", "judge": "nvidia:openai/gpt-oss-20b", "seconds": 13.5}
+{"id": "1274", "metric": "verdict", "value": 0.0, "verdict": "not enough evidence", "error": "", "judge": "nvidia:openai/gpt-oss-20b", "seconds": 1.7}
+{"id": "1271", "metric": "factual_correctness_recall", "value": 0.33, "error": "", "judge": "nvidia:openai/gpt-oss-20b", "seconds": 24.1}
+{"id": "1272", "metric": "faithfulness", "value": 1.0, "error": "", "judge": "nvidia:openai/gpt-oss-20b", "seconds": 25.7}
+{"id": "1274", "metric": "answer_relevancy", "value": 0.9156135118340005, "error": "", "judge": "nvidia:openai/gpt-oss-20b", "seconds": 6.2}
+{"id": "1274", "metric": "faithfulness", "value": 1.0, "error": "", "judge": "nvidia:openai/gpt-oss-20b", "seconds": 11.0}
+{"id": "1278", "metric": "verdict", "value": 1.0, "verdict": "not enough evidence", "error": "", "judge": "nvidia:openai/gpt-oss-20b", "seconds": 2.0}
+{"id": "1278", "metric": "answer_relevancy", "value": 0.9279810247596972, "error": "", "judge": "nvidia:openai/gpt-oss-20b", "seconds": 4.8}
+{"id": "1273", "metric": "factual_correctness_recall", "value": 0.5, "error": "", "judge": "nvidia:openai/gpt-oss-20b", "seconds": 23.9}
+{"id": "1279", "metric": "verdict", "value": 1.0, "verdict": "not enough evidence", "error": "", "judge": "nvidia:openai/gpt-oss-20b", "seconds": 1.4}
+{"id": "1279", "metric": "answer_relevancy", "value": 0.8551460268709935, "error": "", "judge": "nvidia:openai/gpt-oss-20b", "seconds": 6.1}
+{"id": "1278", "metric": "faithfulness", "value": 0.5, "error": "", "judge": "nvidia:openai/gpt-oss-20b", "seconds": 14.4}
+{"id": "1280", "metric": "verdict", "value": 0.0, "verdict": "refuted", "error": "", "judge": "nvidia:openai/gpt-oss-20b", "seconds": 1.7}
+{"id": "1280", "metric": "answer_relevancy", "value": 0.8427781431461089, "error": "", "judge": "nvidia:openai/gpt-oss-20b", "seconds": 3.8}
+{"id": "1281", "metric": "verdict", "value": 1.0, "verdict": "not enough evidence", "error": "", "judge": "nvidia:openai/gpt-oss-20b", "seconds": 0.8}
+{"id": "1274", "metric": "factual_correctness_recall", "value": 0.0, "error": "", "judge": "nvidia:openai/gpt-oss-20b", "seconds": 24.4}
+{"id": "1279", "metric": "faithfulness", "value": 1.0, "error": "", "judge": "nvidia:openai/gpt-oss-20b", "seconds": 14.5}
+{"id": "1282", "metric": "verdict", "value": 0.0, "verdict": "refuted", "error": "", "judge": "nvidia:openai/gpt-oss-20b", "seconds": 0.9}
+{"id": "1281", "metric": "answer_relevancy", "value": 0.8575337507363732, "error": "", "judge": "nvidia:openai/gpt-oss-20b", "seconds": 6.5}
+{"id": "1281", "metric": "faithfulness", "value": 1.0, "error": "", "judge": "nvidia:openai/gpt-oss-20b", "seconds": 12.0}
+{"id": "1290", "metric": "verdict", "value": 1.0, "verdict": "supported", "error": "", "judge": "nvidia:openai/gpt-oss-20b", "seconds": 0.8}
+{"id": "1282", "metric": "answer_relevancy", "value": 0.9181496728988856, "error": "", "judge": "nvidia:openai/gpt-oss-20b", "seconds": 6.7}
+{"id": "1280", "metric": "faithfulness", "value": 1.0, "error": "", "judge": "nvidia:openai/gpt-oss-20b", "seconds": 20.7}
+{"id": "1290", "metric": "answer_relevancy", "value": 0.8927016653834691, "error": "", "judge": "nvidia:openai/gpt-oss-20b", "seconds": 5.6}
+{"id": "1292", "metric": "verdict", "value": 1.0, "verdict": "not enough evidence", "error": "", "judge": "nvidia:openai/gpt-oss-20b", "seconds": 2.1}
+{"id": "1282", "metric": "faithfulness", "value": 0.8333333333333334, "error": "", "judge": "nvidia:openai/gpt-oss-20b", "seconds": 24.0}
+{"id": "1290", "metric": "factual_correctness_recall", "value": 0.67, "error": "", "judge": "nvidia:openai/gpt-oss-20b", "seconds": 16.5}
+{"id": "1292", "metric": "answer_relevancy", "value": 0.8317157120950375, "error": "", "judge": "nvidia:openai/gpt-oss-20b", "seconds": 7.3}
+{"id": "1298", "metric": "verdict", "value": 1.0, "verdict": "supported", "error": "", "judge": "nvidia:openai/gpt-oss-20b", "seconds": 2.5}
+{"id": "1292", "metric": "faithfulness", "value": 0.0, "error": "", "judge": "nvidia:openai/gpt-oss-20b", "seconds": 12.8}
+{"id": "1290", "metric": "faithfulness", "value": 1.0, "error": "", "judge": "nvidia:openai/gpt-oss-20b", "seconds": 23.1}
+{"id": "1303", "metric": "verdict", "value": 0.0, "verdict": "not enough evidence", "error": "", "judge": "nvidia:openai/gpt-oss-20b", "seconds": 0.9}
+{"id": "1298", "metric": "answer_relevancy", "value": 0.9404331705115915, "error": "", "judge": "nvidia:openai/gpt-oss-20b", "seconds": 6.9}
+{"id": "1303", "metric": "answer_relevancy", "value": 0.8442891255204862, "error": "", "judge": "nvidia:openai/gpt-oss-20b", "seconds": 4.8}
+{"id": "1303", "metric": "faithfulness", "value": 0.0, "error": "", "judge": "nvidia:openai/gpt-oss-20b", "seconds": 11.4}
+{"id": "1316", "metric": "verdict", "value": 1.0, "verdict": "not enough evidence", "error": "", "judge": "nvidia:openai/gpt-oss-20b", "seconds": 2.7}
+{"id": "1298", "metric": "factual_correctness_recall", "value": 0.0, "error": "", "judge": "nvidia:openai/gpt-oss-20b", "seconds": 21.6}
+{"id": "1298", "metric": "faithfulness", "value": 1.0, "error": "", "judge": "nvidia:openai/gpt-oss-20b", "seconds": 23.2}
+{"id": "1319", "metric": "verdict", "value": 1.0, "verdict": "supported", "error": "", "judge": "nvidia:openai/gpt-oss-20b", "seconds": 0.8}
+{"id": "1316", "metric": "answer_relevancy", "value": 0.0, "error": "", "judge": "nvidia:openai/gpt-oss-20b", "seconds": 7.8}
+{"id": "1316", "metric": "faithfulness", "value": 0.0, "error": "", "judge": "nvidia:openai/gpt-oss-20b", "seconds": 14.2}
+{"id": "1303", "metric": "factual_correctness_recall", "value": 0.0, "error": "", "judge": "nvidia:openai/gpt-oss-20b", "seconds": 20.3}
+{"id": "1320", "metric": "verdict", "value": 1.0, "verdict": "refuted", "error": "", "judge": "nvidia:openai/gpt-oss-20b", "seconds": 2.7}
+{"id": "1319", "metric": "answer_relevancy", "value": 0.8579797852660992, "error": "", "judge": "nvidia:openai/gpt-oss-20b", "seconds": 6.9}
+{"id": "1320", "metric": "answer_relevancy", "value": 0.8838533494935551, "error": "", "judge": "nvidia:openai/gpt-oss-20b", "seconds": 5.9}
+{"id": "1319", "metric": "faithfulness", "value": 1.0, "error": "", "judge": "nvidia:openai/gpt-oss-20b", "seconds": 18.3}
+{"id": "1332", "metric": "verdict", "value": 0.0, "verdict": "refuted", "error": "", "judge": "nvidia:openai/gpt-oss-20b", "seconds": 1.7}
+{"id": "1319", "metric": "factual_correctness_recall", "value": 0.0, "error": "", "judge": "nvidia:openai/gpt-oss-20b", "seconds": 23.0}
+{"id": "1320", "metric": "faithfulness", "value": 0.75, "error": "", "judge": "nvidia:openai/gpt-oss-20b", "seconds": 20.5}
+{"id": "1335", "metric": "verdict", "value": 1.0, "verdict": "supported", "error": "", "judge": "nvidia:openai/gpt-oss-20b", "seconds": 1.6}
+{"id": "1332", "metric": "answer_relevancy", "value": 0.9135752532600425, "error": "", "judge": "nvidia:openai/gpt-oss-20b", "seconds": 5.2}
+{"id": "1335", "metric": "answer_relevancy", "value": 0.8488443135862734, "error": "", "judge": "nvidia:openai/gpt-oss-20b", "seconds": 6.0}
+{"id": "1335", "metric": "faithfulness", "value": 0.5, "error": "", "judge": "nvidia:openai/gpt-oss-20b", "seconds": 10.7}
+{"id": "1336", "metric": "verdict", "value": 1.0, "verdict": "refuted", "error": "", "judge": "nvidia:openai/gpt-oss-20b", "seconds": 2.4}
+{"id": "1332", "metric": "faithfulness", "value": 0.8333333333333334, "error": "", "judge": "nvidia:openai/gpt-oss-20b", "seconds": 28.0}
+{"id": "1320", "metric": "factual_correctness_recall", "value": 0.5, "error": "", "judge": "nvidia:openai/gpt-oss-20b", "seconds": 32.5}
+{"id": "1336", "metric": "answer_relevancy", "value": 0.8225110512874979, "error": "", "judge": "nvidia:openai/gpt-oss-20b", "seconds": 6.3}
+{"id": "1337", "metric": "verdict", "value": 1.0, "verdict": "supported", "error": "", "judge": "nvidia:openai/gpt-oss-20b", "seconds": 3.3}
+{"id": "1336", "metric": "faithfulness", "value": 1.0, "error": "", "judge": "nvidia:openai/gpt-oss-20b", "seconds": 16.3}
+{"id": "1337", "metric": "answer_relevancy", "value": 0.878481382110856, "error": "", "judge": "nvidia:openai/gpt-oss-20b", "seconds": 5.3}
+{"id": "1335", "metric": "factual_correctness_recall", "value": 0.67, "error": "", "judge": "nvidia:openai/gpt-oss-20b", "seconds": 28.2}
+{"id": "1339", "metric": "verdict", "value": 1.0, "verdict": "refuted", "error": "", "judge": "nvidia:openai/gpt-oss-20b", "seconds": 2.8}
+{"id": "1337", "metric": "faithfulness", "value": 1.0, "error": "", "judge": "nvidia:openai/gpt-oss-20b", "seconds": 16.7}
+{"id": "1336", "metric": "factual_correctness_recall", "value": 0.33, "error": "", "judge": "nvidia:openai/gpt-oss-20b", "seconds": 28.6}
+{"id": "1339", "metric": "answer_relevancy", "value": 0.9620869673803966, "error": "", "judge": "nvidia:openai/gpt-oss-20b", "seconds": 6.1}
+{"id": "1344", "metric": "verdict", "value": 0.0, "verdict": "supported", "error": "", "judge": "nvidia:openai/gpt-oss-20b", "seconds": 1.1}
+{"id": "1339", "metric": "faithfulness", "value": 1.0, "error": "", "judge": "nvidia:openai/gpt-oss-20b", "seconds": 13.4}
+{"id": "1344", "metric": "answer_relevancy", "value": 0.8373552802241296, "error": "", "judge": "nvidia:openai/gpt-oss-20b", "seconds": 5.3}
+{"id": "1352", "metric": "verdict", "value": 1.0, "verdict": "supported", "error": "", "judge": "nvidia:openai/gpt-oss-20b", "seconds": 1.1}
+{"id": "1337", "metric": "factual_correctness_recall", "value": 1.0, "error": "", "judge": "nvidia:openai/gpt-oss-20b", "seconds": 24.8}
+{"id": "1352", "metric": "faithfulness", "value": 1.0, "error": "", "judge": "nvidia:openai/gpt-oss-20b", "seconds": 5.8}
+{"id": "1352", "metric": "answer_relevancy", "value": 0.9662431898196484, "error": "", "judge": "nvidia:openai/gpt-oss-20b", "seconds": 5.8}
+{"id": "1359", "metric": "verdict", "value": 1.0, "verdict": "refuted", "error": "", "judge": "nvidia:openai/gpt-oss-20b", "seconds": 2.4}
+{"id": "1339", "metric": "factual_correctness_recall", "value": 0.33, "error": "", "judge": "nvidia:openai/gpt-oss-20b", "seconds": 26.1}
+{"id": "1359", "metric": "answer_relevancy", "value": 0.9397005234722023, "error": "", "judge": "nvidia:openai/gpt-oss-20b", "seconds": 6.1}
+{"id": "1352", "metric": "factual_correctness_recall", "value": 0.0, "error": "", "judge": "nvidia:openai/gpt-oss-20b", "seconds": 21.9}
+{"id": "1362", "metric": "verdict", "value": 1.0, "verdict": "not enough evidence", "error": "", "judge": "nvidia:openai/gpt-oss-20b", "seconds": 1.0}
+{"id": "1344", "metric": "faithfulness", "value": 0.95, "error": "", "judge": "nvidia:openai/gpt-oss-20b", "seconds": 48.4}
+{"id": "1362", "metric": "answer_relevancy", "value": 0.0, "error": "", "judge": "nvidia:openai/gpt-oss-20b", "seconds": 4.1}
+{"id": "1362", "metric": "faithfulness", "value": 1.0, "error": "", "judge": "nvidia:openai/gpt-oss-20b", "seconds": 14.5}
+{"id": "1363", "metric": "verdict", "value": 1.0, "verdict": "not enough evidence", "error": "", "judge": "nvidia:openai/gpt-oss-20b", "seconds": 1.7}
+{"id": "1359", "metric": "faithfulness", "value": 1.0, "error": "", "judge": "nvidia:openai/gpt-oss-20b", "seconds": 37.6}
+{"id": "1359", "metric": "factual_correctness_recall", "value": 1.0, "error": "", "judge": "nvidia:openai/gpt-oss-20b", "seconds": 27.2}
+{"id": "1368", "metric": "verdict", "value": 0.0, "verdict": "not enough evidence", "error": "", "judge": "nvidia:openai/gpt-oss-20b", "seconds": 1.6}
+{"id": "1363", "metric": "answer_relevancy", "value": 0.7546867164917282, "error": "", "judge": "nvidia:openai/gpt-oss-20b", "seconds": 6.6}
+{"id": "1368", "metric": "answer_relevancy", "value": 0.0, "error": "", "judge": "nvidia:openai/gpt-oss-20b", "seconds": 5.9}
+{"id": "1370", "metric": "verdict", "value": 1.0, "verdict": "refuted", "error": "", "judge": "nvidia:openai/gpt-oss-20b", "seconds": 1.5}
+{"id": "1363", "metric": "faithfulness", "value": 1.0, "error": "", "judge": "nvidia:openai/gpt-oss-20b", "seconds": 14.3}
+{"id": "1368", "metric": "faithfulness", "value": 1.0, "error": "", "judge": "nvidia:openai/gpt-oss-20b", "seconds": 13.3}
+{"id": "1370", "metric": "answer_relevancy", "value": 0.9522562193848515, "error": "", "judge": "nvidia:openai/gpt-oss-20b", "seconds": 6.5}
+{"id": "1379", "metric": "verdict", "value": 1.0, "verdict": "supported", "error": "", "judge": "nvidia:openai/gpt-oss-20b", "seconds": 0.8}
+{"id": "1370", "metric": "faithfulness", "value": 1.0, "error": "", "judge": "nvidia:openai/gpt-oss-20b", "seconds": 11.0}
+{"id": "1368", "metric": "factual_correctness_recall", "value": 0.0, "error": "", "judge": "nvidia:openai/gpt-oss-20b", "seconds": 20.4}
+{"id": "1379", "metric": "answer_relevancy", "value": 0.9367597559791405, "error": "", "judge": "nvidia:openai/gpt-oss-20b", "seconds": 6.0}
+{"id": "1382", "metric": "verdict", "value": 1.0, "verdict": "refuted", "error": "", "judge": "nvidia:openai/gpt-oss-20b", "seconds": 3.2}
+{"id": "1370", "metric": "factual_correctness_recall", "value": 0.67, "error": "", "judge": "nvidia:openai/gpt-oss-20b", "seconds": 25.0}
+{"id": "1382", "metric": "answer_relevancy", "value": 0.7260594198012073, "error": "", "judge": "nvidia:openai/gpt-oss-20b", "seconds": 4.7}
+{"id": "1382", "metric": "faithfulness", "value": 0.6, "error": "", "judge": "nvidia:openai/gpt-oss-20b", "seconds": 19.5}
+{"id": "1385", "metric": "verdict", "value": 0.0, "verdict": "refuted", "error": "", "judge": "nvidia:openai/gpt-oss-20b", "seconds": 2.5}
+{"id": "1379", "metric": "faithfulness", "value": 0.875, "error": "", "judge": "nvidia:openai/gpt-oss-20b", "seconds": 35.6}
+{"id": "1379", "metric": "factual_correctness_recall", "value": 0.09, "error": "", "judge": "nvidia:openai/gpt-oss-20b", "seconds": 31.7}
+{"id": "1385", "metric": "answer_relevancy", "value": 0.8740026654908859, "error": "", "judge": "nvidia:openai/gpt-oss-20b", "seconds": 7.2}
+{"id": "1389", "metric": "verdict", "value": 1.0, "verdict": "supported", "error": "", "judge": "nvidia:openai/gpt-oss-20b", "seconds": 2.6}
+{"id": "1385", "metric": "faithfulness", "value": 0.75, "error": "", "judge": "nvidia:openai/gpt-oss-20b", "seconds": 17.8}
+{"id": "1389", "metric": "answer_relevancy", "value": 0.8019041938130136, "error": "", "judge": "nvidia:openai/gpt-oss-20b", "seconds": 5.0}
+{"id": "1385", "metric": "factual_correctness_recall", "value": 1.0, "error": "", "judge": "nvidia:openai/gpt-oss-20b", "seconds": 21.8}
+{"id": "1395", "metric": "verdict", "value": 1.0, "verdict": "not enough evidence", "error": "", "judge": "nvidia:openai/gpt-oss-20b", "seconds": 1.5}
+{"id": "1382", "metric": "factual_correctness_recall", "value": 0.75, "error": "", "judge": "nvidia:openai/gpt-oss-20b", "seconds": 38.3}
+{"id": "1389", "metric": "faithfulness", "value": 0.5, "error": "", "judge": "nvidia:openai/gpt-oss-20b", "seconds": 20.0}
+{"id": "1395", "metric": "answer_relevancy", "value": 0.9055732485873641, "error": "", "judge": "nvidia:openai/gpt-oss-20b", "seconds": 6.1}
+{"id": "1395", "metric": "faithfulness", "value": 0.0, "error": "", "judge": "nvidia:openai/gpt-oss-20b", "seconds": 13.4}
+{"id": "1389", "metric": "factual_correctness_recall", "value": 0.33, "error": "", "judge": "nvidia:openai/gpt-oss-20b", "seconds": 26.6}
