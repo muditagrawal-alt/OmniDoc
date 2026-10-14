@@ -9,6 +9,7 @@ Accuracy is graded by the judge model against the benchmark's reference answers.
 | [2026-10-10_revision-a_8805552](2026-10-10_revision-a_8805552/report.md) | `8805552` | nvidia/nemotron-3-super-120b-a12b | 50.0% | 47.2% | 44.4% | 70.0% | 49.8% | 10.3s | 22.6s | 3.0 |
 | [2026-10-10_revision-b_c289454](2026-10-10_revision-b_c289454/report.md) | `c289454` | nvidia/nemotron-3-super-120b-a12b | 38.9% | 49.1% | 50.6% | 60.0% | 47.6% | 7.0s | 9.2s | 3.0 |
 | [2026-10-13_revision-c_991bbaa](2026-10-13_revision-c_991bbaa/report.md) | `991bbaa` | nvidia/nemotron-3-super-120b-a12b | 69.4% | 64.2% | 62.8% | 70.0% | 78.6% | 10.1s | 13.3s | 4.0 |
+| [2026-10-14_revision-d_6231730](2026-10-14_revision-d_6231730/report.md) | `6231730` | nvidia/nemotron-3-super-120b-a12b | 77.8% | 71.7% | 69.8% | 80.0% | 78.4% | 11.4s | 15.4s | 3.7 |
 
 Caveats:
 
