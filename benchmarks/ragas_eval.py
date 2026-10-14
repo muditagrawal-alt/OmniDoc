@@ -397,8 +397,8 @@ def write_summary(run_dir: Path) -> Dict[str, Any]:
         if (run_dir / "scores.jsonl").exists() else []
     # The judge's reading of each answer's verdict, else the rule-based one.
     judged = {r["id"]: r["verdict"] for r in scores if r["metric"] == "verdict" and r.get("verdict")}
-    for r in ok:
-        r["verdict"] = judged.get(r["id"]) if judged else r.get("rule_verdict")
+    for r in ok:  # while judging is incomplete, the rules read the rest
+        r["verdict"] = judged.get(r["id"]) or r.get("rule_verdict")
     labelled = [r for r in ok if claims[r["id"]]["label"] in VERDICTS]
     verdict = {"accuracy": mean_ci([float(r.get("verdict") == claims[r["id"]]["label"]) for r in labelled]),
                "no_verdict": sum(1 for r in labelled if not r.get("verdict"))}
@@ -417,7 +417,9 @@ def write_summary(run_dir: Path) -> Dict[str, Any]:
     # Claims whose cited abstract holds the evidence: the labels that hold in an open library too.
     verdict["accuracy_with_evidence"] = mean_ci([float(r.get("verdict") == claims[r["id"]]["label"]) for r in labelled
                                                  if claims[r["id"]]["label"] in ("supported", "refuted")])
-    verdict["read_by"] = "judge" if judged else "rules"
+    n_judged = sum(1 for r in ok if r["id"] in judged)
+    verdict["read_by"] = "judge" if n_judged == len(ok) else "rules" if not n_judged else \
+        f"judge ({n_judged}) and rules ({len(ok) - n_judged})"
     both = [r for r in ok if r["id"] in judged and r.get("rule_verdict")]
     verdict["rules_agree_with_judge"] = round(sum(judged[r["id"]] == r["rule_verdict"] for r in both) / len(both), 4) if both else None
     # Evidence: the gold abstract among the passages the answer was written from, and cited.
