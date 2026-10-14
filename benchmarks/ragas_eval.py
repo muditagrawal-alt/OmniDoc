@@ -64,6 +64,7 @@ JUDGE = "nvidia:openai/gpt-oss-20b"      # another family than the answer model 
 JUDGE_EMBED = "nomic-embed-text"         # answer relevancy compares questions by embedding (local Ollama)
 JUDGE_CONCURRENCY = 3
 JUDGE_MAX_TOKENS = 8192
+JUDGE_EFFORT = "low"   # gpt-oss reasoning effort: the same verdicts in half the time on the checks tried
 PAUSE_S = 15
 # As a user would ask; the writer answers yes / no questions with "Yes" or "No" first. (A format
 # instruction such as "start with Supported or Refuted" is not followed and adds words to the search.)
@@ -291,9 +292,9 @@ def score(args: argparse.Namespace) -> None:
         raise SystemExit("Only NVIDIA-hosted judges are wired up (an OpenAI-compatible endpoint).")
     client = AsyncOpenAI(base_url="https://integrate.api.nvidia.com/v1", api_key=env_value("NVIDIA_API_KEY", "NVIDIA_NIM_API_KEY"),
                          max_retries=8, timeout=180)
-    cache = DiskCacheBackend(cache_dir=str(WORK / "judge-cache"))
+    cache = DiskCacheBackend(cache_dir=str(WORK / "judge-cache" / args.effort))  # one cache per judge setting
     # gpt-oss reasons before it answers: RAGAS's default of 1,024 output tokens cuts replies short.
-    judge = llm_factory(model, client=client, cache=cache, max_tokens=JUDGE_MAX_TOKENS)
+    judge = llm_factory(model, client=client, cache=cache, max_tokens=JUDGE_MAX_TOKENS, reasoning_effort=args.effort)
     embeddings = OpenAIEmbeddings(client=AsyncOpenAI(base_url="http://localhost:11434/v1", api_key="ollama"), model=JUDGE_EMBED)
     metrics = {
         "faithfulness": C.Faithfulness(llm=judge),
@@ -302,7 +303,7 @@ def score(args: argparse.Namespace) -> None:
     }
     config = json.loads((run_dir / "config.json").read_text())
     config["judge"] = {"model": args.judge, "embeddings": JUDGE_EMBED, "ragas": __import__("ragas").__version__,
-                       "max_tokens": JUDGE_MAX_TOKENS,
+                       "max_tokens": JUDGE_MAX_TOKENS, "reasoning_effort": args.effort,
                        "metrics": ["verdict", *METRICS], "factual_correctness": "recall mode, against the gold rationale",
                        "verdict_prompt": VERDICT_PROMPT}
     (run_dir / "config.json").write_text(json.dumps(config, indent=1) + "\n")
@@ -328,7 +329,7 @@ def score(args: argparse.Namespace) -> None:
     async def read_verdict(claim: str, answer: str) -> str:
         for _ in range(3):
             reply = await client.chat.completions.create(
-                model=model, temperature=0, max_tokens=2000,
+                model=model, temperature=0, max_tokens=JUDGE_MAX_TOKENS, reasoning_effort=args.effort,
                 messages=[{"role": "user", "content": VERDICT_PROMPT.format(claim=claim, answer=answer[:4000])}])
             text = reply.choices[0].message.content or ""
             m = re.search(r'"verdict"\s*:\s*"(supported|refuted|not enough evidence)"', text, re.I)
@@ -552,6 +553,7 @@ def main() -> None:
     s.add_argument("--judge", default=JUDGE)
     s.add_argument("--concurrency", type=int, default=JUDGE_CONCURRENCY)
     s.add_argument("--metrics", default="", help="comma-separated subset: verdict," + ",".join(METRICS))
+    s.add_argument("--effort", default=JUDGE_EFFORT, choices=("low", "medium", "high"), help="the judge's reasoning effort")
     r = sub.add_parser("report")
     r.add_argument("run", nargs="?", default="")
     args = parser.parse_args()
