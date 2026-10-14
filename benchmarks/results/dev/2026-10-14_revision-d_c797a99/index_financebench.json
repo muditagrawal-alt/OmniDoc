@@ -1,0 +1,109 @@
+{
+ "fingerprint": "df4a8682af68",
+ "commit": "fd4356a",
+ "docs": {
+  "3M_2023Q2_10Q": {
+   "doc_id": "doc_3e6611579345",
+   "upload_s": 30.6,
+   "chunks": 275,
+   "tables": 45,
+   "ocr_pages": 0,
+   "background_status": "done",
+   "has_summary": true,
+   "pages": 92
+  },
+  "AMCOR_2023Q4_EARNINGS": {
+   "doc_id": "doc_d155b7808e78",
+   "upload_s": 4.2,
+   "chunks": 62,
+   "tables": 9,
+   "ocr_pages": 0,
+   "background_status": "done",
+   "has_summary": true,
+   "pages": 14
+  },
+  "AMERICANEXPRESS_2022_10K": {
+   "doc_id": "doc_d3bbc7ab23d6",
+   "upload_s": 63.0,
+   "chunks": 738,
+   "tables": 96,
+   "ocr_pages": 0,
+   "background_status": "done",
+   "has_summary": true,
+   "pages": 260
+  },
+  "AMERICANWATERWORKS_2021_10K": {
+   "doc_id": "doc_701528ae6d14",
+   "upload_s": 60.8,
+   "chunks": 570,
+   "tables": 96,
+   "ocr_pages": 3,
+   "background_status": "done",
+   "has_summary": true,
+   "pages": 181
+  },
+  "JOHNSON_JOHNSON_2023_8K_dated-2023-08-30": {
+   "doc_id": "doc_0601a4b9f15e",
+   "upload_s": 5.0,
+   "chunks": 92,
+   "tables": 3,
+   "ocr_pages": 0,
+   "background_status": "done",
+   "has_summary": true,
+   "pages": 27
+  },
+  "NETFLIX_2015_10K": {
+   "doc_id": "doc_b22ca874ef08",
+   "upload_s": 20.7,
+   "chunks": 166,
+   "tables": 0,
+   "ocr_pages": 0,
+   "background_status": "done",
+   "has_summary": true,
+   "pages": 72
+  },
+  "NIKE_2018_10K": {
+   "doc_id": "doc_31de66f1e37c",
+   "upload_s": 33.6,
+   "chunks": 353,
+   "tables": 34,
+   "ocr_pages": 0,
+   "background_status": "done",
+   "has_summary": true,
+   "pages": 97
+  },
+  "NIKE_2019_10K": {
+   "doc_id": "doc_7dbdf1bcbf37",
+   "upload_s": 31.5,
+   "chunks": 327,
+   "tables": 48,
+   "ocr_pages": 0,
+   "background_status": "done",
+   "has_summary": true,
+   "pages": 104
+  },
+  "PEPSICO_2022_10K": {
+   "doc_id": "doc_7d8a9f3374e4",
+   "upload_s": 66.7,
+   "chunks": 869,
+   "tables": 82,
+   "ocr_pages": 0,
+   "background_status": "done",
+   "has_summary": true,
+   "pages": 503
+  },
+  "ULTABEAUTY_2023_10K": {
+   "doc_id": "doc_cdf2ebcfbc2e",
+   "upload_s": 29.5,
+   "chunks": 326,
+   "tables": 6,
+   "ocr_pages": 0,
+   "background_status": "done",
+   "has_summary": true,
+   "pages": 105
+  }
+ },
+ "background_s": 1577.6,
+ "built": "2026-10-12T22:34:20",
+ "kept_from": "6b8b4877bb2b"
+}
