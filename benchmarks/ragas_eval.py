@@ -410,6 +410,9 @@ def write_summary(run_dir: Path) -> Dict[str, Any]:
         verdict[f"accuracy_{v.replace(' ', '_')}"] = mean_ci([float(r.get("verdict") == v) for r in labelled
                                                               if claims[r["id"]]["label"] == v])
     verdict["macro_f1"] = round(sum(f1s) / len(f1s), 4)
+    # Claims whose cited abstract holds the evidence: the labels that hold in an open library too.
+    verdict["accuracy_with_evidence"] = mean_ci([float(r.get("verdict") == claims[r["id"]]["label"]) for r in labelled
+                                                 if claims[r["id"]]["label"] in ("supported", "refuted")])
     verdict["read_by"] = "judge" if judged else "rules"
     both = [r for r in ok if r["id"] in judged and r.get("rule_verdict")]
     verdict["rules_agree_with_judge"] = round(sum(judged[r["id"]] == r["rule_verdict"] for r in both) / len(both), 4) if both else None
@@ -460,6 +463,8 @@ def render(run: str, config: Dict[str, Any], s: Dict[str, Any], ok: List[Dict[st
            + (f" (RAGAS {judge.get('ragas')}, embeddings `{judge.get('embeddings')}`)" if judge else "") + ".", "",
            "| Measure | Score (95% interval, n) | Graded by |", "|---|---|---|",
            f"| Verdict accuracy (supported / refuted / not enough evidence) | **{pct(v['accuracy'])}** | {v['read_by']} read the verdict; gold label |",
+           f"| Verdict accuracy on the claims with gold evidence (supported or refuted) | {pct(v['accuracy_with_evidence'])} | "
+           f"{v['read_by']} read the verdict; gold label |",
            f"| Verdict macro-F1 | {v['macro_f1'] * 100:.1f}% | {v['read_by']} read the verdict; gold label |",
            f"| Gold evidence among the passages the answer was written from | {pct(ev['in_context'])} | exact |",
            f"| Gold evidence cited in the answer | {pct(ev['cited'])} | exact |",
@@ -481,8 +486,9 @@ def render(run: str, config: Dict[str, Any], s: Dict[str, Any], ok: List[Dict[st
             f"- Model calls per answer: {s['model_calls_per_answer']} ({s.get('tokens_per_answer')} tokens). "
             f"Judge results that failed: {s['judge_errors']}.",
             "", "## Notes", "",
-            "- SciFact's \"not enough evidence\" claims have no evidence in the abstract cited with them; another abstract "
-            "of the library could in principle bear on them, so some \"wrong\" answers there may be defensible.",
+            "- SciFact's \"not enough evidence\" claims have no evidence in the abstract cited with them, but another "
+            "abstract of the library may bear on them (OmniDoc then answers from it and is counted wrong); the accuracy on "
+            "claims with gold evidence avoids this.",
             "- Faithfulness counts the verdict word as a statement the evidence must back; a judge may not credit it.",
             "- Factual correctness is in recall mode: the gold rationale is a few sentences and a good answer says more.",
             "", "## Missed verdicts", ""]
@@ -503,7 +509,8 @@ def write_history() -> None:
         def m(x: Optional[Dict[str, Any]]) -> str:
             return "-" if not x or x.get("mean") is None else f"{x['mean'] * 100:.1f}%"
         rows.append(f"| [{p.parent.name}]({p.parent.name}/report.md) | `{c['commit']}` | {s['answers']} | "
-                    f"**{m(s['verdict']['accuracy'])}** | {s['verdict']['macro_f1'] * 100:.1f}% | {m(s['evidence']['in_context'])} | "
+                    f"**{m(s['verdict']['accuracy'])}** | {m(s['verdict'].get('accuracy_with_evidence'))} | "
+                    f"{s['verdict']['macro_f1'] * 100:.1f}% | {m(s['evidence']['in_context'])} | "
                     f"{m(s['ragas']['faithfulness'])} | {m(s['ragas']['answer_relevancy'])} | "
                     f"{m(s['ragas']['factual_correctness_recall'])} | {(c.get('judge') or {}).get('model', '-')} |")
     RESULTS.mkdir(parents=True, exist_ok=True)
@@ -511,9 +518,9 @@ def write_history() -> None:
         "# RAGAS history", "",
         "Every run of `benchmarks/ragas_eval.py` on the BEIR SciFact test claims: verdicts and evidence are scored "
         "exactly, the RAGAS metrics by a judge model of another family than the answer model.", "",
-        "| Run | Commit | Answers | Verdict accuracy | Macro-F1 | Gold evidence in context | Faithfulness | "
-        "Answer relevancy | Factual correctness (recall) | Judge |",
-        "|---|---|---|---|---|---|---|---|---|---|", *rows]) + "\n")
+        "| Run | Commit | Answers | Verdict accuracy | On claims with evidence | Macro-F1 | Gold evidence in context | "
+        "Faithfulness | Answer relevancy | Factual correctness (recall) | Judge |",
+        "|---|---|---|---|---|---|---|---|---|---|---|", *rows]) + "\n")
 
 
 def report(args: argparse.Namespace) -> None:
