@@ -721,6 +721,8 @@ def summarize(rows: List[Dict[str, Any]]) -> Dict[str, Any]:
     recall = (sum(1 for r in answerable if r["j"].get("correct")) / len(answerable)) if answerable else None
     f1 = (2 * precision * recall / (precision + recall)) if precision and recall else None
     usage = [r.get("usage") or {} for r in ok]
+    # Answers the sentence check sent back for one rewrite (it can drop computed figures).
+    rewritten = [r for r in ok if any(st.get("node") == "reflection_node" for st in r.get("steps") or [])]
     return {
         "n": n, "accuracy": correct / n if n else None, "accuracy_ci95": [lo, hi],
         "wrong": wrong / n if n else None, "declined": declined / n if n else None,
@@ -738,6 +740,8 @@ def summarize(rows: List[Dict[str, Any]]) -> Dict[str, Any]:
         "tokens_mean": statistics.mean([u.get("prompt_tokens", 0) + u.get("completion_tokens", 0) for u in usage]) if usage else None,
         "errors": sum(1 for r in rows if r.get("error")),
         "retried": sum(1 for r in rows if r.get("failed_attempts") or r.get("retried_after")),
+        "rewritten": len(rewritten),
+        "rewritten_correct": sum(1 for r in rewritten if r["j"].get("correct")),
         "verified_mean": statistics.mean([r["verification"]["score"] for r in ok
                                           if (r.get("verification") or {}).get("score") is not None] or [0]),
     }
@@ -828,7 +832,8 @@ def render_report(summary: Dict[str, Any], rows: List[Dict[str, Any]]) -> str:
                 f"| Model calls per question | {s['model_calls_mean']:.1f} |" if s.get("model_calls_mean") is not None else "| Model calls per question | - |",
                 f"| Tokens per question | {s['tokens_mean']:.0f} |" if s.get("tokens_mean") is not None else "| Tokens per question | - |",
                 f"| Answers with errors | {s['errors']} |",
-                f"| Answers that needed a retry (rate limit or model error) | {s.get('retried', 0)} |"]
+                f"| Answers that needed a retry (rate limit or model error) | {s.get('retried', 0)} |",
+                f"| Answers rewritten after the sentence check (graded correct) | {s.get('rewritten', 0)} ({s.get('rewritten_correct', 0)}) |"]
         if s.get("ingestion"):
             ing = s["ingestion"]
             out.append(f"| Ingestion | {ing['documents']} documents, {ing['chunks']} chunks; upload {ing['upload_s']}s, "
