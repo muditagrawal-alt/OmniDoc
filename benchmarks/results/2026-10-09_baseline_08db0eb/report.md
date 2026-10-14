@@ -2,6 +2,8 @@
 
 Commit `08db0eb`. Answer model `nvidia:nvidia/nemotron-3-super-120b-a12b` (provider `nvidia` only, no fallback), vision `gemini:gemini-3.5-flash-lite`, embeddings `nomic-embed-text`, judge `groq:openai/gpt-oss-120b`. Each question is asked about its own document, web search off.
 
+Notes: Code at 08db0eb. Answers: NVIDIA Nemotron 3 Super; figures: Gemini 3.5 Flash-Lite; judge: Groq gpt-oss-120b. Resumed on 2026-10-10 after the session stopped: 19 answers that were NVIDIA rate-limit errors (the FinanceBench phase overlapped with an index build on the same key) and the 18 FinanceBench questions not yet asked were asked again with pacing; product code unchanged (08db0eb).
+
 ## MMLongBench-Doc (53 questions)
 
 | Metric | Value |
@@ -20,6 +22,7 @@ Commit `08db0eb`. Answer model `nvidia:nvidia/nemotron-3-super-120b-a12b` (provi
 | Tokens per question | 4241 |
 | Answers with errors | 0 |
 | Answers that needed a retry (rate limit or model error) | 4 |
+| Answers rewritten after the sentence check (graded correct) | 6 (1) |
 | Ingestion | 7 documents, 596 chunks; upload 61.3s, background 1471.8s (index built at `fb1d133`) |
 
 **By evidence**
@@ -102,6 +105,7 @@ Commit `08db0eb`. Answer model `nvidia:nvidia/nemotron-3-super-120b-a12b` (provi
 | Tokens per question | 6805 |
 | Answers with errors | 1 |
 | Answers that needed a retry (rate limit or model error) | 27 |
+| Answers rewritten after the sentence check (graded correct) | 2 (0) |
 | Ingestion | 24 documents, 10575 chunks; upload 1104.5s, background 5124.3s (index built at `fb1d133`) |
 
 **By question type**
