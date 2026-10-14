@@ -1,0 +1,202 @@
+{
+ "run": "2026-10-14_revision-d_6231730",
+ "label": "revision-d",
+ "commit": "6231730",
+ "uncommitted_changes": false,
+ "settings": {
+  "provider": "nvidia",
+  "model": "nvidia:nvidia/nemotron-3-super-120b-a12b",
+  "vision": "gemini:gemini-3.5-flash-lite",
+  "embed": "nomic-embed-text",
+  "judge": "groq:openai/gpt-oss-120b"
+ },
+ "notes": "Revision D: retrieval embeds with nomic task prefixes and orders passages by the cross-encoder fused with the hybrid order (the cross-encoder runs on the CPU: on Apple GPUs its memory grew past 30 GB); the sentence check accepts figures computed from figures the answer has just given, and a rewrite keeps such calculations with their inputs; yes/no questions are decided from what the evidence shows or implies (rounded figures match, negated questions are answered as asked). Revision C's test indexes (benchmarks/work/revC) kept; the server re-embedded them with the task prefixes. After the development run the yes/no rule lost a sentence that weakened declines on unanswerable questions and gained the negated-question rule.",
+ "caveat": "",
+ "graded": 89,
+ "benchmarks": {
+  "financebench": {
+   "n": 36,
+   "accuracy": 0.7777777777777778,
+   "accuracy_ci95": [
+    0.6191498017214091,
+    0.882838070251604
+   ],
+   "wrong": 0.19444444444444445,
+   "declined": 0.027777777777777776,
+   "answerable_accuracy": 0.7777777777777778,
+   "unanswerable_n": 0,
+   "unanswerable_accuracy": null,
+   "f1": 0.7887323943661971,
+   "gold_page_retrieved": 0.9166666666666666,
+   "gold_page_cited": 0.8055555555555556,
+   "first_word_p50_s": 13.52,
+   "first_word_p90_s": 20.36,
+   "answer_p50_s": 18.84,
+   "answer_p90_s": 33.77,
+   "model_calls_mean": 4.305555555555555,
+   "tokens_mean": 22033.75,
+   "errors": 0,
+   "retried": 0,
+   "rewritten": 4,
+   "rewritten_correct": 2,
+   "verified_mean": 0.9543142857142857,
+   "by_type": {
+    "domain-relevant": {
+     "n": 12,
+     "accuracy": 0.5833333333333334
+    },
+    "metrics-generated": {
+     "n": 12,
+     "accuracy": 1.0
+    },
+    "novel-generated": {
+     "n": 12,
+     "accuracy": 0.75
+    }
+   },
+   "by_reasoning": {
+    "-": {
+     "n": 12,
+     "accuracy": 0.75
+    },
+    "Information extraction": {
+     "n": 5,
+     "accuracy": 0.8
+    },
+    "Logical reasoning (based on numerical reasoning)": {
+     "n": 2,
+     "accuracy": 0.5
+    },
+    "Logical reasoning (based on numerical reasoning) OR Logical reasoning": {
+     "n": 1,
+     "accuracy": 1.0
+    },
+    "Logical reasoning (based on numerical reasoning) OR Numerical reasoning OR Logical reasoning": {
+     "n": 1,
+     "accuracy": 0.0
+    },
+    "Numerical reasoning": {
+     "n": 11,
+     "accuracy": 1.0
+    },
+    "Numerical reasoning OR Logical reasoning": {
+     "n": 3,
+     "accuracy": 0.3333333333333333
+    },
+    "Numerical reasoning OR information extraction": {
+     "n": 1,
+     "accuracy": 1.0
+    }
+   },
+   "ingestion": {
+    "documents": 24,
+    "chunks": 10574,
+    "upload_s": 1517.4,
+    "background_s": 3427.5,
+    "index_commit": "991bbaa"
+   }
+  },
+  "mmlongbench": {
+   "n": 53,
+   "accuracy": 0.7169811320754716,
+   "accuracy_ci95": [
+    0.5842945799989226,
+    0.8203386463704966
+   ],
+   "wrong": 0.24528301886792453,
+   "declined": 0.03773584905660377,
+   "answerable_accuracy": 0.6976744186046512,
+   "unanswerable_n": 10,
+   "unanswerable_accuracy": 0.8,
+   "f1": 0.6976744186046512,
+   "gold_page_retrieved": 0.9285714285714286,
+   "gold_page_cited": 0.7619047619047619,
+   "first_word_p50_s": 9.35,
+   "first_word_p90_s": 13.95,
+   "answer_p50_s": 11.88,
+   "answer_p90_s": 21.43,
+   "model_calls_mean": 3.188679245283019,
+   "tokens_mean": 28294.01886792453,
+   "errors": 0,
+   "retried": 0,
+   "rewritten": 3,
+   "rewritten_correct": 2,
+   "verified_mean": 0.9481555555555555,
+   "by_evidence": {
+    "(unspecified)": {
+     "n": 1,
+     "accuracy": 0.0
+    },
+    "Chart": {
+     "n": 5,
+     "accuracy": 0.8
+    },
+    "Figure": {
+     "n": 22,
+     "accuracy": 0.5909090909090909
+    },
+    "Generalized-text": {
+     "n": 4,
+     "accuracy": 0.75
+    },
+    "Multi-page": {
+     "n": 13,
+     "accuracy": 0.38461538461538464
+    },
+    "Not answerable": {
+     "n": 10,
+     "accuracy": 0.8
+    },
+    "Pure-text": {
+     "n": 11,
+     "accuracy": 0.8181818181818182
+    },
+    "Single-page": {
+     "n": 30,
+     "accuracy": 0.8333333333333334
+    },
+    "Table": {
+     "n": 6,
+     "accuracy": 0.6666666666666666
+    }
+   },
+   "by_doc_type": {
+    "Academic paper": {
+     "n": 9,
+     "accuracy": 0.4444444444444444
+    },
+    "Administration/Industry file": {
+     "n": 7,
+     "accuracy": 0.7142857142857143
+    },
+    "Brochure": {
+     "n": 7,
+     "accuracy": 1.0
+    },
+    "Financial report": {
+     "n": 8,
+     "accuracy": 0.875
+    },
+    "Guidebook": {
+     "n": 9,
+     "accuracy": 0.5555555555555556
+    },
+    "Research report / Introduction": {
+     "n": 7,
+     "accuracy": 0.7142857142857143
+    },
+    "Tutorial/Workshop": {
+     "n": 6,
+     "accuracy": 0.8333333333333334
+    }
+   },
+   "ingestion": {
+    "documents": 7,
+    "chunks": 694,
+    "upload_s": 159.1,
+    "background_s": 1802.9,
+    "index_commit": "991bbaa"
+   }
+  }
+ }
+}
