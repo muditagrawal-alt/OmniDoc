@@ -64,6 +64,8 @@ JUDGE = "nvidia:openai/gpt-oss-20b"      # another family than the answer model 
 JUDGE_EMBED = "nomic-embed-text"         # answer relevancy compares questions by embedding (local Ollama)
 JUDGE_CONCURRENCY = 3
 JUDGE_MAX_TOKENS = 8192
+JUDGE_ENDPOINTS = {"nvidia": ("https://integrate.api.nvidia.com/v1", ("NVIDIA_API_KEY", "NVIDIA_NIM_API_KEY")),
+                   "groq": ("https://api.groq.com/openai/v1", ("GROQ_API_KEY",))}
 JUDGE_TIMEOUT_S = 600  # a congested free endpoint can take minutes; a timed-out call is retried from scratch
 JUDGE_EFFORT = "low"   # gpt-oss reasoning effort: the same verdicts in half the time on the checks tried
 PAUSE_S = 15
@@ -289,10 +291,10 @@ def score(args: argparse.Namespace) -> None:
 
     run_dir = Path(args.run)
     provider, model = args.judge.split(":", 1)
-    if provider != "nvidia":
-        raise SystemExit("Only NVIDIA-hosted judges are wired up (an OpenAI-compatible endpoint).")
-    client = AsyncOpenAI(base_url="https://integrate.api.nvidia.com/v1", api_key=env_value("NVIDIA_API_KEY", "NVIDIA_NIM_API_KEY"),
-                         max_retries=4, timeout=JUDGE_TIMEOUT_S)
+    if provider not in JUDGE_ENDPOINTS:
+        raise SystemExit(f"Judges are wired up for {', '.join(JUDGE_ENDPOINTS)} (OpenAI-compatible endpoints).")
+    url, key_names = JUDGE_ENDPOINTS[provider]
+    client = AsyncOpenAI(base_url=url, api_key=env_value(*key_names), max_retries=4, timeout=JUDGE_TIMEOUT_S)
     cache = DiskCacheBackend(cache_dir=str(WORK / "judge-cache" / args.effort))  # one cache per judge setting
     # gpt-oss reasons before it answers: RAGAS's default of 1,024 output tokens cuts replies short.
     judge = llm_factory(model, client=client, cache=cache, max_tokens=JUDGE_MAX_TOKENS, reasoning_effort=args.effort)
@@ -310,6 +312,10 @@ def score(args: argparse.Namespace) -> None:
     (run_dir / "config.json").write_text(json.dumps(config, indent=1) + "\n")
     claims = gold(config.get("split", "test"))
     answers = [r for r in latest_rows(run_dir / "answers.jsonl") if not r.get("error")]
+    if args.sample:
+        # The same claims in every run (fixed seed), for a matched comparison when judging is slow.
+        chosen = set(random.Random(2026).sample(sorted(claims, key=int), args.sample))
+        answers = [r for r in answers if r["id"] in chosen]
     wanted = set(args.metrics.split(",")) if args.metrics else {"verdict", *METRICS}
     scores_path = run_dir / "scores.jsonl"
     done = {(r["id"], r["metric"]) for r in latest_rows_by(scores_path, ("id", "metric")) if r.get("value") is not None}
@@ -352,7 +358,7 @@ def score(args: argparse.Namespace) -> None:
             except Exception as e:  # a judge reply that could not be parsed, a timeout: counted in the report
                 value, error = None, f"{type(e).__name__}: {e}"[:300]
             append_jsonl(scores_path, {"id": cid, "metric": metric, "value": value, **extra, "error": error,
-                                       "seconds": round(time.perf_counter() - started, 1)})
+                                       "judge": args.judge, "seconds": round(time.perf_counter() - started, 1)})
 
     async def main() -> None:
         tasks = [asyncio.create_task(one(*job)) for job in jobs]
@@ -557,6 +563,7 @@ def main() -> None:
     s.add_argument("--concurrency", type=int, default=JUDGE_CONCURRENCY)
     s.add_argument("--metrics", default="", help="comma-separated subset: verdict," + ",".join(METRICS))
     s.add_argument("--effort", default=JUDGE_EFFORT, choices=("low", "medium", "high"), help="the judge's reasoning effort")
+    s.add_argument("--sample", type=int, default=0, help="judge only a fixed random sample of N claims (seed 2026)")
     r = sub.add_parser("report")
     r.add_argument("run", nargs="?", default="")
     args = parser.parse_args()
