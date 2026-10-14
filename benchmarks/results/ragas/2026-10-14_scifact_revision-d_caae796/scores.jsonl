@@ -1,0 +1,1088 @@
+{"id": "1", "metric": "faithfulness", "value": 1.0, "error": "", "seconds": 0.0}
+{"id": "1", "metric": "answer_relevancy", "value": 0.9263645543496496, "error": "", "seconds": 1.8}
+{"id": "3", "metric": "verdict", "value": 0.0, "verdict": "not enough evidence", "error": "", "seconds": 12.7}
+{"id": "1", "metric": "verdict", "value": 1.0, "verdict": "not enough evidence", "error": "", "seconds": 103.5}
+{"id": "3", "metric": "answer_relevancy", "value": 0.8419043353481036, "error": "", "seconds": 217.9}
+{"id": "3", "metric": "factual_correctness_recall", "value": 0.0, "error": "", "seconds": 24.2}
+{"id": "5", "metric": "verdict", "value": 1.0, "verdict": "supported", "error": "", "seconds": 10.7}
+{"id": "5", "metric": "faithfulness", "value": 0.75, "error": "", "seconds": 129.4}
+{"id": "48", "metric": "verdict", "value": 1.0, "verdict": "refuted", "error": "", "judge": "nvidia:openai/gpt-oss-20b", "seconds": 1.8}
+{"id": "36", "metric": "verdict", "value": 0.0, "verdict": "supported", "error": "", "judge": "nvidia:openai/gpt-oss-20b", "seconds": 1.8}
+{"id": "13", "metric": "verdict", "value": 1.0, "verdict": "not enough evidence", "error": "", "judge": "nvidia:openai/gpt-oss-20b", "seconds": 2.6}
+{"id": "42", "metric": "verdict", "value": 1.0, "verdict": "refuted", "error": "", "judge": "nvidia:openai/gpt-oss-20b", "seconds": 2.9}
+{"id": "50", "metric": "verdict", "value": 1.0, "verdict": "supported", "error": "", "judge": "nvidia:openai/gpt-oss-20b", "seconds": 1.7}
+{"id": "51", "metric": "verdict", "value": 1.0, "verdict": "refuted", "error": "", "judge": "nvidia:openai/gpt-oss-20b", "seconds": 1.4}
+{"id": "49", "metric": "verdict", "value": 1.0, "verdict": "supported", "error": "", "judge": "nvidia:openai/gpt-oss-20b", "seconds": 2.7}
+{"id": "53", "metric": "verdict", "value": 1.0, "verdict": "supported", "error": "", "judge": "nvidia:openai/gpt-oss-20b", "seconds": 2.0}
+{"id": "70", "metric": "verdict", "value": 1.0, "verdict": "supported", "error": "", "judge": "nvidia:openai/gpt-oss-20b", "seconds": 1.5}
+{"id": "57", "metric": "verdict", "value": 1.0, "verdict": "refuted", "error": "", "judge": "nvidia:openai/gpt-oss-20b", "seconds": 2.9}
+{"id": "54", "metric": "verdict", "value": 1.0, "verdict": "refuted", "error": "", "judge": "nvidia:openai/gpt-oss-20b", "seconds": 3.8}
+{"id": "56", "metric": "verdict", "value": 1.0, "verdict": "supported", "error": "", "judge": "nvidia:openai/gpt-oss-20b", "seconds": 3.6}
+{"id": "75", "metric": "verdict", "value": 1.0, "verdict": "not enough evidence", "error": "", "judge": "nvidia:openai/gpt-oss-20b", "seconds": 0.8}
+{"id": "94", "metric": "verdict", "value": 1.0, "verdict": "not enough evidence", "error": "", "judge": "nvidia:openai/gpt-oss-20b", "seconds": 0.9}
+{"id": "72", "metric": "verdict", "value": 0.0, "verdict": "supported", "error": "", "judge": "nvidia:openai/gpt-oss-20b", "seconds": 2.2}
+{"id": "99", "metric": "verdict", "value": 1.0, "verdict": "not enough evidence", "error": "", "judge": "nvidia:openai/gpt-oss-20b", "seconds": 1.0}
+{"id": "118", "metric": "verdict", "value": 1.0, "verdict": "supported", "error": "", "judge": "nvidia:openai/gpt-oss-20b", "seconds": 0.7}
+{"id": "100", "metric": "verdict", "value": 1.0, "verdict": "supported", "error": "", "judge": "nvidia:openai/gpt-oss-20b", "seconds": 1.3}
+{"id": "113", "metric": "verdict", "value": 1.0, "verdict": "supported", "error": "", "judge": "nvidia:openai/gpt-oss-20b", "seconds": 1.6}
+{"id": "124", "metric": "verdict", "value": 1.0, "verdict": "supported", "error": "", "judge": "nvidia:openai/gpt-oss-20b", "seconds": 0.9}
+{"id": "127", "metric": "verdict", "value": 1.0, "verdict": "not enough evidence", "error": "", "judge": "nvidia:openai/gpt-oss-20b", "seconds": 1.2}
+{"id": "128", "metric": "verdict", "value": 1.0, "verdict": "not enough evidence", "error": "", "judge": "nvidia:openai/gpt-oss-20b", "seconds": 0.9}
+{"id": "130", "metric": "verdict", "value": 1.0, "verdict": "supported", "error": "", "judge": "nvidia:openai/gpt-oss-20b", "seconds": 0.8}
+{"id": "129", "metric": "verdict", "value": 1.0, "verdict": "refuted", "error": "", "judge": "nvidia:openai/gpt-oss-20b", "seconds": 1.5}
+{"id": "132", "metric": "verdict", "value": 0.0, "verdict": "supported", "error": "", "judge": "nvidia:openai/gpt-oss-20b", "seconds": 0.9}
+{"id": "115", "metric": "verdict", "value": 1.0, "verdict": "refuted", "error": "", "judge": "nvidia:openai/gpt-oss-20b", "seconds": 3.4}
+{"id": "133", "metric": "verdict", "value": 0.0, "verdict": "not enough evidence", "error": "", "judge": "nvidia:openai/gpt-oss-20b", "seconds": 1.1}
+{"id": "141", "metric": "verdict", "value": 1.0, "verdict": "supported", "error": "", "judge": "nvidia:openai/gpt-oss-20b", "seconds": 1.1}
+{"id": "143", "metric": "verdict", "value": 1.0, "verdict": "supported", "error": "", "judge": "nvidia:openai/gpt-oss-20b", "seconds": 0.9}
+{"id": "142", "metric": "verdict", "value": 1.0, "verdict": "refuted", "error": "", "judge": "nvidia:openai/gpt-oss-20b", "seconds": 1.9}
+{"id": "146", "metric": "verdict", "value": 1.0, "verdict": "supported", "error": "", "judge": "nvidia:openai/gpt-oss-20b", "seconds": 1.3}
+{"id": "148", "metric": "verdict", "value": 1.0, "verdict": "supported", "error": "", "judge": "nvidia:openai/gpt-oss-20b", "seconds": 0.8}
+{"id": "163", "metric": "verdict", "value": 1.0, "verdict": "supported", "error": "", "judge": "nvidia:openai/gpt-oss-20b", "seconds": 1.0}
+{"id": "137", "metric": "verdict", "value": 1.0, "verdict": "supported", "error": "", "judge": "nvidia:openai/gpt-oss-20b", "seconds": 3.3}
+{"id": "179", "metric": "verdict", "value": 1.0, "verdict": "supported", "error": "", "judge": "nvidia:openai/gpt-oss-20b", "seconds": 0.9}
+{"id": "185", "metric": "verdict", "value": 1.0, "verdict": "refuted", "error": "", "judge": "nvidia:openai/gpt-oss-20b", "seconds": 1.2}
+{"id": "171", "metric": "verdict", "value": 1.0, "verdict": "refuted", "error": "", "judge": "nvidia:openai/gpt-oss-20b", "seconds": 2.6}
+{"id": "180", "metric": "verdict", "value": 1.0, "verdict": "refuted", "error": "", "judge": "nvidia:openai/gpt-oss-20b", "seconds": 2.7}
+{"id": "183", "metric": "verdict", "value": 1.0, "verdict": "refuted", "error": "", "judge": "nvidia:openai/gpt-oss-20b", "seconds": 3.0}
+{"id": "208", "metric": "verdict", "value": 1.0, "verdict": "supported", "error": "", "judge": "nvidia:openai/gpt-oss-20b", "seconds": 1.3}
+{"id": "212", "metric": "verdict", "value": 1.0, "verdict": "refuted", "error": "", "judge": "nvidia:openai/gpt-oss-20b", "seconds": 1.8}
+{"id": "198", "metric": "verdict", "value": 1.0, "verdict": "not enough evidence", "error": "", "judge": "nvidia:openai/gpt-oss-20b", "seconds": 3.2}
+{"id": "216", "metric": "verdict", "value": 1.0, "verdict": "refuted", "error": "", "judge": "nvidia:openai/gpt-oss-20b", "seconds": 2.1}
+{"id": "213", "metric": "verdict", "value": 0.0, "verdict": "refuted", "error": "", "judge": "nvidia:openai/gpt-oss-20b", "seconds": 2.5}
+{"id": "218", "metric": "verdict", "value": 1.0, "verdict": "supported", "error": "", "judge": "nvidia:openai/gpt-oss-20b", "seconds": 1.6}
+{"id": "230", "metric": "verdict", "value": 1.0, "verdict": "supported", "error": "", "judge": "nvidia:openai/gpt-oss-20b", "seconds": 0.9}
+{"id": "217", "metric": "verdict", "value": 1.0, "verdict": "supported", "error": "", "judge": "nvidia:openai/gpt-oss-20b", "seconds": 2.4}
+{"id": "219", "metric": "verdict", "value": 1.0, "verdict": "refuted", "error": "", "judge": "nvidia:openai/gpt-oss-20b", "seconds": 1.8}
+{"id": "232", "metric": "verdict", "value": 0.0, "verdict": "refuted", "error": "", "judge": "nvidia:openai/gpt-oss-20b", "seconds": 1.2}
+{"id": "236", "metric": "verdict", "value": 0.0, "verdict": "not enough evidence", "error": "", "judge": "nvidia:openai/gpt-oss-20b", "seconds": 0.9}
+{"id": "237", "metric": "verdict", "value": 1.0, "verdict": "not enough evidence", "error": "", "judge": "nvidia:openai/gpt-oss-20b", "seconds": 1.2}
+{"id": "239", "metric": "verdict", "value": 1.0, "verdict": "supported", "error": "", "judge": "nvidia:openai/gpt-oss-20b", "seconds": 1.2}
+{"id": "233", "metric": "verdict", "value": 1.0, "verdict": "refuted", "error": "", "judge": "nvidia:openai/gpt-oss-20b", "seconds": 3.0}
+{"id": "238", "metric": "verdict", "value": 1.0, "verdict": "not enough evidence", "error": "", "judge": "nvidia:openai/gpt-oss-20b", "seconds": 2.5}
+{"id": "261", "metric": "verdict", "value": 1.0, "verdict": "supported", "error": "", "judge": "nvidia:openai/gpt-oss-20b", "seconds": 0.8}
+{"id": "248", "metric": "verdict", "value": 1.0, "verdict": "supported", "error": "", "judge": "nvidia:openai/gpt-oss-20b", "seconds": 2.2}
+{"id": "249", "metric": "verdict", "value": 1.0, "verdict": "refuted", "error": "", "judge": "nvidia:openai/gpt-oss-20b", "seconds": 1.5}
+{"id": "275", "metric": "verdict", "value": 1.0, "verdict": "supported", "error": "", "judge": "nvidia:openai/gpt-oss-20b", "seconds": 0.9}
+{"id": "268", "metric": "verdict", "value": 0.0, "verdict": "supported", "error": "", "judge": "nvidia:openai/gpt-oss-20b", "seconds": 2.1}
+{"id": "279", "metric": "verdict", "value": 1.0, "verdict": "supported", "error": "", "judge": "nvidia:openai/gpt-oss-20b", "seconds": 1.0}
+{"id": "269", "metric": "verdict", "value": 0.0, "verdict": "refuted", "error": "", "judge": "nvidia:openai/gpt-oss-20b", "seconds": 2.5}
+{"id": "295", "metric": "verdict", "value": 1.0, "verdict": "supported", "error": "", "judge": "nvidia:openai/gpt-oss-20b", "seconds": 0.8}
+{"id": "294", "metric": "verdict", "value": 1.0, "verdict": "not enough evidence", "error": "", "judge": "nvidia:openai/gpt-oss-20b", "seconds": 1.8}
+{"id": "298", "metric": "verdict", "value": 1.0, "verdict": "supported", "error": "", "judge": "nvidia:openai/gpt-oss-20b", "seconds": 1.3}
+{"id": "274", "metric": "verdict", "value": 1.0, "verdict": "refuted", "error": "", "judge": "nvidia:openai/gpt-oss-20b", "seconds": 3.9}
+{"id": "300", "metric": "verdict", "value": 1.0, "verdict": "not enough evidence", "error": "", "judge": "nvidia:openai/gpt-oss-20b", "seconds": 1.0}
+{"id": "312", "metric": "verdict", "value": 1.0, "verdict": "not enough evidence", "error": "", "judge": "nvidia:openai/gpt-oss-20b", "seconds": 1.2}
+{"id": "314", "metric": "verdict", "value": 1.0, "verdict": "supported", "error": "", "judge": "nvidia:openai/gpt-oss-20b", "seconds": 1.1}
+{"id": "303", "metric": "verdict", "value": 0.0, "verdict": "supported", "error": "", "judge": "nvidia:openai/gpt-oss-20b", "seconds": 1.6}
+{"id": "324", "metric": "verdict", "value": 1.0, "verdict": "not enough evidence", "error": "", "judge": "nvidia:openai/gpt-oss-20b", "seconds": 1.9}
+{"id": "327", "metric": "verdict", "value": 1.0, "verdict": "supported", "error": "", "judge": "nvidia:openai/gpt-oss-20b", "seconds": 1.6}
+{"id": "338", "metric": "verdict", "value": 1.0, "verdict": "refuted", "error": "", "judge": "nvidia:openai/gpt-oss-20b", "seconds": 1.4}
+{"id": "343", "metric": "verdict", "value": 0.0, "verdict": "refuted", "error": "", "judge": "nvidia:openai/gpt-oss-20b", "seconds": 1.3}
+{"id": "350", "metric": "verdict", "value": 0.0, "verdict": "supported", "error": "", "judge": "nvidia:openai/gpt-oss-20b", "seconds": 0.9}
+{"id": "362", "metric": "verdict", "value": 0.0, "verdict": "supported", "error": "", "judge": "nvidia:openai/gpt-oss-20b", "seconds": 0.8}
+{"id": "380", "metric": "verdict", "value": 1.0, "verdict": "supported", "error": "", "judge": "nvidia:openai/gpt-oss-20b", "seconds": 1.4}
+{"id": "384", "metric": "verdict", "value": 0.0, "verdict": "supported", "error": "", "judge": "nvidia:openai/gpt-oss-20b", "seconds": 1.1}
+{"id": "354", "metric": "verdict", "value": 0.0, "verdict": "refuted", "error": "", "judge": "nvidia:openai/gpt-oss-20b", "seconds": 1.8}
+{"id": "385", "metric": "verdict", "value": 1.0, "verdict": "supported", "error": "", "judge": "nvidia:openai/gpt-oss-20b", "seconds": 1.2}
+{"id": "388", "metric": "verdict", "value": 1.0, "verdict": "not enough evidence", "error": "", "judge": "nvidia:openai/gpt-oss-20b", "seconds": 0.9}
+{"id": "399", "metric": "verdict", "value": 1.0, "verdict": "supported", "error": "", "judge": "nvidia:openai/gpt-oss-20b", "seconds": 0.7}
+{"id": "386", "metric": "verdict", "value": 1.0, "verdict": "supported", "error": "", "judge": "nvidia:openai/gpt-oss-20b", "seconds": 1.5}
+{"id": "415", "metric": "verdict", "value": 1.0, "verdict": "supported", "error": "", "judge": "nvidia:openai/gpt-oss-20b", "seconds": 0.8}
+{"id": "410", "metric": "verdict", "value": 0.0, "verdict": "refuted", "error": "", "judge": "nvidia:openai/gpt-oss-20b", "seconds": 1.6}
+{"id": "421", "metric": "verdict", "value": 1.0, "verdict": "not enough evidence", "error": "", "judge": "nvidia:openai/gpt-oss-20b", "seconds": 0.8}
+{"id": "411", "metric": "verdict", "value": 1.0, "verdict": "not enough evidence", "error": "", "judge": "nvidia:openai/gpt-oss-20b", "seconds": 1.4}
+{"id": "431", "metric": "verdict", "value": 1.0, "verdict": "supported", "error": "", "judge": "nvidia:openai/gpt-oss-20b", "seconds": 0.8}
+{"id": "439", "metric": "verdict", "value": 1.0, "verdict": "not enough evidence", "error": "", "judge": "nvidia:openai/gpt-oss-20b", "seconds": 1.2}
+{"id": "437", "metric": "verdict", "value": 0.0, "verdict": "refuted", "error": "", "judge": "nvidia:openai/gpt-oss-20b", "seconds": 1.5}
+{"id": "440", "metric": "verdict", "value": 1.0, "verdict": "not enough evidence", "error": "", "judge": "nvidia:openai/gpt-oss-20b", "seconds": 1.9}
+{"id": "452", "metric": "verdict", "value": 1.0, "verdict": "refuted", "error": "", "judge": "nvidia:openai/gpt-oss-20b", "seconds": 1.0}
+{"id": "443", "metric": "verdict", "value": 1.0, "verdict": "supported", "error": "", "judge": "nvidia:openai/gpt-oss-20b", "seconds": 1.7}
+{"id": "475", "metric": "verdict", "value": 1.0, "verdict": "supported", "error": "", "judge": "nvidia:openai/gpt-oss-20b", "seconds": 1.0}
+{"id": "436", "metric": "verdict", "value": 1.0, "verdict": "supported", "error": "", "judge": "nvidia:openai/gpt-oss-20b", "seconds": 3.7}
+{"id": "491", "metric": "verdict", "value": 1.0, "verdict": "not enough evidence", "error": "", "judge": "nvidia:openai/gpt-oss-20b", "seconds": 0.9}
+{"id": "478", "metric": "verdict", "value": 0.0, "verdict": "refuted", "error": "", "judge": "nvidia:openai/gpt-oss-20b", "seconds": 1.4}
+{"id": "501", "metric": "verdict", "value": 1.0, "verdict": "supported", "error": "", "judge": "nvidia:openai/gpt-oss-20b", "seconds": 1.0}
+{"id": "502", "metric": "verdict", "value": 1.0, "verdict": "not enough evidence", "error": "", "judge": "nvidia:openai/gpt-oss-20b", "seconds": 0.9}
+{"id": "508", "metric": "verdict", "value": 1.0, "verdict": "not enough evidence", "error": "", "judge": "nvidia:openai/gpt-oss-20b", "seconds": 0.8}
+{"id": "513", "metric": "verdict", "value": 1.0, "verdict": "refuted", "error": "", "judge": "nvidia:openai/gpt-oss-20b", "seconds": 0.8}
+{"id": "514", "metric": "verdict", "value": 1.0, "verdict": "not enough evidence", "error": "", "judge": "nvidia:openai/gpt-oss-20b", "seconds": 0.8}
+{"id": "507", "metric": "verdict", "value": 0.0, "verdict": "supported", "error": "", "judge": "nvidia:openai/gpt-oss-20b", "seconds": 1.8}
+{"id": "516", "metric": "verdict", "value": 1.0, "verdict": "refuted", "error": "", "judge": "nvidia:openai/gpt-oss-20b", "seconds": 1.3}
+{"id": "525", "metric": "verdict", "value": 1.0, "verdict": "supported", "error": "", "judge": "nvidia:openai/gpt-oss-20b", "seconds": 0.9}
+{"id": "521", "metric": "verdict", "value": 1.0, "verdict": "supported", "error": "", "judge": "nvidia:openai/gpt-oss-20b", "seconds": 1.4}
+{"id": "527", "metric": "verdict", "value": 0.0, "verdict": "refuted", "error": "", "judge": "nvidia:openai/gpt-oss-20b", "seconds": 0.9}
+{"id": "517", "metric": "verdict", "value": 0.0, "verdict": "refuted", "error": "", "judge": "nvidia:openai/gpt-oss-20b", "seconds": 1.9}
+{"id": "535", "metric": "verdict", "value": 1.0, "verdict": "not enough evidence", "error": "", "judge": "nvidia:openai/gpt-oss-20b", "seconds": 0.8}
+{"id": "532", "metric": "verdict", "value": 1.0, "verdict": "refuted", "error": "", "judge": "nvidia:openai/gpt-oss-20b", "seconds": 1.6}
+{"id": "533", "metric": "verdict", "value": 1.0, "verdict": "supported", "error": "", "judge": "nvidia:openai/gpt-oss-20b", "seconds": 1.9}
+{"id": "528", "metric": "verdict", "value": 0.0, "verdict": "not enough evidence", "error": "", "judge": "nvidia:openai/gpt-oss-20b", "seconds": 2.3}
+{"id": "539", "metric": "verdict", "value": 1.0, "verdict": "supported", "error": "", "judge": "nvidia:openai/gpt-oss-20b", "seconds": 0.8}
+{"id": "540", "metric": "verdict", "value": 1.0, "verdict": "supported", "error": "", "judge": "nvidia:openai/gpt-oss-20b", "seconds": 0.9}
+{"id": "536", "metric": "verdict", "value": 1.0, "verdict": "supported", "error": "", "judge": "nvidia:openai/gpt-oss-20b", "seconds": 1.9}
+{"id": "544", "metric": "verdict", "value": 1.0, "verdict": "not enough evidence", "error": "", "judge": "nvidia:openai/gpt-oss-20b", "seconds": 1.2}
+{"id": "549", "metric": "verdict", "value": 1.0, "verdict": "supported", "error": "", "judge": "nvidia:openai/gpt-oss-20b", "seconds": 1.3}
+{"id": "551", "metric": "verdict", "value": 1.0, "verdict": "not enough evidence", "error": "", "judge": "nvidia:openai/gpt-oss-20b", "seconds": 0.7}
+{"id": "554", "metric": "verdict", "value": 0.0, "verdict": "supported", "error": "", "judge": "nvidia:openai/gpt-oss-20b", "seconds": 0.7}
+{"id": "560", "metric": "verdict", "value": 0.0, "verdict": "supported", "error": "", "judge": "nvidia:openai/gpt-oss-20b", "seconds": 0.9}
+{"id": "552", "metric": "verdict", "value": 0.0, "verdict": "refuted", "error": "", "judge": "nvidia:openai/gpt-oss-20b", "seconds": 1.8}
+{"id": "575", "metric": "verdict", "value": 1.0, "verdict": "not enough evidence", "error": "", "judge": "nvidia:openai/gpt-oss-20b", "seconds": 0.8}
+{"id": "569", "metric": "verdict", "value": 1.0, "verdict": "supported", "error": "", "judge": "nvidia:openai/gpt-oss-20b", "seconds": 1.5}
+{"id": "577", "metric": "verdict", "value": 1.0, "verdict": "not enough evidence", "error": "", "judge": "nvidia:openai/gpt-oss-20b", "seconds": 0.8}
+{"id": "578", "metric": "verdict", "value": 1.0, "verdict": "refuted", "error": "", "judge": "nvidia:openai/gpt-oss-20b", "seconds": 0.8}
+{"id": "587", "metric": "verdict", "value": 1.0, "verdict": "not enough evidence", "error": "", "judge": "nvidia:openai/gpt-oss-20b", "seconds": 0.8}
+{"id": "589", "metric": "verdict", "value": 1.0, "verdict": "supported", "error": "", "judge": "nvidia:openai/gpt-oss-20b", "seconds": 0.9}
+{"id": "597", "metric": "verdict", "value": 1.0, "verdict": "supported", "error": "", "judge": "nvidia:openai/gpt-oss-20b", "seconds": 0.7}
+{"id": "593", "metric": "verdict", "value": 0.0, "verdict": "refuted", "error": "", "judge": "nvidia:openai/gpt-oss-20b", "seconds": 1.2}
+{"id": "598", "metric": "verdict", "value": 1.0, "verdict": "refuted", "error": "", "judge": "nvidia:openai/gpt-oss-20b", "seconds": 1.0}
+{"id": "623", "metric": "verdict", "value": 1.0, "verdict": "not enough evidence", "error": "", "judge": "nvidia:openai/gpt-oss-20b", "seconds": 0.9}
+{"id": "613", "metric": "verdict", "value": 1.0, "verdict": "supported", "error": "", "judge": "nvidia:openai/gpt-oss-20b", "seconds": 1.5}
+{"id": "637", "metric": "verdict", "value": 1.0, "verdict": "not enough evidence", "error": "", "judge": "nvidia:openai/gpt-oss-20b", "seconds": 0.8}
+{"id": "628", "metric": "verdict", "value": 0.0, "verdict": "refuted", "error": "", "judge": "nvidia:openai/gpt-oss-20b", "seconds": 1.8}
+{"id": "619", "metric": "verdict", "value": 1.0, "verdict": "refuted", "error": "", "judge": "nvidia:openai/gpt-oss-20b", "seconds": 2.6}
+{"id": "641", "metric": "verdict", "value": 1.0, "verdict": "supported", "error": "", "judge": "nvidia:openai/gpt-oss-20b", "seconds": 0.7}
+{"id": "636", "metric": "verdict", "value": 1.0, "verdict": "supported", "error": "", "judge": "nvidia:openai/gpt-oss-20b", "seconds": 1.8}
+{"id": "644", "metric": "verdict", "value": 1.0, "verdict": "not enough evidence", "error": "", "judge": "nvidia:openai/gpt-oss-20b", "seconds": 0.9}
+{"id": "659", "metric": "verdict", "value": 1.0, "verdict": "not enough evidence", "error": "", "judge": "nvidia:openai/gpt-oss-20b", "seconds": 0.9}
+{"id": "660", "metric": "verdict", "value": 1.0, "verdict": "not enough evidence", "error": "", "judge": "nvidia:openai/gpt-oss-20b", "seconds": 0.9}
+{"id": "649", "metric": "verdict", "value": 1.0, "verdict": "not enough evidence", "error": "", "judge": "nvidia:openai/gpt-oss-20b", "seconds": 1.6}
+{"id": "674", "metric": "verdict", "value": 1.0, "verdict": "refuted", "error": "", "judge": "nvidia:openai/gpt-oss-20b", "seconds": 1.2}
+{"id": "690", "metric": "verdict", "value": 1.0, "verdict": "not enough evidence", "error": "", "judge": "nvidia:openai/gpt-oss-20b", "seconds": 0.7}
+{"id": "684", "metric": "verdict", "value": 1.0, "verdict": "not enough evidence", "error": "", "judge": "nvidia:openai/gpt-oss-20b", "seconds": 1.0}
+{"id": "691", "metric": "verdict", "value": 1.0, "verdict": "not enough evidence", "error": "", "judge": "nvidia:openai/gpt-oss-20b", "seconds": 0.8}
+{"id": "700", "metric": "verdict", "value": 1.0, "verdict": "not enough evidence", "error": "", "judge": "nvidia:openai/gpt-oss-20b", "seconds": 0.8}
+{"id": "693", "metric": "verdict", "value": 0.0, "verdict": "refuted", "error": "", "judge": "nvidia:openai/gpt-oss-20b", "seconds": 1.6}
+{"id": "716", "metric": "verdict", "value": 1.0, "verdict": "not enough evidence", "error": "", "judge": "nvidia:openai/gpt-oss-20b", "seconds": 0.8}
+{"id": "715", "metric": "verdict", "value": 1.0, "verdict": "not enough evidence", "error": "", "judge": "nvidia:openai/gpt-oss-20b", "seconds": 1.9}
+{"id": "702", "metric": "verdict", "value": 1.0, "verdict": "not enough evidence", "error": "", "judge": "nvidia:openai/gpt-oss-20b", "seconds": 2.7}
+{"id": "718", "metric": "verdict", "value": 1.0, "verdict": "refuted", "error": "", "judge": "nvidia:openai/gpt-oss-20b", "seconds": 1.0}
+{"id": "721", "metric": "verdict", "value": 1.0, "verdict": "supported", "error": "", "judge": "nvidia:openai/gpt-oss-20b", "seconds": 1.4}
+{"id": "692", "metric": "verdict", "value": 1.0, "verdict": "refuted", "error": "", "judge": "nvidia:openai/gpt-oss-20b", "seconds": 4.2}
+{"id": "723", "metric": "verdict", "value": 1.0, "verdict": "supported", "error": "", "judge": "nvidia:openai/gpt-oss-20b", "seconds": 1.6}
+{"id": "727", "metric": "verdict", "value": 0.0, "verdict": "refuted", "error": "", "judge": "nvidia:openai/gpt-oss-20b", "seconds": 2.1}
+{"id": "742", "metric": "verdict", "value": 1.0, "verdict": "supported", "error": "", "judge": "nvidia:openai/gpt-oss-20b", "seconds": 1.1}
+{"id": "728", "metric": "verdict", "value": 1.0, "verdict": "refuted", "error": "", "judge": "nvidia:openai/gpt-oss-20b", "seconds": 1.9}
+{"id": "743", "metric": "verdict", "value": 1.0, "verdict": "refuted", "error": "", "judge": "nvidia:openai/gpt-oss-20b", "seconds": 1.0}
+{"id": "744", "metric": "verdict", "value": 1.0, "verdict": "supported", "error": "", "judge": "nvidia:openai/gpt-oss-20b", "seconds": 1.0}
+{"id": "729", "metric": "verdict", "value": 0.0, "verdict": "not enough evidence", "error": "", "judge": "nvidia:openai/gpt-oss-20b", "seconds": 3.2}
+{"id": "756", "metric": "verdict", "value": 1.0, "verdict": "supported", "error": "", "judge": "nvidia:openai/gpt-oss-20b", "seconds": 1.5}
+{"id": "775", "metric": "verdict", "value": 1.0, "verdict": "not enough evidence", "error": "", "judge": "nvidia:openai/gpt-oss-20b", "seconds": 0.8}
+{"id": "768", "metric": "verdict", "value": 1.0, "verdict": "not enough evidence", "error": "", "judge": "nvidia:openai/gpt-oss-20b", "seconds": 1.8}
+{"id": "759", "metric": "verdict", "value": 0.0, "verdict": "supported", "error": "", "judge": "nvidia:openai/gpt-oss-20b", "seconds": 2.3}
+{"id": "781", "metric": "verdict", "value": 1.0, "verdict": "refuted", "error": "", "judge": "nvidia:openai/gpt-oss-20b", "seconds": 0.8}
+{"id": "784", "metric": "verdict", "value": 1.0, "verdict": "supported", "error": "", "judge": "nvidia:openai/gpt-oss-20b", "seconds": 0.9}
+{"id": "783", "metric": "verdict", "value": 0.0, "verdict": "refuted", "error": "", "judge": "nvidia:openai/gpt-oss-20b", "seconds": 1.6}
+{"id": "770", "metric": "verdict", "value": 0.0, "verdict": "refuted", "error": "", "judge": "nvidia:openai/gpt-oss-20b", "seconds": 3.1}
+{"id": "793", "metric": "verdict", "value": 1.0, "verdict": "refuted", "error": "", "judge": "nvidia:openai/gpt-oss-20b", "seconds": 1.1}
+{"id": "800", "metric": "verdict", "value": 0.0, "verdict": "supported", "error": "", "judge": "nvidia:openai/gpt-oss-20b", "seconds": 0.7}
+{"id": "785", "metric": "verdict", "value": 0.0, "verdict": "refuted", "error": "", "judge": "nvidia:openai/gpt-oss-20b", "seconds": 1.9}
+{"id": "805", "metric": "verdict", "value": 1.0, "verdict": "supported", "error": "", "judge": "nvidia:openai/gpt-oss-20b", "seconds": 0.8}
+{"id": "814", "metric": "verdict", "value": 1.0, "verdict": "not enough evidence", "error": "", "judge": "nvidia:openai/gpt-oss-20b", "seconds": 0.7}
+{"id": "820", "metric": "verdict", "value": 1.0, "verdict": "not enough evidence", "error": "", "judge": "nvidia:openai/gpt-oss-20b", "seconds": 1.0}
+{"id": "808", "metric": "verdict", "value": 0.0, "verdict": "refuted", "error": "", "judge": "nvidia:openai/gpt-oss-20b", "seconds": 1.5}
+{"id": "821", "metric": "verdict", "value": 1.0, "verdict": "not enough evidence", "error": "", "judge": "nvidia:openai/gpt-oss-20b", "seconds": 0.8}
+{"id": "823", "metric": "verdict", "value": 1.0, "verdict": "supported", "error": "", "judge": "nvidia:openai/gpt-oss-20b", "seconds": 0.9}
+{"id": "830", "metric": "verdict", "value": 1.0, "verdict": "not enough evidence", "error": "", "judge": "nvidia:openai/gpt-oss-20b", "seconds": 0.9}
+{"id": "831", "metric": "verdict", "value": 1.0, "verdict": "not enough evidence", "error": "", "judge": "nvidia:openai/gpt-oss-20b", "seconds": 0.8}
+{"id": "834", "metric": "verdict", "value": 0.0, "verdict": "supported", "error": "", "judge": "nvidia:openai/gpt-oss-20b", "seconds": 1.0}
+{"id": "811", "metric": "verdict", "value": 1.0, "verdict": "refuted", "error": "", "judge": "nvidia:openai/gpt-oss-20b", "seconds": 3.2}
+{"id": "837", "metric": "verdict", "value": 1.0, "verdict": "supported", "error": "", "judge": "nvidia:openai/gpt-oss-20b", "seconds": 1.0}
+{"id": "832", "metric": "verdict", "value": 1.0, "verdict": "supported", "error": "", "judge": "nvidia:openai/gpt-oss-20b", "seconds": 1.3}
+{"id": "845", "metric": "verdict", "value": 1.0, "verdict": "supported", "error": "", "judge": "nvidia:openai/gpt-oss-20b", "seconds": 0.7}
+{"id": "839", "metric": "verdict", "value": 1.0, "verdict": "supported", "error": "", "judge": "nvidia:openai/gpt-oss-20b", "seconds": 0.8}
+{"id": "852", "metric": "verdict", "value": 0.0, "verdict": "not enough evidence", "error": "", "judge": "nvidia:openai/gpt-oss-20b", "seconds": 0.7}
+{"id": "847", "metric": "verdict", "value": 0.0, "verdict": "supported", "error": "", "judge": "nvidia:openai/gpt-oss-20b", "seconds": 1.1}
+{"id": "870", "metric": "verdict", "value": 0.0, "verdict": "supported", "error": "", "judge": "nvidia:openai/gpt-oss-20b", "seconds": 0.8}
+{"id": "859", "metric": "verdict", "value": 1.0, "verdict": "refuted", "error": "", "judge": "nvidia:openai/gpt-oss-20b", "seconds": 1.3}
+{"id": "873", "metric": "verdict", "value": 1.0, "verdict": "refuted", "error": "", "judge": "nvidia:openai/gpt-oss-20b", "seconds": 1.4}
+{"id": "879", "metric": "verdict", "value": 0.0, "verdict": "supported", "error": "", "judge": "nvidia:openai/gpt-oss-20b", "seconds": 1.3}
+{"id": "887", "metric": "verdict", "value": 1.0, "verdict": "not enough evidence", "error": "", "judge": "nvidia:openai/gpt-oss-20b", "seconds": 0.7}
+{"id": "880", "metric": "verdict", "value": 1.0, "verdict": "supported", "error": "", "judge": "nvidia:openai/gpt-oss-20b", "seconds": 2.5}
+{"id": "904", "metric": "verdict", "value": 0.0, "verdict": "not enough evidence", "error": "", "judge": "nvidia:openai/gpt-oss-20b", "seconds": 2.3}
+{"id": "907", "metric": "verdict", "value": 0.0, "verdict": "supported", "error": "", "judge": "nvidia:openai/gpt-oss-20b", "seconds": 1.6}
+{"id": "903", "metric": "verdict", "value": 1.0, "verdict": "refuted", "error": "", "judge": "nvidia:openai/gpt-oss-20b", "seconds": 3.8}
+{"id": "913", "metric": "verdict", "value": 1.0, "verdict": "not enough evidence", "error": "", "judge": "nvidia:openai/gpt-oss-20b", "seconds": 0.8}
+{"id": "882", "metric": "verdict", "value": 1.0, "verdict": "refuted", "error": "", "judge": "nvidia:openai/gpt-oss-20b", "seconds": 4.6}
+{"id": "914", "metric": "verdict", "value": 1.0, "verdict": "not enough evidence", "error": "", "judge": "nvidia:openai/gpt-oss-20b", "seconds": 0.9}
+{"id": "911", "metric": "verdict", "value": 1.0, "verdict": "supported", "error": "", "judge": "nvidia:openai/gpt-oss-20b", "seconds": 2.1}
+{"id": "921", "metric": "verdict", "value": 1.0, "verdict": "supported", "error": "", "judge": "nvidia:openai/gpt-oss-20b", "seconds": 1.0}
+{"id": "956", "metric": "verdict", "value": 0.0, "verdict": "supported", "error": "", "judge": "nvidia:openai/gpt-oss-20b", "seconds": 1.0}
+{"id": "957", "metric": "verdict", "value": 1.0, "verdict": "supported", "error": "", "judge": "nvidia:openai/gpt-oss-20b", "seconds": 1.0}
+{"id": "922", "metric": "verdict", "value": 1.0, "verdict": "refuted", "error": "", "judge": "nvidia:openai/gpt-oss-20b", "seconds": 2.1}
+{"id": "936", "metric": "verdict", "value": 0.0, "verdict": "not enough evidence", "error": "", "judge": "nvidia:openai/gpt-oss-20b", "seconds": 1.5}
+{"id": "960", "metric": "verdict", "value": 1.0, "verdict": "supported", "error": "", "judge": "nvidia:openai/gpt-oss-20b", "seconds": 1.1}
+{"id": "975", "metric": "verdict", "value": 1.0, "verdict": "not enough evidence", "error": "", "judge": "nvidia:openai/gpt-oss-20b", "seconds": 0.9}
+{"id": "967", "metric": "verdict", "value": 1.0, "verdict": "supported", "error": "", "judge": "nvidia:openai/gpt-oss-20b", "seconds": 1.1}
+{"id": "971", "metric": "verdict", "value": 0.0, "verdict": "refuted", "error": "", "judge": "nvidia:openai/gpt-oss-20b", "seconds": 1.2}
+{"id": "985", "metric": "verdict", "value": 1.0, "verdict": "supported", "error": "", "judge": "nvidia:openai/gpt-oss-20b", "seconds": 0.8}
+{"id": "1012", "metric": "verdict", "value": 1.0, "verdict": "supported", "error": "", "judge": "nvidia:openai/gpt-oss-20b", "seconds": 1.2}
+{"id": "1014", "metric": "verdict", "value": 1.0, "verdict": "not enough evidence", "error": "", "judge": "nvidia:openai/gpt-oss-20b", "seconds": 0.8}
+{"id": "1020", "metric": "verdict", "value": 1.0, "verdict": "supported", "error": "", "judge": "nvidia:openai/gpt-oss-20b", "seconds": 0.8}
+{"id": "993", "metric": "verdict", "value": 1.0, "verdict": "refuted", "error": "", "judge": "nvidia:openai/gpt-oss-20b", "seconds": 2.6}
+{"id": "1019", "metric": "verdict", "value": 0.0, "verdict": "refuted", "error": "", "judge": "nvidia:openai/gpt-oss-20b", "seconds": 1.1}
+{"id": "982", "metric": "verdict", "value": 1.0, "verdict": "supported", "error": "", "judge": "nvidia:openai/gpt-oss-20b", "seconds": 2.8}
+{"id": "1021", "metric": "verdict", "value": 1.0, "verdict": "refuted", "error": "", "judge": "nvidia:openai/gpt-oss-20b", "seconds": 0.8}
+{"id": "1024", "metric": "verdict", "value": 1.0, "verdict": "supported", "error": "", "judge": "nvidia:openai/gpt-oss-20b", "seconds": 1.0}
+{"id": "1041", "metric": "verdict", "value": 1.0, "verdict": "refuted", "error": "", "judge": "nvidia:openai/gpt-oss-20b", "seconds": 0.9}
+{"id": "1029", "metric": "verdict", "value": 1.0, "verdict": "refuted", "error": "", "judge": "nvidia:openai/gpt-oss-20b", "seconds": 1.7}
+{"id": "1086", "metric": "verdict", "value": 1.0, "verdict": "supported", "error": "", "judge": "nvidia:openai/gpt-oss-20b", "seconds": 1.2}
+{"id": "1049", "metric": "verdict", "value": 1.0, "verdict": "refuted", "error": "", "judge": "nvidia:openai/gpt-oss-20b", "seconds": 2.0}
+{"id": "1089", "metric": "verdict", "value": 1.0, "verdict": "supported", "error": "", "judge": "nvidia:openai/gpt-oss-20b", "seconds": 0.6}
+{"id": "1099", "metric": "verdict", "value": 0.0, "verdict": "supported", "error": "", "judge": "nvidia:openai/gpt-oss-20b", "seconds": 0.8}
+{"id": "1062", "metric": "verdict", "value": 1.0, "verdict": "supported", "error": "", "judge": "nvidia:openai/gpt-oss-20b", "seconds": 2.8}
+{"id": "1100", "metric": "verdict", "value": 0.0, "verdict": "refuted", "error": "", "judge": "nvidia:openai/gpt-oss-20b", "seconds": 1.0}
+{"id": "1104", "metric": "verdict", "value": 1.0, "verdict": "supported", "error": "", "judge": "nvidia:openai/gpt-oss-20b", "seconds": 0.9}
+{"id": "1088", "metric": "verdict", "value": 1.0, "verdict": "refuted", "error": "", "judge": "nvidia:openai/gpt-oss-20b", "seconds": 3.1}
+{"id": "1110", "metric": "verdict", "value": 1.0, "verdict": "refuted", "error": "", "judge": "nvidia:openai/gpt-oss-20b", "seconds": 1.1}
+{"id": "1121", "metric": "verdict", "value": 1.0, "verdict": "supported", "error": "", "judge": "nvidia:openai/gpt-oss-20b", "seconds": 1.1}
+{"id": "1107", "metric": "verdict", "value": 1.0, "verdict": "supported", "error": "", "judge": "nvidia:openai/gpt-oss-20b", "seconds": 1.7}
+{"id": "1130", "metric": "verdict", "value": 1.0, "verdict": "refuted", "error": "", "judge": "nvidia:openai/gpt-oss-20b", "seconds": 1.5}
+{"id": "1140", "metric": "verdict", "value": 1.0, "verdict": "refuted", "error": "", "judge": "nvidia:openai/gpt-oss-20b", "seconds": 1.0}
+{"id": "1132", "metric": "verdict", "value": 0.0, "verdict": "refuted", "error": "", "judge": "nvidia:openai/gpt-oss-20b", "seconds": 1.6}
+{"id": "1137", "metric": "verdict", "value": 1.0, "verdict": "refuted", "error": "", "judge": "nvidia:openai/gpt-oss-20b", "seconds": 1.3}
+{"id": "1150", "metric": "verdict", "value": 1.0, "verdict": "supported", "error": "", "judge": "nvidia:openai/gpt-oss-20b", "seconds": 0.9}
+{"id": "1146", "metric": "verdict", "value": 1.0, "verdict": "supported", "error": "", "judge": "nvidia:openai/gpt-oss-20b", "seconds": 1.1}
+{"id": "1163", "metric": "verdict", "value": 1.0, "verdict": "supported", "error": "", "judge": "nvidia:openai/gpt-oss-20b", "seconds": 0.9}
+{"id": "1144", "metric": "verdict", "value": 1.0, "verdict": "refuted", "error": "", "judge": "nvidia:openai/gpt-oss-20b", "seconds": 1.6}
+{"id": "1179", "metric": "verdict", "value": 0.0, "verdict": "supported", "error": "", "judge": "nvidia:openai/gpt-oss-20b", "seconds": 0.8}
+{"id": "1180", "metric": "verdict", "value": 1.0, "verdict": "supported", "error": "", "judge": "nvidia:openai/gpt-oss-20b", "seconds": 1.0}
+{"id": "1185", "metric": "verdict", "value": 1.0, "verdict": "supported", "error": "", "judge": "nvidia:openai/gpt-oss-20b", "seconds": 0.8}
+{"id": "1175", "metric": "verdict", "value": 1.0, "verdict": "not enough evidence", "error": "", "judge": "nvidia:openai/gpt-oss-20b", "seconds": 1.2}
+{"id": "1187", "metric": "verdict", "value": 1.0, "verdict": "supported", "error": "", "judge": "nvidia:openai/gpt-oss-20b", "seconds": 0.8}
+{"id": "1196", "metric": "verdict", "value": 1.0, "verdict": "not enough evidence", "error": "", "judge": "nvidia:openai/gpt-oss-20b", "seconds": 0.8}
+{"id": "1191", "metric": "verdict", "value": 1.0, "verdict": "not enough evidence", "error": "", "judge": "nvidia:openai/gpt-oss-20b", "seconds": 1.1}
+{"id": "1200", "metric": "verdict", "value": 1.0, "verdict": "not enough evidence", "error": "", "judge": "nvidia:openai/gpt-oss-20b", "seconds": 0.8}
+{"id": "1194", "metric": "verdict", "value": 1.0, "verdict": "not enough evidence", "error": "", "judge": "nvidia:openai/gpt-oss-20b", "seconds": 1.8}
+{"id": "1199", "metric": "verdict", "value": 1.0, "verdict": "not enough evidence", "error": "", "judge": "nvidia:openai/gpt-oss-20b", "seconds": 0.9}
+{"id": "1197", "metric": "verdict", "value": 1.0, "verdict": "not enough evidence", "error": "", "judge": "nvidia:openai/gpt-oss-20b", "seconds": 1.7}
+{"id": "1204", "metric": "verdict", "value": 1.0, "verdict": "not enough evidence", "error": "", "judge": "nvidia:openai/gpt-oss-20b", "seconds": 0.8}
+{"id": "1207", "metric": "verdict", "value": 0.0, "verdict": "supported", "error": "", "judge": "nvidia:openai/gpt-oss-20b", "seconds": 0.8}
+{"id": "1213", "metric": "verdict", "value": 0.0, "verdict": "supported", "error": "", "judge": "nvidia:openai/gpt-oss-20b", "seconds": 0.7}
+{"id": "1202", "metric": "verdict", "value": 1.0, "verdict": "supported", "error": "", "judge": "nvidia:openai/gpt-oss-20b", "seconds": 1.8}
+{"id": "1225", "metric": "verdict", "value": 1.0, "verdict": "supported", "error": "", "judge": "nvidia:openai/gpt-oss-20b", "seconds": 0.7}
+{"id": "1221", "metric": "verdict", "value": 1.0, "verdict": "refuted", "error": "", "judge": "nvidia:openai/gpt-oss-20b", "seconds": 1.0}
+{"id": "1216", "metric": "verdict", "value": 1.0, "verdict": "supported", "error": "", "judge": "nvidia:openai/gpt-oss-20b", "seconds": 1.5}
+{"id": "1226", "metric": "verdict", "value": 0.0, "verdict": "supported", "error": "", "judge": "nvidia:openai/gpt-oss-20b", "seconds": 0.7}
+{"id": "1241", "metric": "verdict", "value": 1.0, "verdict": "supported", "error": "", "judge": "nvidia:openai/gpt-oss-20b", "seconds": 1.2}
+{"id": "1245", "metric": "verdict", "value": 1.0, "verdict": "not enough evidence", "error": "", "judge": "nvidia:openai/gpt-oss-20b", "seconds": 0.8}
+{"id": "1259", "metric": "verdict", "value": 1.0, "verdict": "supported", "error": "", "judge": "nvidia:openai/gpt-oss-20b", "seconds": 1.3}
+{"id": "1262", "metric": "verdict", "value": 1.0, "verdict": "supported", "error": "", "judge": "nvidia:openai/gpt-oss-20b", "seconds": 0.8}
+{"id": "1266", "metric": "verdict", "value": 1.0, "verdict": "supported", "error": "", "judge": "nvidia:openai/gpt-oss-20b", "seconds": 0.8}
+{"id": "1232", "metric": "verdict", "value": 1.0, "verdict": "refuted", "error": "", "judge": "nvidia:openai/gpt-oss-20b", "seconds": 2.4}
+{"id": "1270", "metric": "verdict", "value": 1.0, "verdict": "refuted", "error": "", "judge": "nvidia:openai/gpt-oss-20b", "seconds": 0.9}
+{"id": "1271", "metric": "verdict", "value": 1.0, "verdict": "supported", "error": "", "judge": "nvidia:openai/gpt-oss-20b", "seconds": 1.1}
+{"id": "1273", "metric": "verdict", "value": 1.0, "verdict": "supported", "error": "", "judge": "nvidia:openai/gpt-oss-20b", "seconds": 1.1}
+{"id": "1272", "metric": "verdict", "value": 0.0, "verdict": "supported", "error": "", "judge": "nvidia:openai/gpt-oss-20b", "seconds": 1.4}
+{"id": "1274", "metric": "verdict", "value": 0.0, "verdict": "not enough evidence", "error": "", "judge": "nvidia:openai/gpt-oss-20b", "seconds": 0.8}
+{"id": "1278", "metric": "verdict", "value": 1.0, "verdict": "not enough evidence", "error": "", "judge": "nvidia:openai/gpt-oss-20b", "seconds": 0.9}
+{"id": "1281", "metric": "verdict", "value": 1.0, "verdict": "not enough evidence", "error": "", "judge": "nvidia:openai/gpt-oss-20b", "seconds": 0.7}
+{"id": "1279", "metric": "verdict", "value": 0.0, "verdict": "supported", "error": "", "judge": "nvidia:openai/gpt-oss-20b", "seconds": 1.0}
+{"id": "1290", "metric": "verdict", "value": 1.0, "verdict": "supported", "error": "", "judge": "nvidia:openai/gpt-oss-20b", "seconds": 0.8}
+{"id": "1282", "metric": "verdict", "value": 0.0, "verdict": "refuted", "error": "", "judge": "nvidia:openai/gpt-oss-20b", "seconds": 1.2}
+{"id": "1280", "metric": "verdict", "value": 0.0, "verdict": "refuted", "error": "", "judge": "nvidia:openai/gpt-oss-20b", "seconds": 1.7}
+{"id": "1292", "metric": "verdict", "value": 1.0, "verdict": "not enough evidence", "error": "", "judge": "nvidia:openai/gpt-oss-20b", "seconds": 1.3}
+{"id": "1303", "metric": "verdict", "value": 0.0, "verdict": "not enough evidence", "error": "", "judge": "nvidia:openai/gpt-oss-20b", "seconds": 0.8}
+{"id": "1316", "metric": "verdict", "value": 1.0, "verdict": "not enough evidence", "error": "", "judge": "nvidia:openai/gpt-oss-20b", "seconds": 0.8}
+{"id": "1332", "metric": "verdict", "value": 0.0, "verdict": "refuted", "error": "", "judge": "nvidia:openai/gpt-oss-20b", "seconds": 0.8}
+{"id": "1319", "metric": "verdict", "value": 1.0, "verdict": "supported", "error": "", "judge": "nvidia:openai/gpt-oss-20b", "seconds": 1.0}
+{"id": "1335", "metric": "verdict", "value": 1.0, "verdict": "supported", "error": "", "judge": "nvidia:openai/gpt-oss-20b", "seconds": 0.9}
+{"id": "1298", "metric": "verdict", "value": 1.0, "verdict": "supported", "error": "", "judge": "nvidia:openai/gpt-oss-20b", "seconds": 2.9}
+{"id": "1336", "metric": "verdict", "value": 1.0, "verdict": "refuted", "error": "", "judge": "nvidia:openai/gpt-oss-20b", "seconds": 1.4}
+{"id": "1320", "metric": "verdict", "value": 1.0, "verdict": "refuted", "error": "", "judge": "nvidia:openai/gpt-oss-20b", "seconds": 2.6}
+{"id": "1337", "metric": "verdict", "value": 0.0, "verdict": "not enough evidence", "error": "", "judge": "nvidia:openai/gpt-oss-20b", "seconds": 1.3}
+{"id": "1339", "metric": "verdict", "value": 1.0, "verdict": "refuted", "error": "", "judge": "nvidia:openai/gpt-oss-20b", "seconds": 1.4}
+{"id": "1352", "metric": "verdict", "value": 1.0, "verdict": "supported", "error": "", "judge": "nvidia:openai/gpt-oss-20b", "seconds": 1.3}
+{"id": "1362", "metric": "verdict", "value": 1.0, "verdict": "not enough evidence", "error": "", "judge": "nvidia:openai/gpt-oss-20b", "seconds": 0.9}
+{"id": "1363", "metric": "verdict", "value": 1.0, "verdict": "not enough evidence", "error": "", "judge": "nvidia:openai/gpt-oss-20b", "seconds": 0.8}
+{"id": "1368", "metric": "verdict", "value": 0.0, "verdict": "not enough evidence", "error": "", "judge": "nvidia:openai/gpt-oss-20b", "seconds": 0.7}
+{"id": "1359", "metric": "verdict", "value": 1.0, "verdict": "refuted", "error": "", "judge": "nvidia:openai/gpt-oss-20b", "seconds": 2.6}
+{"id": "1344", "metric": "verdict", "value": 0.0, "verdict": "refuted", "error": "", "judge": "nvidia:openai/gpt-oss-20b", "seconds": 3.5}
+{"id": "1379", "metric": "verdict", "value": 1.0, "verdict": "supported", "error": "", "judge": "nvidia:openai/gpt-oss-20b", "seconds": 0.7}
+{"id": "1370", "metric": "verdict", "value": 1.0, "verdict": "refuted", "error": "", "judge": "nvidia:openai/gpt-oss-20b", "seconds": 2.0}
+{"id": "1382", "metric": "verdict", "value": 1.0, "verdict": "refuted", "error": "", "judge": "nvidia:openai/gpt-oss-20b", "seconds": 1.4}
+{"id": "1395", "metric": "verdict", "value": 1.0, "verdict": "not enough evidence", "error": "", "judge": "nvidia:openai/gpt-oss-20b", "seconds": 0.8}
+{"id": "1385", "metric": "verdict", "value": 0.0, "verdict": "refuted", "error": "", "judge": "nvidia:openai/gpt-oss-20b", "seconds": 1.8}
+{"id": "1389", "metric": "verdict", "value": 1.0, "verdict": "supported", "error": "", "judge": "nvidia:openai/gpt-oss-20b", "seconds": 1.8}
+{"id": "13", "metric": "faithfulness", "value": 0.0, "error": "", "judge": "nvidia:openai/gpt-oss-20b", "seconds": 0.0}
+{"id": "13", "metric": "answer_relevancy", "value": 0.0, "error": "", "judge": "nvidia:openai/gpt-oss-20b", "seconds": 1.8}
+{"id": "5", "metric": "answer_relevancy", "value": 0.8410317371249502, "error": "", "judge": "nvidia:openai/gpt-oss-20b", "seconds": 5.6}
+{"id": "3", "metric": "faithfulness", "value": 1.0, "error": "", "judge": "nvidia:openai/gpt-oss-20b", "seconds": 6.5}
+{"id": "36", "metric": "answer_relevancy", "value": 0.8761484743257458, "error": "", "judge": "nvidia:openai/gpt-oss-20b", "seconds": 5.7}
+{"id": "42", "metric": "answer_relevancy", "value": 0.7880135081959917, "error": "", "judge": "nvidia:openai/gpt-oss-20b", "seconds": 4.2}
+{"id": "5", "metric": "factual_correctness_recall", "value": 0.5, "error": "", "judge": "nvidia:openai/gpt-oss-20b", "seconds": 16.3}
+{"id": "36", "metric": "faithfulness", "value": 0.5, "error": "", "judge": "nvidia:openai/gpt-oss-20b", "seconds": 15.2}
+{"id": "48", "metric": "answer_relevancy", "value": 0.918064269805908, "error": "", "judge": "nvidia:openai/gpt-oss-20b", "seconds": 7.1}
+{"id": "42", "metric": "faithfulness", "value": 1.0, "error": "", "judge": "nvidia:openai/gpt-oss-20b", "seconds": 25.4}
+{"id": "49", "metric": "faithfulness", "value": 1.0, "error": "", "judge": "nvidia:openai/gpt-oss-20b", "seconds": 0.0}
+{"id": "49", "metric": "answer_relevancy", "value": 0.7855168013056987, "error": "", "judge": "nvidia:openai/gpt-oss-20b", "seconds": 1.7}
+{"id": "49", "metric": "factual_correctness_recall", "value": 0.5, "error": "", "judge": "nvidia:openai/gpt-oss-20b", "seconds": 0.0}
+{"id": "42", "metric": "factual_correctness_recall", "value": 0.5, "error": "", "judge": "nvidia:openai/gpt-oss-20b", "seconds": 19.8}
+{"id": "48", "metric": "faithfulness", "value": 1.0, "error": "", "judge": "nvidia:openai/gpt-oss-20b", "seconds": 20.7}
+{"id": "50", "metric": "answer_relevancy", "value": 0.7973144039079235, "error": "", "judge": "nvidia:openai/gpt-oss-20b", "seconds": 5.8}
+{"id": "48", "metric": "factual_correctness_recall", "value": 0.5, "error": "", "judge": "nvidia:openai/gpt-oss-20b", "seconds": 21.6}
+{"id": "50", "metric": "faithfulness", "value": 1.0, "error": "", "judge": "nvidia:openai/gpt-oss-20b", "seconds": 13.7}
+{"id": "51", "metric": "answer_relevancy", "value": 0.9228785637191185, "error": "", "judge": "nvidia:openai/gpt-oss-20b", "seconds": 5.5}
+{"id": "53", "metric": "faithfulness", "value": 1.0, "error": "", "judge": "nvidia:openai/gpt-oss-20b", "seconds": 0.0}
+{"id": "50", "metric": "factual_correctness_recall", "value": 0.5, "error": "", "judge": "nvidia:openai/gpt-oss-20b", "seconds": 18.3}
+{"id": "53", "metric": "factual_correctness_recall", "value": 0.67, "error": "", "judge": "nvidia:openai/gpt-oss-20b", "seconds": 0.0}
+{"id": "51", "metric": "faithfulness", "value": 0.5, "error": "", "judge": "nvidia:openai/gpt-oss-20b", "seconds": 15.0}
+{"id": "53", "metric": "answer_relevancy", "value": 0.9758969942858166, "error": "", "judge": "nvidia:openai/gpt-oss-20b", "seconds": 3.9}
+{"id": "54", "metric": "answer_relevancy", "value": 0.9174536884321731, "error": "", "judge": "nvidia:openai/gpt-oss-20b", "seconds": 6.4}
+{"id": "51", "metric": "factual_correctness_recall", "value": 0.67, "error": "", "judge": "nvidia:openai/gpt-oss-20b", "seconds": 17.8}
+{"id": "56", "metric": "answer_relevancy", "value": 0.8569939327422295, "error": "", "judge": "nvidia:openai/gpt-oss-20b", "seconds": 5.8}
+{"id": "56", "metric": "faithfulness", "value": 1.0, "error": "", "judge": "nvidia:openai/gpt-oss-20b", "seconds": 15.6}
+{"id": "54", "metric": "faithfulness", "value": 0.8, "error": "", "judge": "nvidia:openai/gpt-oss-20b", "seconds": 23.6}
+{"id": "57", "metric": "faithfulness", "value": 0.75, "error": "", "judge": "nvidia:openai/gpt-oss-20b", "seconds": 0.0}
+{"id": "57", "metric": "factual_correctness_recall", "value": 0.5, "error": "", "judge": "nvidia:openai/gpt-oss-20b", "seconds": 0.0}
+{"id": "57", "metric": "answer_relevancy", "value": 0.9201568162369953, "error": "", "judge": "nvidia:openai/gpt-oss-20b", "seconds": 1.8}
+{"id": "54", "metric": "factual_correctness_recall", "value": 0.5, "error": "", "judge": "nvidia:openai/gpt-oss-20b", "seconds": 24.6}
+{"id": "70", "metric": "answer_relevancy", "value": 0.9499236871953874, "error": "", "judge": "nvidia:openai/gpt-oss-20b", "seconds": 7.1}
+{"id": "56", "metric": "factual_correctness_recall", "value": 0.0, "error": "", "judge": "nvidia:openai/gpt-oss-20b", "seconds": 21.5}
+{"id": "70", "metric": "faithfulness", "value": 1.0, "error": "", "judge": "nvidia:openai/gpt-oss-20b", "seconds": 19.3}
+{"id": "72", "metric": "answer_relevancy", "value": 0.7140239464057081, "error": "", "judge": "nvidia:openai/gpt-oss-20b", "seconds": 6.7}
+{"id": "72", "metric": "faithfulness", "value": 1.0, "error": "", "judge": "nvidia:openai/gpt-oss-20b", "seconds": 14.5}
+{"id": "94", "metric": "faithfulness", "value": 0.0, "error": "", "judge": "nvidia:openai/gpt-oss-20b", "seconds": 0.0}
+{"id": "94", "metric": "answer_relevancy", "value": 0.8402294358636673, "error": "", "judge": "nvidia:openai/gpt-oss-20b", "seconds": 3.3}
+{"id": "99", "metric": "faithfulness", "value": 0.0, "error": "", "judge": "nvidia:openai/gpt-oss-20b", "seconds": 0.0}
+{"id": "70", "metric": "factual_correctness_recall", "value": 0.4, "error": "", "judge": "nvidia:openai/gpt-oss-20b", "seconds": 25.7}
+{"id": "100", "metric": "faithfulness", "value": 1.0, "error": "", "judge": "nvidia:openai/gpt-oss-20b", "seconds": 0.0}
+{"id": "75", "metric": "answer_relevancy", "value": 0.8626398520261475, "error": "", "judge": "nvidia:openai/gpt-oss-20b", "seconds": 9.7}
+{"id": "100", "metric": "factual_correctness_recall", "value": 0.5, "error": "", "judge": "nvidia:openai/gpt-oss-20b", "seconds": 0.0}
+{"id": "99", "metric": "answer_relevancy", "value": 0.9037232371479783, "error": "", "judge": "nvidia:openai/gpt-oss-20b", "seconds": 5.0}
+{"id": "100", "metric": "answer_relevancy", "value": 0.9782761195381277, "error": "", "judge": "nvidia:openai/gpt-oss-20b", "seconds": 4.1}
+{"id": "75", "metric": "faithfulness", "value": 0.0, "error": "", "judge": "nvidia:openai/gpt-oss-20b", "seconds": 15.0}
+{"id": "113", "metric": "answer_relevancy", "value": 0.6964901465987668, "error": "", "judge": "nvidia:openai/gpt-oss-20b", "seconds": 9.8}
+{"id": "113", "metric": "faithfulness", "value": 1.0, "error": "", "judge": "nvidia:openai/gpt-oss-20b", "seconds": 15.1}
+{"id": "115", "metric": "answer_relevancy", "value": 0.9210983671464644, "error": "", "judge": "nvidia:openai/gpt-oss-20b", "seconds": 6.2}
+{"id": "115", "metric": "faithfulness", "value": 0.3333333333333333, "error": "", "judge": "nvidia:openai/gpt-oss-20b", "seconds": 16.9}
+{"id": "113", "metric": "factual_correctness_recall", "value": 0.0, "error": "", "judge": "nvidia:openai/gpt-oss-20b", "seconds": 23.6}
+{"id": "118", "metric": "answer_relevancy", "value": 0.876205565354614, "error": "", "judge": "nvidia:openai/gpt-oss-20b", "seconds": 6.4}
+{"id": "124", "metric": "faithfulness", "value": 1.0, "error": "", "judge": "nvidia:openai/gpt-oss-20b", "seconds": 0.0}
+{"id": "124", "metric": "answer_relevancy", "value": 0.8856627593096732, "error": "", "judge": "nvidia:openai/gpt-oss-20b", "seconds": 1.7}
+{"id": "124", "metric": "factual_correctness_recall", "value": 1.0, "error": "", "judge": "nvidia:openai/gpt-oss-20b", "seconds": 0.0}
+{"id": "115", "metric": "factual_correctness_recall", "value": 0.33, "error": "", "judge": "nvidia:openai/gpt-oss-20b", "seconds": 18.9}
+{"id": "127", "metric": "answer_relevancy", "value": 0.9853341386555812, "error": "", "judge": "nvidia:openai/gpt-oss-20b", "seconds": 6.3}
+{"id": "127", "metric": "faithfulness", "value": 1.0, "error": "", "judge": "nvidia:openai/gpt-oss-20b", "seconds": 12.8}
+{"id": "118", "metric": "faithfulness", "value": 0.8, "error": "", "judge": "nvidia:openai/gpt-oss-20b", "seconds": 25.3}
+{"id": "128", "metric": "answer_relevancy", "value": 0.0, "error": "", "judge": "nvidia:openai/gpt-oss-20b", "seconds": 5.1}
+{"id": "118", "metric": "factual_correctness_recall", "value": 0.0, "error": "", "judge": "nvidia:openai/gpt-oss-20b", "seconds": 22.5}
+{"id": "128", "metric": "faithfulness", "value": 1.0, "error": "", "judge": "nvidia:openai/gpt-oss-20b", "seconds": 9.5}
+{"id": "129", "metric": "answer_relevancy", "value": 0.936227662716491, "error": "", "judge": "nvidia:openai/gpt-oss-20b", "seconds": 6.5}
+{"id": "130", "metric": "answer_relevancy", "value": 0.9433238471967155, "error": "", "judge": "nvidia:openai/gpt-oss-20b", "seconds": 8.7}
+{"id": "130", "metric": "faithfulness", "value": 1.0, "error": "", "judge": "nvidia:openai/gpt-oss-20b", "seconds": 17.1}
+{"id": "129", "metric": "factual_correctness_recall", "value": 1.0, "error": "", "judge": "nvidia:openai/gpt-oss-20b", "seconds": 19.8}
+{"id": "132", "metric": "answer_relevancy", "value": 0.8478255136220728, "error": "", "judge": "nvidia:openai/gpt-oss-20b", "seconds": 4.0}
+{"id": "129", "metric": "faithfulness", "value": 1.0, "error": "", "judge": "nvidia:openai/gpt-oss-20b", "seconds": 35.9}
+{"id": "133", "metric": "answer_relevancy", "value": 0.9081716185586043, "error": "", "judge": "nvidia:openai/gpt-oss-20b", "seconds": 5.7}
+{"id": "130", "metric": "factual_correctness_recall", "value": 0.5, "error": "", "judge": "nvidia:openai/gpt-oss-20b", "seconds": 26.2}
+{"id": "132", "metric": "faithfulness", "value": 0.75, "error": "", "judge": "nvidia:openai/gpt-oss-20b", "seconds": 21.9}
+{"id": "137", "metric": "answer_relevancy", "value": 0.7946165370552506, "error": "", "judge": "nvidia:openai/gpt-oss-20b", "seconds": 9.2}
+{"id": "133", "metric": "faithfulness", "value": 1.0, "error": "", "judge": "nvidia:openai/gpt-oss-20b", "seconds": 33.6}
+{"id": "137", "metric": "faithfulness", "value": 1.0, "error": "", "judge": "nvidia:openai/gpt-oss-20b", "seconds": 24.6}
+{"id": "141", "metric": "answer_relevancy", "value": 0.9720892839268692, "error": "", "judge": "nvidia:openai/gpt-oss-20b", "seconds": 9.5}
+{"id": "137", "metric": "factual_correctness_recall", "value": 1.0, "error": "", "judge": "nvidia:openai/gpt-oss-20b", "seconds": 29.6}
+{"id": "133", "metric": "factual_correctness_recall", "value": 0.0, "error": "", "judge": "nvidia:openai/gpt-oss-20b", "seconds": 44.5}
+{"id": "141", "metric": "faithfulness", "value": 0.75, "error": "", "judge": "nvidia:openai/gpt-oss-20b", "seconds": 25.1}
+{"id": "142", "metric": "answer_relevancy", "value": 0.9690700076380093, "error": "", "judge": "nvidia:openai/gpt-oss-20b", "seconds": 6.6}
+{"id": "142", "metric": "faithfulness", "value": 1.0, "error": "", "judge": "nvidia:openai/gpt-oss-20b", "seconds": 20.4}
+{"id": "141", "metric": "factual_correctness_recall", "value": 0.33, "error": "", "judge": "nvidia:openai/gpt-oss-20b", "seconds": 29.9}
+{"id": "143", "metric": "answer_relevancy", "value": 0.9013579233720869, "error": "", "judge": "nvidia:openai/gpt-oss-20b", "seconds": 5.8}
+{"id": "142", "metric": "factual_correctness_recall", "value": 0.67, "error": "", "judge": "nvidia:openai/gpt-oss-20b", "seconds": 27.5}
+{"id": "143", "metric": "faithfulness", "value": 1.0, "error": "", "judge": "nvidia:openai/gpt-oss-20b", "seconds": 23.6}
+{"id": "146", "metric": "answer_relevancy", "value": 0.7617594474275676, "error": "", "judge": "nvidia:openai/gpt-oss-20b", "seconds": 4.2}
+{"id": "148", "metric": "faithfulness", "value": 1.0, "error": "", "judge": "nvidia:openai/gpt-oss-20b", "seconds": 15.2}
+{"id": "143", "metric": "factual_correctness_recall", "value": 0.33, "error": "", "judge": "nvidia:openai/gpt-oss-20b", "seconds": 27.9}
+{"id": "148", "metric": "answer_relevancy", "value": 0.9819200423112043, "error": "", "judge": "nvidia:openai/gpt-oss-20b", "seconds": 4.5}
+{"id": "146", "metric": "faithfulness", "value": 1.0, "error": "", "judge": "nvidia:openai/gpt-oss-20b", "seconds": 29.7}
+{"id": "146", "metric": "factual_correctness_recall", "value": 0.5, "error": "", "judge": "nvidia:openai/gpt-oss-20b", "seconds": 28.8}
+{"id": "163", "metric": "answer_relevancy", "value": 0.895032121316368, "error": "", "judge": "nvidia:openai/gpt-oss-20b", "seconds": 5.7}
+{"id": "148", "metric": "factual_correctness_recall", "value": 1.0, "error": "", "judge": "nvidia:openai/gpt-oss-20b", "seconds": 21.8}
+{"id": "171", "metric": "answer_relevancy", "value": 0.910283927122676, "error": "", "judge": "nvidia:openai/gpt-oss-20b", "seconds": 5.0}
+{"id": "163", "metric": "factual_correctness_recall", "value": 0.0, "error": "", "judge": "nvidia:openai/gpt-oss-20b", "seconds": 23.5}
+{"id": "171", "metric": "faithfulness", "value": 1.0, "error": "", "judge": "nvidia:openai/gpt-oss-20b", "seconds": 24.1}
+{"id": "163", "metric": "faithfulness", "value": 1.0, "error": "", "judge": "nvidia:openai/gpt-oss-20b", "seconds": 35.5}
+{"id": "179", "metric": "answer_relevancy", "value": 0.9264785343713579, "error": "", "judge": "nvidia:openai/gpt-oss-20b", "seconds": 5.6}
+{"id": "171", "metric": "factual_correctness_recall", "value": 0.25, "error": "", "judge": "nvidia:openai/gpt-oss-20b", "seconds": 25.5}
+{"id": "180", "metric": "faithfulness", "value": 0.6, "error": "", "judge": "nvidia:openai/gpt-oss-20b", "seconds": 17.1}
+{"id": "179", "metric": "factual_correctness_recall", "value": 0.33, "error": "", "judge": "nvidia:openai/gpt-oss-20b", "seconds": 18.8}
+{"id": "180", "metric": "answer_relevancy", "value": 0.8474265482868494, "error": "", "judge": "nvidia:openai/gpt-oss-20b", "seconds": 7.1}
+{"id": "179", "metric": "faithfulness", "value": 0.875, "error": "", "judge": "nvidia:openai/gpt-oss-20b", "seconds": 32.8}
+{"id": "183", "metric": "answer_relevancy", "value": 0.9356315419904847, "error": "", "judge": "nvidia:openai/gpt-oss-20b", "seconds": 5.7}
+{"id": "183", "metric": "faithfulness", "value": 1.0, "error": "", "judge": "nvidia:openai/gpt-oss-20b", "seconds": 19.8}
+{"id": "185", "metric": "answer_relevancy", "value": 0.8598381752776304, "error": "", "judge": "nvidia:openai/gpt-oss-20b", "seconds": 4.5}
+{"id": "180", "metric": "factual_correctness_recall", "value": 0.67, "error": "", "judge": "nvidia:openai/gpt-oss-20b", "seconds": 25.9}
+{"id": "198", "metric": "faithfulness", "value": 0.0, "error": "", "judge": "nvidia:openai/gpt-oss-20b", "seconds": 0.0}
+{"id": "198", "metric": "answer_relevancy", "value": 0.8509740868011528, "error": "", "judge": "nvidia:openai/gpt-oss-20b", "seconds": 1.8}
+{"id": "185", "metric": "faithfulness", "value": 1.0, "error": "", "judge": "nvidia:openai/gpt-oss-20b", "seconds": 19.4}
+{"id": "183", "metric": "factual_correctness_recall", "value": 0.5, "error": "", "judge": "nvidia:openai/gpt-oss-20b", "seconds": 22.8}
+{"id": "208", "metric": "answer_relevancy", "value": 0.8614952431604305, "error": "", "judge": "nvidia:openai/gpt-oss-20b", "seconds": 6.0}
+{"id": "208", "metric": "faithfulness", "value": 1.0, "error": "", "judge": "nvidia:openai/gpt-oss-20b", "seconds": 9.8}
+{"id": "212", "metric": "answer_relevancy", "value": 0.7411965146286383, "error": "", "judge": "nvidia:openai/gpt-oss-20b", "seconds": 6.3}
+{"id": "208", "metric": "factual_correctness_recall", "value": 0.5, "error": "", "judge": "nvidia:openai/gpt-oss-20b", "seconds": 18.9}
+{"id": "212", "metric": "faithfulness", "value": 1.0, "error": "", "judge": "nvidia:openai/gpt-oss-20b", "seconds": 18.0}
+{"id": "213", "metric": "answer_relevancy", "value": 0.8690689691820657, "error": "", "judge": "nvidia:openai/gpt-oss-20b", "seconds": 6.1}
+{"id": "216", "metric": "faithfulness", "value": 0.5, "error": "", "judge": "nvidia:openai/gpt-oss-20b", "seconds": 0.0}
+{"id": "185", "metric": "factual_correctness_recall", "value": 0.0, "error": "", "judge": "nvidia:openai/gpt-oss-20b", "seconds": 34.3}
+{"id": "216", "metric": "factual_correctness_recall", "value": 0.33, "error": "", "judge": "nvidia:openai/gpt-oss-20b", "seconds": 0.0}
+{"id": "216", "metric": "answer_relevancy", "value": 0.8661321424371949, "error": "", "judge": "nvidia:openai/gpt-oss-20b", "seconds": 2.5}
+{"id": "217", "metric": "answer_relevancy", "value": 0.8070621051851358, "error": "", "judge": "nvidia:openai/gpt-oss-20b", "seconds": 7.7}
+{"id": "212", "metric": "factual_correctness_recall", "value": 0.67, "error": "", "judge": "nvidia:openai/gpt-oss-20b", "seconds": 25.9}
+{"id": "217", "metric": "faithfulness", "value": 1.0, "error": "", "judge": "nvidia:openai/gpt-oss-20b", "seconds": 15.0}
+{"id": "218", "metric": "answer_relevancy", "value": 0.871666962656878, "error": "", "judge": "nvidia:openai/gpt-oss-20b", "seconds": 5.9}
+{"id": "218", "metric": "faithfulness", "value": 1.0, "error": "", "judge": "nvidia:openai/gpt-oss-20b", "seconds": 16.2}
+{"id": "219", "metric": "faithfulness", "value": 0.5, "error": "", "judge": "nvidia:openai/gpt-oss-20b", "seconds": 0.0}
+{"id": "219", "metric": "answer_relevancy", "value": 0.8499651969475718, "error": "", "judge": "nvidia:openai/gpt-oss-20b", "seconds": 1.7}
+{"id": "219", "metric": "factual_correctness_recall", "value": 0.67, "error": "", "judge": "nvidia:openai/gpt-oss-20b", "seconds": 0.0}
+{"id": "217", "metric": "factual_correctness_recall", "value": 0.33, "error": "", "judge": "nvidia:openai/gpt-oss-20b", "seconds": 21.5}
+{"id": "213", "metric": "faithfulness", "value": 1.0, "error": "", "judge": "nvidia:openai/gpt-oss-20b", "seconds": 42.1}
+{"id": "230", "metric": "answer_relevancy", "value": 0.8939061394410698, "error": "", "judge": "nvidia:openai/gpt-oss-20b", "seconds": 8.4}
+{"id": "230", "metric": "faithfulness", "value": 1.0, "error": "", "judge": "nvidia:openai/gpt-oss-20b", "seconds": 21.4}
+{"id": "218", "metric": "factual_correctness_recall", "value": 0.5, "error": "", "judge": "nvidia:openai/gpt-oss-20b", "seconds": 30.4}
+{"id": "230", "metric": "factual_correctness_recall", "value": 1.0, "error": "", "judge": "nvidia:openai/gpt-oss-20b", "seconds": 22.7}
+{"id": "232", "metric": "answer_relevancy", "value": 0.952043336436911, "error": "", "judge": "nvidia:openai/gpt-oss-20b", "seconds": 6.0}
+{"id": "233", "metric": "answer_relevancy", "value": 0.9540008500106939, "error": "", "judge": "nvidia:openai/gpt-oss-20b", "seconds": 8.0}
+{"id": "236", "metric": "faithfulness", "value": 0.0, "error": "", "judge": "nvidia:openai/gpt-oss-20b", "seconds": 0.0}
+{"id": "236", "metric": "answer_relevancy", "value": 0.8878193108588109, "error": "", "judge": "nvidia:openai/gpt-oss-20b", "seconds": 1.7}
+{"id": "236", "metric": "factual_correctness_recall", "value": 0.0, "error": "", "judge": "nvidia:openai/gpt-oss-20b", "seconds": 0.0}
+{"id": "237", "metric": "faithfulness", "value": 1.0, "error": "", "judge": "nvidia:openai/gpt-oss-20b", "seconds": 0.0}
+{"id": "237", "metric": "answer_relevancy", "value": 0.0, "error": "", "judge": "nvidia:openai/gpt-oss-20b", "seconds": 1.8}
+{"id": "238", "metric": "faithfulness", "value": 1.0, "error": "", "judge": "nvidia:openai/gpt-oss-20b", "seconds": 0.0}
+{"id": "238", "metric": "answer_relevancy", "value": 0.8704829672918897, "error": "", "judge": "nvidia:openai/gpt-oss-20b", "seconds": 1.8}
+{"id": "232", "metric": "faithfulness", "value": 0.8333333333333334, "error": "", "judge": "nvidia:openai/gpt-oss-20b", "seconds": 36.6}
+{"id": "233", "metric": "faithfulness", "value": 0.75, "error": "", "judge": "nvidia:openai/gpt-oss-20b", "seconds": 26.0}
+{"id": "239", "metric": "answer_relevancy", "value": 0.8994028365023164, "error": "", "judge": "nvidia:openai/gpt-oss-20b", "seconds": 8.4}
+{"id": "248", "metric": "faithfulness", "value": 1.0, "error": "", "judge": "nvidia:openai/gpt-oss-20b", "seconds": 0.0}
+{"id": "248", "metric": "answer_relevancy", "value": 0.928607099402828, "error": "", "judge": "nvidia:openai/gpt-oss-20b", "seconds": 2.6}
+{"id": "248", "metric": "factual_correctness_recall", "value": 0.33, "error": "", "judge": "nvidia:openai/gpt-oss-20b", "seconds": 0.0}
+{"id": "233", "metric": "factual_correctness_recall", "value": 0.5, "error": "", "judge": "nvidia:openai/gpt-oss-20b", "seconds": 37.6}
+{"id": "249", "metric": "answer_relevancy", "value": 0.976209548022943, "error": "", "judge": "nvidia:openai/gpt-oss-20b", "seconds": 5.5}
+{"id": "239", "metric": "factual_correctness_recall", "value": 0.0, "error": "", "judge": "nvidia:openai/gpt-oss-20b", "seconds": 22.3}
+{"id": "239", "metric": "faithfulness", "value": 0.8, "error": "", "judge": "nvidia:openai/gpt-oss-20b", "seconds": 35.1}
+{"id": "261", "metric": "answer_relevancy", "value": 0.8949935403674593, "error": "", "judge": "nvidia:openai/gpt-oss-20b", "seconds": 4.7}
+{"id": "249", "metric": "faithfulness", "value": 0.75, "error": "", "judge": "nvidia:openai/gpt-oss-20b", "seconds": 21.7}
+{"id": "249", "metric": "factual_correctness_recall", "value": 0.67, "error": "", "judge": "nvidia:openai/gpt-oss-20b", "seconds": 20.9}
+{"id": "268", "metric": "answer_relevancy", "value": 0.6596320603093173, "error": "", "judge": "nvidia:openai/gpt-oss-20b", "seconds": 3.9}
+{"id": "268", "metric": "faithfulness", "value": 0.8, "error": "", "judge": "nvidia:openai/gpt-oss-20b", "seconds": 25.4}
+{"id": "269", "metric": "answer_relevancy", "value": 0.7483285835956227, "error": "", "judge": "nvidia:openai/gpt-oss-20b", "seconds": 3.9}
+{"id": "261", "metric": "factual_correctness_recall", "value": 0.33, "error": "", "judge": "nvidia:openai/gpt-oss-20b", "seconds": 37.5}
+{"id": "261", "metric": "faithfulness", "value": 0.8823529411764706, "error": "", "judge": "nvidia:openai/gpt-oss-20b", "seconds": 50.3}
+{"id": "269", "metric": "faithfulness", "value": 0.8333333333333334, "error": "", "judge": "nvidia:openai/gpt-oss-20b", "seconds": 27.5}
+{"id": "274", "metric": "answer_relevancy", "value": 0.8569680860071452, "error": "", "judge": "nvidia:openai/gpt-oss-20b", "seconds": 9.0}
+{"id": "275", "metric": "answer_relevancy", "value": 0.8704908990345923, "error": "", "judge": "nvidia:openai/gpt-oss-20b", "seconds": 4.5}
+{"id": "274", "metric": "factual_correctness_recall", "value": 0.5, "error": "", "judge": "nvidia:openai/gpt-oss-20b", "seconds": 15.9}
+{"id": "274", "metric": "faithfulness", "value": 1.0, "error": "", "judge": "nvidia:openai/gpt-oss-20b", "seconds": 32.8}
+{"id": "279", "metric": "faithfulness", "value": 1.0, "error": "", "judge": "nvidia:openai/gpt-oss-20b", "seconds": 8.9}
+{"id": "279", "metric": "answer_relevancy", "value": 0.8441531051813179, "error": "", "judge": "nvidia:openai/gpt-oss-20b", "seconds": 5.9}
+{"id": "294", "metric": "faithfulness", "value": 0.0, "error": "", "judge": "nvidia:openai/gpt-oss-20b", "seconds": 0.0}
+{"id": "294", "metric": "answer_relevancy", "value": 0.9576297364694536, "error": "", "judge": "nvidia:openai/gpt-oss-20b", "seconds": 2.6}
+{"id": "275", "metric": "faithfulness", "value": 1.0, "error": "", "judge": "nvidia:openai/gpt-oss-20b", "seconds": 35.9}
+{"id": "279", "metric": "factual_correctness_recall", "value": 0.33, "error": "", "judge": "nvidia:openai/gpt-oss-20b", "seconds": 16.1}
+{"id": "295", "metric": "answer_relevancy", "value": 0.9439465674856781, "error": "", "judge": "nvidia:openai/gpt-oss-20b", "seconds": 4.8}
+{"id": "275", "metric": "factual_correctness_recall", "value": 0.25, "error": "", "judge": "nvidia:openai/gpt-oss-20b", "seconds": 40.8}
+{"id": "298", "metric": "answer_relevancy", "value": 0.880075793228403, "error": "", "judge": "nvidia:openai/gpt-oss-20b", "seconds": 6.1}
+{"id": "298", "metric": "faithfulness", "value": 1.0, "error": "", "judge": "nvidia:openai/gpt-oss-20b", "seconds": 14.7}
+{"id": "300", "metric": "faithfulness", "value": 0.0, "error": "", "judge": "nvidia:openai/gpt-oss-20b", "seconds": 11.2}
+{"id": "295", "metric": "faithfulness", "value": 1.0, "error": "", "judge": "nvidia:openai/gpt-oss-20b", "seconds": 40.8}
+{"id": "300", "metric": "answer_relevancy", "value": 0.8910698529787217, "error": "", "judge": "nvidia:openai/gpt-oss-20b", "seconds": 5.2}
+{"id": "298", "metric": "factual_correctness_recall", "value": 1.0, "error": "", "judge": "nvidia:openai/gpt-oss-20b", "seconds": 19.6}
+{"id": "312", "metric": "faithfulness", "value": 0.0, "error": "", "judge": "nvidia:openai/gpt-oss-20b", "seconds": 0.0}
+{"id": "303", "metric": "answer_relevancy", "value": 0.7820772887627511, "error": "", "judge": "nvidia:openai/gpt-oss-20b", "seconds": 5.8}
+{"id": "312", "metric": "answer_relevancy", "value": 0.0, "error": "", "judge": "nvidia:openai/gpt-oss-20b", "seconds": 4.1}
+{"id": "314", "metric": "answer_relevancy", "value": 0.8351284519528299, "error": "", "judge": "nvidia:openai/gpt-oss-20b", "seconds": 5.0}
+{"id": "295", "metric": "factual_correctness_recall", "value": 0.25, "error": "", "judge": "nvidia:openai/gpt-oss-20b", "seconds": 44.7}
+{"id": "324", "metric": "faithfulness", "value": 0.5, "error": "", "judge": "nvidia:openai/gpt-oss-20b", "seconds": 0.0}
+{"id": "324", "metric": "answer_relevancy", "value": 0.0, "error": "", "judge": "nvidia:openai/gpt-oss-20b", "seconds": 1.7}
+{"id": "327", "metric": "faithfulness", "value": 1.0, "error": "", "judge": "nvidia:openai/gpt-oss-20b", "seconds": 0.0}
+{"id": "327", "metric": "answer_relevancy", "value": 0.9613114070998444, "error": "", "judge": "nvidia:openai/gpt-oss-20b", "seconds": 1.7}
+{"id": "327", "metric": "factual_correctness_recall", "value": 0.5, "error": "", "judge": "nvidia:openai/gpt-oss-20b", "seconds": 0.0}
+{"id": "314", "metric": "faithfulness", "value": 1.0, "error": "", "judge": "nvidia:openai/gpt-oss-20b", "seconds": 23.3}
+{"id": "303", "metric": "faithfulness", "value": 0.6666666666666666, "error": "", "judge": "nvidia:openai/gpt-oss-20b", "seconds": 33.1}
+{"id": "338", "metric": "answer_relevancy", "value": 0.8295195098394258, "error": "", "judge": "nvidia:openai/gpt-oss-20b", "seconds": 4.3}
+{"id": "314", "metric": "factual_correctness_recall", "value": 0.5, "error": "", "judge": "nvidia:openai/gpt-oss-20b", "seconds": 22.6}
+{"id": "338", "metric": "faithfulness", "value": 0.6666666666666666, "error": "", "judge": "nvidia:openai/gpt-oss-20b", "seconds": 19.4}
+{"id": "343", "metric": "answer_relevancy", "value": 0.8796723475771442, "error": "", "judge": "nvidia:openai/gpt-oss-20b", "seconds": 6.2}
+{"id": "338", "metric": "factual_correctness_recall", "value": 0.33, "error": "", "judge": "nvidia:openai/gpt-oss-20b", "seconds": 17.5}
+{"id": "350", "metric": "answer_relevancy", "value": 0.73486193034417, "error": "", "judge": "nvidia:openai/gpt-oss-20b", "seconds": 4.2}
+{"id": "343", "metric": "factual_correctness_recall", "value": 0.0, "error": "", "judge": "nvidia:openai/gpt-oss-20b", "seconds": 17.7}
+{"id": "343", "metric": "faithfulness", "value": 0.8, "error": "", "judge": "nvidia:openai/gpt-oss-20b", "seconds": 23.2}
+{"id": "354", "metric": "answer_relevancy", "value": 0.8681810401939347, "error": "", "judge": "nvidia:openai/gpt-oss-20b", "seconds": 5.0}
+{"id": "362", "metric": "answer_relevancy", "value": 0.6399858508610402, "error": "", "judge": "nvidia:openai/gpt-oss-20b", "seconds": 7.1}
+{"id": "350", "metric": "faithfulness", "value": 0.8571428571428571, "error": "", "judge": "nvidia:openai/gpt-oss-20b", "seconds": 29.2}
+{"id": "380", "metric": "answer_relevancy", "value": 0.8996586352881374, "error": "", "judge": "nvidia:openai/gpt-oss-20b", "seconds": 4.7}
+{"id": "380", "metric": "faithfulness", "value": 1.0, "error": "", "judge": "nvidia:openai/gpt-oss-20b", "seconds": 20.0}
+{"id": "354", "metric": "faithfulness", "value": 1.0, "error": "", "judge": "nvidia:openai/gpt-oss-20b", "seconds": 34.3}
+{"id": "380", "metric": "factual_correctness_recall", "value": 0.5, "error": "", "judge": "nvidia:openai/gpt-oss-20b", "seconds": 14.3}
+{"id": "362", "metric": "faithfulness", "value": 0.375, "error": "", "judge": "nvidia:openai/gpt-oss-20b", "seconds": 34.3}
+{"id": "384", "metric": "answer_relevancy", "value": 0.7049884031519129, "error": "", "judge": "nvidia:openai/gpt-oss-20b", "seconds": 5.8}
+{"id": "385", "metric": "answer_relevancy", "value": 0.7800971442657181, "error": "", "judge": "nvidia:openai/gpt-oss-20b", "seconds": 5.2}
+{"id": "384", "metric": "faithfulness", "value": 1.0, "error": "", "judge": "nvidia:openai/gpt-oss-20b", "seconds": 15.4}
+{"id": "386", "metric": "answer_relevancy", "value": 0.8724703746674035, "error": "", "judge": "nvidia:openai/gpt-oss-20b", "seconds": 5.6}
+{"id": "386", "metric": "faithfulness", "value": 1.0, "error": "", "judge": "nvidia:openai/gpt-oss-20b", "seconds": 11.1}
+{"id": "388", "metric": "faithfulness", "value": 1.0, "error": "", "judge": "nvidia:openai/gpt-oss-20b", "seconds": 0.0}
+{"id": "388", "metric": "answer_relevancy", "value": 0.8738679563975319, "error": "", "judge": "nvidia:openai/gpt-oss-20b", "seconds": 1.8}
+{"id": "399", "metric": "faithfulness", "value": 1.0, "error": "", "judge": "nvidia:openai/gpt-oss-20b", "seconds": 0.0}
+{"id": "399", "metric": "answer_relevancy", "value": 0.9110062126067486, "error": "", "judge": "nvidia:openai/gpt-oss-20b", "seconds": 3.7}
+{"id": "399", "metric": "factual_correctness_recall", "value": 1.0, "error": "", "judge": "nvidia:openai/gpt-oss-20b", "seconds": 0.0}
+{"id": "385", "metric": "factual_correctness_recall", "value": 0.5, "error": "", "judge": "nvidia:openai/gpt-oss-20b", "seconds": 22.3}
+{"id": "410", "metric": "answer_relevancy", "value": 0.7393310577243789, "error": "", "judge": "nvidia:openai/gpt-oss-20b", "seconds": 7.2}
+{"id": "386", "metric": "factual_correctness_recall", "value": 0.67, "error": "", "judge": "nvidia:openai/gpt-oss-20b", "seconds": 24.3}
+{"id": "410", "metric": "faithfulness", "value": 0.5, "error": "", "judge": "nvidia:openai/gpt-oss-20b", "seconds": 19.6}
+{"id": "411", "metric": "answer_relevancy", "value": 0.980483781690924, "error": "", "judge": "nvidia:openai/gpt-oss-20b", "seconds": 4.7}
+{"id": "415", "metric": "answer_relevancy", "value": 0.9675320860890472, "error": "", "judge": "nvidia:openai/gpt-oss-20b", "seconds": 4.8}
+{"id": "411", "metric": "faithfulness", "value": 1.0, "error": "", "judge": "nvidia:openai/gpt-oss-20b", "seconds": 23.8}
+{"id": "421", "metric": "faithfulness", "value": 0.0, "error": "", "judge": "nvidia:openai/gpt-oss-20b", "seconds": 0.0}
+{"id": "421", "metric": "answer_relevancy", "value": 0.0, "error": "", "judge": "nvidia:openai/gpt-oss-20b", "seconds": 1.8}
+{"id": "385", "metric": "faithfulness", "value": 1.0, "error": "", "judge": "nvidia:openai/gpt-oss-20b", "seconds": 66.3}
+{"id": "431", "metric": "answer_relevancy", "value": 0.8307790070704216, "error": "", "judge": "nvidia:openai/gpt-oss-20b", "seconds": 5.4}
+{"id": "415", "metric": "factual_correctness_recall", "value": 0.0, "error": "", "judge": "nvidia:openai/gpt-oss-20b", "seconds": 21.5}
+{"id": "415", "metric": "faithfulness", "value": 1.0, "error": "", "judge": "nvidia:openai/gpt-oss-20b", "seconds": 33.0}
+{"id": "431", "metric": "faithfulness", "value": 0.75, "error": "", "judge": "nvidia:openai/gpt-oss-20b", "seconds": 19.1}
+{"id": "436", "metric": "answer_relevancy", "value": 0.8113148346316245, "error": "", "judge": "nvidia:openai/gpt-oss-20b", "seconds": 4.8}
+{"id": "436", "metric": "faithfulness", "value": 1.0, "error": "", "judge": "nvidia:openai/gpt-oss-20b", "seconds": 12.5}
+{"id": "431", "metric": "factual_correctness_recall", "value": 0.0, "error": "", "judge": "nvidia:openai/gpt-oss-20b", "seconds": 16.0}
+{"id": "439", "metric": "faithfulness", "value": 0.0, "error": "", "judge": "nvidia:openai/gpt-oss-20b", "seconds": 0.0}
+{"id": "439", "metric": "answer_relevancy", "value": 0.9606324408218918, "error": "", "judge": "nvidia:openai/gpt-oss-20b", "seconds": 2.6}
+{"id": "440", "metric": "faithfulness", "value": 0.0, "error": "", "judge": "nvidia:openai/gpt-oss-20b", "seconds": 0.0}
+{"id": "440", "metric": "answer_relevancy", "value": 0.9606931436388905, "error": "", "judge": "nvidia:openai/gpt-oss-20b", "seconds": 1.7}
+{"id": "436", "metric": "factual_correctness_recall", "value": 0.33, "error": "", "judge": "nvidia:openai/gpt-oss-20b", "seconds": 16.5}
+{"id": "437", "metric": "answer_relevancy", "value": 0.9112795228982589, "error": "", "judge": "nvidia:openai/gpt-oss-20b", "seconds": 14.6}
+{"id": "443", "metric": "answer_relevancy", "value": 0.9376902818447407, "error": "", "judge": "nvidia:openai/gpt-oss-20b", "seconds": 6.4}
+{"id": "443", "metric": "faithfulness", "value": 1.0, "error": "", "judge": "nvidia:openai/gpt-oss-20b", "seconds": 9.9}
+{"id": "437", "metric": "faithfulness", "value": 0.8, "error": "", "judge": "nvidia:openai/gpt-oss-20b", "seconds": 26.5}
+{"id": "452", "metric": "answer_relevancy", "value": 0.9551214839897527, "error": "", "judge": "nvidia:openai/gpt-oss-20b", "seconds": 7.1}
+{"id": "443", "metric": "factual_correctness_recall", "value": 0.5, "error": "", "judge": "nvidia:openai/gpt-oss-20b", "seconds": 16.5}
+{"id": "475", "metric": "answer_relevancy", "value": 0.8438784133774776, "error": "", "judge": "nvidia:openai/gpt-oss-20b", "seconds": 4.9}
+{"id": "452", "metric": "faithfulness", "value": 1.0, "error": "", "judge": "nvidia:openai/gpt-oss-20b", "seconds": 22.0}
+{"id": "452", "metric": "factual_correctness_recall", "value": 0.5, "error": "", "judge": "nvidia:openai/gpt-oss-20b", "seconds": 15.9}
+{"id": "475", "metric": "faithfulness", "value": 1.0, "error": "", "judge": "nvidia:openai/gpt-oss-20b", "seconds": 15.7}
+{"id": "478", "metric": "answer_relevancy", "value": 0.8716390005217517, "error": "", "judge": "nvidia:openai/gpt-oss-20b", "seconds": 5.8}
+{"id": "491", "metric": "answer_relevancy", "value": 0.8668231743944096, "error": "", "judge": "nvidia:openai/gpt-oss-20b", "seconds": 6.8}
+{"id": "478", "metric": "faithfulness", "value": 1.0, "error": "", "judge": "nvidia:openai/gpt-oss-20b", "seconds": 14.9}
+{"id": "491", "metric": "faithfulness", "value": 0.0, "error": "", "judge": "nvidia:openai/gpt-oss-20b", "seconds": 16.0}
+{"id": "475", "metric": "factual_correctness_recall", "value": 0.0, "error": "", "judge": "nvidia:openai/gpt-oss-20b", "seconds": 20.6}
+{"id": "501", "metric": "answer_relevancy", "value": 0.9575642850597306, "error": "", "judge": "nvidia:openai/gpt-oss-20b", "seconds": 5.9}
+{"id": "502", "metric": "answer_relevancy", "value": 0.7091677734429506, "error": "", "judge": "nvidia:openai/gpt-oss-20b", "seconds": 7.0}
+{"id": "502", "metric": "faithfulness", "value": 1.0, "error": "", "judge": "nvidia:openai/gpt-oss-20b", "seconds": 13.7}
+{"id": "501", "metric": "factual_correctness_recall", "value": 1.0, "error": "", "judge": "nvidia:openai/gpt-oss-20b", "seconds": 15.3}
+{"id": "508", "metric": "faithfulness", "value": 0.0, "error": "", "judge": "nvidia:openai/gpt-oss-20b", "seconds": 0.0}
+{"id": "501", "metric": "faithfulness", "value": 0.6, "error": "", "judge": "nvidia:openai/gpt-oss-20b", "seconds": 21.8}
+{"id": "508", "metric": "answer_relevancy", "value": 0.0, "error": "", "judge": "nvidia:openai/gpt-oss-20b", "seconds": 2.5}
+{"id": "507", "metric": "answer_relevancy", "value": 0.8020917846095444, "error": "", "judge": "nvidia:openai/gpt-oss-20b", "seconds": 7.5}
+{"id": "513", "metric": "answer_relevancy", "value": 0.9593029427422953, "error": "", "judge": "nvidia:openai/gpt-oss-20b", "seconds": 6.0}
+{"id": "507", "metric": "faithfulness", "value": 0.75, "error": "", "judge": "nvidia:openai/gpt-oss-20b", "seconds": 25.2}
+{"id": "513", "metric": "factual_correctness_recall", "value": 0.0, "error": "", "judge": "nvidia:openai/gpt-oss-20b", "seconds": 15.2}
+{"id": "514", "metric": "answer_relevancy", "value": 0.9848942375067584, "error": "", "judge": "nvidia:openai/gpt-oss-20b", "seconds": 6.9}
+{"id": "513", "metric": "faithfulness", "value": 1.0, "error": "", "judge": "nvidia:openai/gpt-oss-20b", "seconds": 30.0}
+{"id": "514", "metric": "faithfulness", "value": 0.3333333333333333, "error": "", "judge": "nvidia:openai/gpt-oss-20b", "seconds": 23.9}
+{"id": "516", "metric": "answer_relevancy", "value": 0.8070861673152718, "error": "", "judge": "nvidia:openai/gpt-oss-20b", "seconds": 7.0}
+{"id": "517", "metric": "answer_relevancy", "value": 0.9738832313300833, "error": "", "judge": "nvidia:openai/gpt-oss-20b", "seconds": 4.5}
+{"id": "516", "metric": "faithfulness", "value": 0.8, "error": "", "judge": "nvidia:openai/gpt-oss-20b", "seconds": 21.6}
+{"id": "517", "metric": "faithfulness", "value": 1.0, "error": "", "judge": "nvidia:openai/gpt-oss-20b", "seconds": 15.8}
+{"id": "521", "metric": "answer_relevancy", "value": 0.6838846521241454, "error": "", "judge": "nvidia:openai/gpt-oss-20b", "seconds": 6.6}
+{"id": "521", "metric": "faithfulness", "value": 1.0, "error": "", "judge": "nvidia:openai/gpt-oss-20b", "seconds": 13.1}
+{"id": "516", "metric": "factual_correctness_recall", "value": 0.33, "error": "", "judge": "nvidia:openai/gpt-oss-20b", "seconds": 25.2}
+{"id": "525", "metric": "answer_relevancy", "value": 0.8807976499338855, "error": "", "judge": "nvidia:openai/gpt-oss-20b", "seconds": 7.6}
+{"id": "525", "metric": "faithfulness", "value": 0.6666666666666666, "error": "", "judge": "nvidia:openai/gpt-oss-20b", "seconds": 17.0}
+{"id": "527", "metric": "answer_relevancy", "value": 0.8744794193468101, "error": "", "judge": "nvidia:openai/gpt-oss-20b", "seconds": 5.4}
+{"id": "521", "metric": "factual_correctness_recall", "value": 0.67, "error": "", "judge": "nvidia:openai/gpt-oss-20b", "seconds": 30.0}
+{"id": "525", "metric": "factual_correctness_recall", "value": 1.0, "error": "", "judge": "nvidia:openai/gpt-oss-20b", "seconds": 23.5}
+{"id": "528", "metric": "answer_relevancy", "value": 0.7909167460625627, "error": "", "judge": "nvidia:openai/gpt-oss-20b", "seconds": 6.6}
+{"id": "528", "metric": "faithfulness", "value": 1.0, "error": "", "judge": "nvidia:openai/gpt-oss-20b", "seconds": 15.2}
+{"id": "527", "metric": "faithfulness", "value": 0.8333333333333334, "error": "", "judge": "nvidia:openai/gpt-oss-20b", "seconds": 31.2}
+{"id": "532", "metric": "answer_relevancy", "value": 0.8749124694516994, "error": "", "judge": "nvidia:openai/gpt-oss-20b", "seconds": 6.9}
+{"id": "532", "metric": "faithfulness", "value": 0.3333333333333333, "error": "", "judge": "nvidia:openai/gpt-oss-20b", "seconds": 13.4}
+{"id": "533", "metric": "answer_relevancy", "value": 0.8220734535272295, "error": "", "judge": "nvidia:openai/gpt-oss-20b", "seconds": 4.5}
+{"id": "528", "metric": "factual_correctness_recall", "value": 1.0, "error": "", "judge": "nvidia:openai/gpt-oss-20b", "seconds": 23.1}
+{"id": "535", "metric": "faithfulness", "value": 1.0, "error": "", "judge": "nvidia:openai/gpt-oss-20b", "seconds": 0.0}
+{"id": "535", "metric": "answer_relevancy", "value": 0.0, "error": "", "judge": "nvidia:openai/gpt-oss-20b", "seconds": 1.8}
+{"id": "536", "metric": "faithfulness", "value": 1.0, "error": "", "judge": "nvidia:openai/gpt-oss-20b", "seconds": 14.3}
+{"id": "532", "metric": "factual_correctness_recall", "value": 0.17, "error": "", "judge": "nvidia:openai/gpt-oss-20b", "seconds": 31.0}
+{"id": "533", "metric": "faithfulness", "value": 0.6, "error": "", "judge": "nvidia:openai/gpt-oss-20b", "seconds": 26.7}
+{"id": "536", "metric": "answer_relevancy", "value": 0.7467014581422627, "error": "", "judge": "nvidia:openai/gpt-oss-20b", "seconds": 4.7}
+{"id": "539", "metric": "answer_relevancy", "value": 0.9063584423840164, "error": "", "judge": "nvidia:openai/gpt-oss-20b", "seconds": 4.2}
+{"id": "533", "metric": "factual_correctness_recall", "value": 0.33, "error": "", "judge": "nvidia:openai/gpt-oss-20b", "seconds": 28.5}
+{"id": "539", "metric": "faithfulness", "value": 1.0, "error": "", "judge": "nvidia:openai/gpt-oss-20b", "seconds": 20.4}
+{"id": "540", "metric": "answer_relevancy", "value": 0.9470598744016957, "error": "", "judge": "nvidia:openai/gpt-oss-20b", "seconds": 4.9}
+{"id": "536", "metric": "factual_correctness_recall", "value": 0.5, "error": "", "judge": "nvidia:openai/gpt-oss-20b", "seconds": 26.9}
+{"id": "539", "metric": "factual_correctness_recall", "value": 1.0, "error": "", "judge": "nvidia:openai/gpt-oss-20b", "seconds": 21.4}
+{"id": "544", "metric": "answer_relevancy", "value": 0.9853075915077368, "error": "", "judge": "nvidia:openai/gpt-oss-20b", "seconds": 5.9}
+{"id": "549", "metric": "faithfulness", "value": 1.0, "error": "", "judge": "nvidia:openai/gpt-oss-20b", "seconds": 9.3}
+{"id": "544", "metric": "faithfulness", "value": 0.75, "error": "", "judge": "nvidia:openai/gpt-oss-20b", "seconds": 19.2}
+{"id": "540", "metric": "faithfulness", "value": 1.0, "error": "", "judge": "nvidia:openai/gpt-oss-20b", "seconds": 39.9}
+{"id": "549", "metric": "answer_relevancy", "value": 0.7993732769997052, "error": "", "judge": "nvidia:openai/gpt-oss-20b", "seconds": 7.1}
+{"id": "540", "metric": "factual_correctness_recall", "value": 0.5, "error": "", "judge": "nvidia:openai/gpt-oss-20b", "seconds": 27.9}
+{"id": "551", "metric": "answer_relevancy", "value": 0.37468207516155405, "error": "", "judge": "nvidia:openai/gpt-oss-20b", "seconds": 3.3}
+{"id": "551", "metric": "faithfulness", "value": 0.0, "error": "", "judge": "nvidia:openai/gpt-oss-20b", "seconds": 9.9}
+{"id": "552", "metric": "answer_relevancy", "value": 0.8571472447757204, "error": "", "judge": "nvidia:openai/gpt-oss-20b", "seconds": 5.6}
+{"id": "554", "metric": "answer_relevancy", "value": 0.7209918098825728, "error": "", "judge": "nvidia:openai/gpt-oss-20b", "seconds": 7.0}
+{"id": "552", "metric": "faithfulness", "value": 0.3333333333333333, "error": "", "judge": "nvidia:openai/gpt-oss-20b", "seconds": 20.2}
+{"id": "549", "metric": "factual_correctness_recall", "value": 0.5, "error": "", "judge": "nvidia:openai/gpt-oss-20b", "seconds": 28.9}
+{"id": "569", "metric": "faithfulness", "value": 1.0, "error": "", "judge": "nvidia:openai/gpt-oss-20b", "seconds": 0.0}
+{"id": "569", "metric": "answer_relevancy", "value": 0.9527802625045353, "error": "", "judge": "nvidia:openai/gpt-oss-20b", "seconds": 1.8}
+{"id": "569", "metric": "factual_correctness_recall", "value": 0.5, "error": "", "judge": "nvidia:openai/gpt-oss-20b", "seconds": 0.0}
+{"id": "554", "metric": "faithfulness", "value": 0.75, "error": "", "judge": "nvidia:openai/gpt-oss-20b", "seconds": 17.0}
+{"id": "560", "metric": "answer_relevancy", "value": 0.73876293758463, "error": "", "judge": "nvidia:openai/gpt-oss-20b", "seconds": 6.7}
+{"id": "575", "metric": "answer_relevancy", "value": 0.0, "error": "", "judge": "nvidia:openai/gpt-oss-20b", "seconds": 7.1}
+{"id": "577", "metric": "answer_relevancy", "value": 0.9057709702080641, "error": "", "judge": "nvidia:openai/gpt-oss-20b", "seconds": 5.1}
+{"id": "575", "metric": "faithfulness", "value": 0.0, "error": "", "judge": "nvidia:openai/gpt-oss-20b", "seconds": 13.8}
+{"id": "577", "metric": "faithfulness", "value": 0.0, "error": "", "judge": "nvidia:openai/gpt-oss-20b", "seconds": 13.4}
+{"id": "578", "metric": "answer_relevancy", "value": 0.8830464141777176, "error": "", "judge": "nvidia:openai/gpt-oss-20b", "seconds": 5.5}
+{"id": "560", "metric": "faithfulness", "value": 0.5, "error": "", "judge": "nvidia:openai/gpt-oss-20b", "seconds": 31.2}
+{"id": "587", "metric": "answer_relevancy", "value": 0.0, "error": "", "judge": "nvidia:openai/gpt-oss-20b", "seconds": 5.8}
+{"id": "587", "metric": "faithfulness", "value": 0.0, "error": "", "judge": "nvidia:openai/gpt-oss-20b", "seconds": 11.6}
+{"id": "578", "metric": "faithfulness", "value": 1.0, "error": "", "judge": "nvidia:openai/gpt-oss-20b", "seconds": 19.6}
+{"id": "589", "metric": "answer_relevancy", "value": 0.9300775874115893, "error": "", "judge": "nvidia:openai/gpt-oss-20b", "seconds": 6.9}
+{"id": "578", "metric": "factual_correctness_recall", "value": 0.33, "error": "", "judge": "nvidia:openai/gpt-oss-20b", "seconds": 24.6}
+{"id": "593", "metric": "answer_relevancy", "value": 0.9201027081734353, "error": "", "judge": "nvidia:openai/gpt-oss-20b", "seconds": 4.2}
+{"id": "589", "metric": "faithfulness", "value": 1.0, "error": "", "judge": "nvidia:openai/gpt-oss-20b", "seconds": 20.8}
+{"id": "593", "metric": "faithfulness", "value": 0.75, "error": "", "judge": "nvidia:openai/gpt-oss-20b", "seconds": 17.7}
+{"id": "589", "metric": "factual_correctness_recall", "value": 1.0, "error": "", "judge": "nvidia:openai/gpt-oss-20b", "seconds": 26.5}
+{"id": "597", "metric": "answer_relevancy", "value": 0.8248048556894577, "error": "", "judge": "nvidia:openai/gpt-oss-20b", "seconds": 5.3}
+{"id": "597", "metric": "faithfulness", "value": 1.0, "error": "", "judge": "nvidia:openai/gpt-oss-20b", "seconds": 13.8}
+{"id": "598", "metric": "answer_relevancy", "value": 0.9176526950359104, "error": "", "judge": "nvidia:openai/gpt-oss-20b", "seconds": 4.4}
+{"id": "593", "metric": "factual_correctness_recall", "value": 0.67, "error": "", "judge": "nvidia:openai/gpt-oss-20b", "seconds": 23.2}
+{"id": "597", "metric": "factual_correctness_recall", "value": 0.2, "error": "", "judge": "nvidia:openai/gpt-oss-20b", "seconds": 31.0}
+{"id": "598", "metric": "factual_correctness_recall", "value": 0.33, "error": "", "judge": "nvidia:openai/gpt-oss-20b", "seconds": 24.9}
+{"id": "613", "metric": "answer_relevancy", "value": 0.8553910540935267, "error": "", "judge": "nvidia:openai/gpt-oss-20b", "seconds": 5.1}
+{"id": "613", "metric": "faithfulness", "value": 1.0, "error": "", "judge": "nvidia:openai/gpt-oss-20b", "seconds": 28.7}
+{"id": "598", "metric": "faithfulness", "value": 0.8, "error": "", "judge": "nvidia:openai/gpt-oss-20b", "seconds": 38.2}
+{"id": "619", "metric": "answer_relevancy", "value": 0.8218773626347001, "error": "", "judge": "nvidia:openai/gpt-oss-20b", "seconds": 6.7}
+{"id": "619", "metric": "faithfulness", "value": 0.2, "error": "", "judge": "nvidia:openai/gpt-oss-20b", "seconds": 18.6}
+{"id": "623", "metric": "faithfulness", "value": 0.0, "error": "", "judge": "nvidia:openai/gpt-oss-20b", "seconds": 9.6}
+{"id": "623", "metric": "answer_relevancy", "value": 0.38716054061394106, "error": "", "judge": "nvidia:openai/gpt-oss-20b", "seconds": 2.7}
+{"id": "619", "metric": "factual_correctness_recall", "value": 0.0, "error": "", "judge": "nvidia:openai/gpt-oss-20b", "seconds": 20.1}
+{"id": "628", "metric": "answer_relevancy", "value": 0.6951366912239791, "error": "", "judge": "nvidia:openai/gpt-oss-20b", "seconds": 6.1}
+{"id": "636", "metric": "answer_relevancy", "value": 0.7927530647829917, "error": "", "judge": "nvidia:openai/gpt-oss-20b", "seconds": 4.9}
+{"id": "613", "metric": "factual_correctness_recall", "value": 0.5, "error": "", "judge": "nvidia:openai/gpt-oss-20b", "seconds": 39.6}
+{"id": "637", "metric": "faithfulness", "value": 0.5, "error": "", "judge": "nvidia:openai/gpt-oss-20b", "seconds": 0.0}
+{"id": "628", "metric": "faithfulness", "value": 0.7142857142857143, "error": "", "judge": "nvidia:openai/gpt-oss-20b", "seconds": 19.3}
+{"id": "637", "metric": "answer_relevancy", "value": 0.0, "error": "", "judge": "nvidia:openai/gpt-oss-20b", "seconds": 2.6}
+{"id": "636", "metric": "faithfulness", "value": 0.6666666666666666, "error": "", "judge": "nvidia:openai/gpt-oss-20b", "seconds": 18.0}
+{"id": "641", "metric": "answer_relevancy", "value": 0.7831050556523863, "error": "", "judge": "nvidia:openai/gpt-oss-20b", "seconds": 8.4}
+{"id": "644", "metric": "faithfulness", "value": 0.0, "error": "", "judge": "nvidia:openai/gpt-oss-20b", "seconds": 0.0}
+{"id": "644", "metric": "answer_relevancy", "value": 0.0, "error": "", "judge": "nvidia:openai/gpt-oss-20b", "seconds": 1.8}
+{"id": "649", "metric": "faithfulness", "value": 0.0, "error": "", "judge": "nvidia:openai/gpt-oss-20b", "seconds": 0.0}
+{"id": "649", "metric": "answer_relevancy", "value": 0.8040355282439725, "error": "", "judge": "nvidia:openai/gpt-oss-20b", "seconds": 1.7}
+{"id": "659", "metric": "faithfulness", "value": 0.0, "error": "", "judge": "nvidia:openai/gpt-oss-20b", "seconds": 0.0}
+{"id": "636", "metric": "factual_correctness_recall", "value": 0.5, "error": "", "judge": "nvidia:openai/gpt-oss-20b", "seconds": 21.1}
+{"id": "660", "metric": "faithfulness", "value": 0.5, "error": "", "judge": "nvidia:openai/gpt-oss-20b", "seconds": 0.0}
+{"id": "659", "metric": "answer_relevancy", "value": 0.830637938088094, "error": "", "judge": "nvidia:openai/gpt-oss-20b", "seconds": 2.6}
+{"id": "641", "metric": "faithfulness", "value": 1.0, "error": "", "judge": "nvidia:openai/gpt-oss-20b", "seconds": 16.2}
+{"id": "660", "metric": "answer_relevancy", "value": 0.8011352723265391, "error": "", "judge": "nvidia:openai/gpt-oss-20b", "seconds": 4.1}
+{"id": "674", "metric": "answer_relevancy", "value": 0.86046934811079, "error": "", "judge": "nvidia:openai/gpt-oss-20b", "seconds": 5.2}
+{"id": "684", "metric": "faithfulness", "value": 1.0, "error": "", "judge": "nvidia:openai/gpt-oss-20b", "seconds": 0.0}
+{"id": "684", "metric": "answer_relevancy", "value": 0.0, "error": "", "judge": "nvidia:openai/gpt-oss-20b", "seconds": 3.2}
+{"id": "641", "metric": "factual_correctness_recall", "value": 0.5, "error": "", "judge": "nvidia:openai/gpt-oss-20b", "seconds": 23.8}
+{"id": "674", "metric": "faithfulness", "value": 0.6666666666666666, "error": "", "judge": "nvidia:openai/gpt-oss-20b", "seconds": 15.2}
+{"id": "691", "metric": "faithfulness", "value": 0.0, "error": "", "judge": "nvidia:openai/gpt-oss-20b", "seconds": 0.0}
+{"id": "674", "metric": "factual_correctness_recall", "value": 1.0, "error": "", "judge": "nvidia:openai/gpt-oss-20b", "seconds": 15.0}
+{"id": "691", "metric": "answer_relevancy", "value": 0.9470045191421933, "error": "", "judge": "nvidia:openai/gpt-oss-20b", "seconds": 3.9}
+{"id": "690", "metric": "answer_relevancy", "value": 0.8689960600526222, "error": "", "judge": "nvidia:openai/gpt-oss-20b", "seconds": 9.0}
+{"id": "692", "metric": "answer_relevancy", "value": 0.775567184552655, "error": "", "judge": "nvidia:openai/gpt-oss-20b", "seconds": 6.0}
+{"id": "690", "metric": "faithfulness", "value": 0.5, "error": "", "judge": "nvidia:openai/gpt-oss-20b", "seconds": 17.5}
+{"id": "693", "metric": "answer_relevancy", "value": 0.9383394286314478, "error": "", "judge": "nvidia:openai/gpt-oss-20b", "seconds": 4.7}
+{"id": "692", "metric": "factual_correctness_recall", "value": 0.33, "error": "", "judge": "nvidia:openai/gpt-oss-20b", "seconds": 26.0}
+{"id": "700", "metric": "faithfulness", "value": 0.5, "error": "", "judge": "nvidia:openai/gpt-oss-20b", "seconds": 0.0}
+{"id": "693", "metric": "faithfulness", "value": 1.0, "error": "", "judge": "nvidia:openai/gpt-oss-20b", "seconds": 22.5}
+{"id": "692", "metric": "faithfulness", "value": 0.8, "error": "", "judge": "nvidia:openai/gpt-oss-20b", "seconds": 30.2}
+{"id": "700", "metric": "answer_relevancy", "value": 0.8703832231407418, "error": "", "judge": "nvidia:openai/gpt-oss-20b", "seconds": 3.4}
+{"id": "702", "metric": "answer_relevancy", "value": 0.8657039288825392, "error": "", "judge": "nvidia:openai/gpt-oss-20b", "seconds": 6.0}
+{"id": "693", "metric": "factual_correctness_recall", "value": 0.5, "error": "", "judge": "nvidia:openai/gpt-oss-20b", "seconds": 26.2}
+{"id": "715", "metric": "answer_relevancy", "value": 0.9690193217046192, "error": "", "judge": "nvidia:openai/gpt-oss-20b", "seconds": 5.6}
+{"id": "702", "metric": "faithfulness", "value": 0.0, "error": "", "judge": "nvidia:openai/gpt-oss-20b", "seconds": 13.9}
+{"id": "715", "metric": "faithfulness", "value": 0.0, "error": "", "judge": "nvidia:openai/gpt-oss-20b", "seconds": 15.3}
+{"id": "716", "metric": "answer_relevancy", "value": 0.0, "error": "", "judge": "nvidia:openai/gpt-oss-20b", "seconds": 7.0}
+{"id": "718", "metric": "answer_relevancy", "value": 0.8846648569673389, "error": "", "judge": "nvidia:openai/gpt-oss-20b", "seconds": 6.3}
+{"id": "716", "metric": "faithfulness", "value": 1.0, "error": "", "judge": "nvidia:openai/gpt-oss-20b", "seconds": 14.8}
+{"id": "721", "metric": "answer_relevancy", "value": 0.9642419382646016, "error": "", "judge": "nvidia:openai/gpt-oss-20b", "seconds": 6.1}
+{"id": "721", "metric": "faithfulness", "value": 1.0, "error": "", "judge": "nvidia:openai/gpt-oss-20b", "seconds": 10.0}
+{"id": "723", "metric": "faithfulness", "value": 1.0, "error": "", "judge": "nvidia:openai/gpt-oss-20b", "seconds": 0.0}
+{"id": "723", "metric": "answer_relevancy", "value": 0.9172036705419733, "error": "", "judge": "nvidia:openai/gpt-oss-20b", "seconds": 3.6}
+{"id": "723", "metric": "factual_correctness_recall", "value": 1.0, "error": "", "judge": "nvidia:openai/gpt-oss-20b", "seconds": 0.0}
+{"id": "718", "metric": "faithfulness", "value": 0.8571428571428571, "error": "", "judge": "nvidia:openai/gpt-oss-20b", "seconds": 23.7}
+{"id": "727", "metric": "answer_relevancy", "value": 0.7847151138880277, "error": "", "judge": "nvidia:openai/gpt-oss-20b", "seconds": 4.1}
+{"id": "718", "metric": "factual_correctness_recall", "value": 0.5, "error": "", "judge": "nvidia:openai/gpt-oss-20b", "seconds": 23.2}
+{"id": "721", "metric": "factual_correctness_recall", "value": 0.5, "error": "", "judge": "nvidia:openai/gpt-oss-20b", "seconds": 12.6}
+{"id": "728", "metric": "answer_relevancy", "value": 0.7711418907101663, "error": "", "judge": "nvidia:openai/gpt-oss-20b", "seconds": 4.9}
+{"id": "727", "metric": "faithfulness", "value": 0.75, "error": "", "judge": "nvidia:openai/gpt-oss-20b", "seconds": 22.4}
+{"id": "729", "metric": "faithfulness", "value": 0.0, "error": "", "judge": "nvidia:openai/gpt-oss-20b", "seconds": 15.7}
+{"id": "729", "metric": "answer_relevancy", "value": 0.8851281000270815, "error": "", "judge": "nvidia:openai/gpt-oss-20b", "seconds": 5.7}
+{"id": "728", "metric": "faithfulness", "value": 0.8, "error": "", "judge": "nvidia:openai/gpt-oss-20b", "seconds": 24.0}
+{"id": "728", "metric": "factual_correctness_recall", "value": 0.0, "error": "", "judge": "nvidia:openai/gpt-oss-20b", "seconds": 24.1}
+{"id": "742", "metric": "answer_relevancy", "value": 0.8984542609843896, "error": "", "judge": "nvidia:openai/gpt-oss-20b", "seconds": 8.8}
+{"id": "742", "metric": "faithfulness", "value": 0.0, "error": "", "judge": "nvidia:openai/gpt-oss-20b", "seconds": 21.4}
+{"id": "742", "metric": "factual_correctness_recall", "value": 0.5, "error": "", "judge": "nvidia:openai/gpt-oss-20b", "seconds": 22.9}
+{"id": "743", "metric": "answer_relevancy", "value": 0.9066075602723264, "error": "", "judge": "nvidia:openai/gpt-oss-20b", "seconds": 5.1}
+{"id": "729", "metric": "factual_correctness_recall", "value": 0.0, "error": "", "judge": "nvidia:openai/gpt-oss-20b", "seconds": 29.1}
+{"id": "743", "metric": "faithfulness", "value": 0.8, "error": "", "judge": "nvidia:openai/gpt-oss-20b", "seconds": 20.5}
+{"id": "744", "metric": "answer_relevancy", "value": 0.8439019905705591, "error": "", "judge": "nvidia:openai/gpt-oss-20b", "seconds": 5.9}
+{"id": "743", "metric": "factual_correctness_recall", "value": 0.67, "error": "", "judge": "nvidia:openai/gpt-oss-20b", "seconds": 17.8}
+{"id": "744", "metric": "faithfulness", "value": 1.0, "error": "", "judge": "nvidia:openai/gpt-oss-20b", "seconds": 18.2}
+{"id": "756", "metric": "answer_relevancy", "value": 0.9400332219857676, "error": "", "judge": "nvidia:openai/gpt-oss-20b", "seconds": 6.3}
+{"id": "756", "metric": "faithfulness", "value": 1.0, "error": "", "judge": "nvidia:openai/gpt-oss-20b", "seconds": 18.3}
+{"id": "744", "metric": "factual_correctness_recall", "value": 0.5, "error": "", "judge": "nvidia:openai/gpt-oss-20b", "seconds": 22.5}
+{"id": "759", "metric": "answer_relevancy", "value": 0.8746585861839234, "error": "", "judge": "nvidia:openai/gpt-oss-20b", "seconds": 15.0}
+{"id": "756", "metric": "factual_correctness_recall", "value": 0.0, "error": "", "judge": "nvidia:openai/gpt-oss-20b", "seconds": 32.2}
+{"id": "759", "metric": "faithfulness", "value": 1.0, "error": "", "judge": "nvidia:openai/gpt-oss-20b", "seconds": 28.1}
+{"id": "768", "metric": "answer_relevancy", "value": 0.9506851757058109, "error": "", "judge": "nvidia:openai/gpt-oss-20b", "seconds": 6.0}
+{"id": "768", "metric": "faithfulness", "value": 1.0, "error": "", "judge": "nvidia:openai/gpt-oss-20b", "seconds": 22.2}
+{"id": "770", "metric": "answer_relevancy", "value": 0.8606798062944753, "error": "", "judge": "nvidia:openai/gpt-oss-20b", "seconds": 7.6}
+{"id": "775", "metric": "faithfulness", "value": 0.0, "error": "", "judge": "nvidia:openai/gpt-oss-20b", "seconds": 37.4}
+{"id": "770", "metric": "faithfulness", "value": 0.6666666666666666, "error": "", "judge": "nvidia:openai/gpt-oss-20b", "seconds": 55.0}
+{"id": "759", "metric": "factual_correctness_recall", "value": 0.0, "error": "", "judge": "nvidia:openai/gpt-oss-20b", "seconds": 82.6}
+{"id": "775", "metric": "answer_relevancy", "value": 0.8578523314205504, "error": "", "judge": "nvidia:openai/gpt-oss-20b", "seconds": 8.9}
+{"id": "781", "metric": "answer_relevancy", "value": 0.9450549826119586, "error": "", "judge": "nvidia:openai/gpt-oss-20b", "seconds": 9.4}
+{"id": "770", "metric": "factual_correctness_recall", "value": 0.5, "error": "", "judge": "nvidia:openai/gpt-oss-20b", "seconds": 61.1}
+{"id": "783", "metric": "answer_relevancy", "value": 0.7868343860036616, "error": "", "judge": "nvidia:openai/gpt-oss-20b", "seconds": 8.6}
+{"id": "781", "metric": "faithfulness", "value": 1.0, "error": "", "judge": "nvidia:openai/gpt-oss-20b", "seconds": 29.1}
+{"id": "781", "metric": "factual_correctness_recall", "value": 0.0, "error": "", "judge": "nvidia:openai/gpt-oss-20b", "seconds": 42.8}
+{"id": "783", "metric": "faithfulness", "value": 0.9090909090909091, "error": "", "judge": "nvidia:openai/gpt-oss-20b", "seconds": 45.9}
+{"id": "784", "metric": "answer_relevancy", "value": 0.7464551482133931, "error": "", "judge": "nvidia:openai/gpt-oss-20b", "seconds": 44.4}
+{"id": "784", "metric": "faithfulness", "value": 0.9090909090909091, "error": "", "judge": "nvidia:openai/gpt-oss-20b", "seconds": 51.6}
+{"id": "785", "metric": "faithfulness", "value": 0.0, "error": "", "judge": "nvidia:openai/gpt-oss-20b", "seconds": 23.1}
+{"id": "785", "metric": "answer_relevancy", "value": 0.7517463129480991, "error": "", "judge": "nvidia:openai/gpt-oss-20b", "seconds": 9.0}
+{"id": "793", "metric": "answer_relevancy", "value": 0.8886037577011185, "error": "", "judge": "nvidia:openai/gpt-oss-20b", "seconds": 9.4}
+{"id": "784", "metric": "factual_correctness_recall", "value": 1.0, "error": "", "judge": "nvidia:openai/gpt-oss-20b", "seconds": 45.0}
+{"id": "800", "metric": "answer_relevancy", "value": 0.8191280846966232, "error": "", "judge": "nvidia:openai/gpt-oss-20b", "seconds": 8.7}
+{"id": "793", "metric": "factual_correctness_recall", "value": 0.67, "error": "", "judge": "nvidia:openai/gpt-oss-20b", "seconds": 28.4}
+{"id": "800", "metric": "faithfulness", "value": 1.0, "error": "", "judge": "nvidia:openai/gpt-oss-20b", "seconds": 25.5}
+{"id": "805", "metric": "answer_relevancy", "value": 0.9255812260165807, "error": "", "judge": "nvidia:openai/gpt-oss-20b", "seconds": 7.3}
+{"id": "808", "metric": "faithfulness", "value": 0.8, "error": "", "judge": "nvidia:openai/gpt-oss-20b", "seconds": 19.9}
+{"id": "793", "metric": "faithfulness", "value": 1.0, "error": "", "judge": "nvidia:openai/gpt-oss-20b", "seconds": 66.0}
+{"id": "805", "metric": "factual_correctness_recall", "value": 0.5, "error": "", "judge": "nvidia:openai/gpt-oss-20b", "seconds": 28.5}
+{"id": "808", "metric": "answer_relevancy", "value": 0.8929104228250792, "error": "", "judge": "nvidia:openai/gpt-oss-20b", "seconds": 7.8}
+{"id": "811", "metric": "answer_relevancy", "value": 0.901475468360046, "error": "", "judge": "nvidia:openai/gpt-oss-20b", "seconds": 6.9}
+{"id": "805", "metric": "faithfulness", "value": 1.0, "error": "", "judge": "nvidia:openai/gpt-oss-20b", "seconds": 53.1}
+{"id": "811", "metric": "faithfulness", "value": 0.75, "error": "", "judge": "nvidia:openai/gpt-oss-20b", "seconds": 20.0}
+{"id": "808", "metric": "factual_correctness_recall", "value": 0.0, "error": "", "judge": "nvidia:openai/gpt-oss-20b", "seconds": 25.0}
+{"id": "820", "metric": "faithfulness", "value": 1.0, "error": "", "judge": "nvidia:openai/gpt-oss-20b", "seconds": 0.0}
+{"id": "820", "metric": "answer_relevancy", "value": 0.0, "error": "", "judge": "nvidia:openai/gpt-oss-20b", "seconds": 2.6}
+{"id": "814", "metric": "answer_relevancy", "value": 0.8803173356690129, "error": "", "judge": "nvidia:openai/gpt-oss-20b", "seconds": 8.5}
+{"id": "811", "metric": "factual_correctness_recall", "value": 0.0, "error": "", "judge": "nvidia:openai/gpt-oss-20b", "seconds": 24.4}
+{"id": "823", "metric": "faithfulness", "value": 1.0, "error": "", "judge": "nvidia:openai/gpt-oss-20b", "seconds": 0.0}
+{"id": "821", "metric": "answer_relevancy", "value": 0.9445284183319759, "error": "", "judge": "nvidia:openai/gpt-oss-20b", "seconds": 6.2}
+{"id": "823", "metric": "factual_correctness_recall", "value": 0.5, "error": "", "judge": "nvidia:openai/gpt-oss-20b", "seconds": 0.0}
+{"id": "823", "metric": "answer_relevancy", "value": 0.8998501106531812, "error": "", "judge": "nvidia:openai/gpt-oss-20b", "seconds": 3.3}
+{"id": "821", "metric": "faithfulness", "value": 1.0, "error": "", "judge": "nvidia:openai/gpt-oss-20b", "seconds": 11.7}
+{"id": "830", "metric": "answer_relevancy", "value": 0.9233617960353877, "error": "", "judge": "nvidia:openai/gpt-oss-20b", "seconds": 7.2}
+{"id": "830", "metric": "faithfulness", "value": 0.0, "error": "", "judge": "nvidia:openai/gpt-oss-20b", "seconds": 12.1}
+{"id": "831", "metric": "answer_relevancy", "value": 0.9600617333479864, "error": "", "judge": "nvidia:openai/gpt-oss-20b", "seconds": 6.6}
+{"id": "814", "metric": "faithfulness", "value": 1.0, "error": "", "judge": "nvidia:openai/gpt-oss-20b", "seconds": 41.8}
+{"id": "831", "metric": "faithfulness", "value": 0.0, "error": "", "judge": "nvidia:openai/gpt-oss-20b", "seconds": 16.0}
+{"id": "832", "metric": "answer_relevancy", "value": 0.8264668542812531, "error": "", "judge": "nvidia:openai/gpt-oss-20b", "seconds": 6.1}
+{"id": "832", "metric": "faithfulness", "value": 1.0, "error": "", "judge": "nvidia:openai/gpt-oss-20b", "seconds": 15.8}
+{"id": "834", "metric": "answer_relevancy", "value": 0.8645007780203712, "error": "", "judge": "nvidia:openai/gpt-oss-20b", "seconds": 7.2}
+{"id": "837", "metric": "answer_relevancy", "value": 0.9265667393366869, "error": "", "judge": "nvidia:openai/gpt-oss-20b", "seconds": 5.8}
+{"id": "832", "metric": "factual_correctness_recall", "value": 0.4, "error": "", "judge": "nvidia:openai/gpt-oss-20b", "seconds": 28.8}
+{"id": "834", "metric": "faithfulness", "value": 1.0, "error": "", "judge": "nvidia:openai/gpt-oss-20b", "seconds": 26.1}
+{"id": "837", "metric": "faithfulness", "value": 1.0, "error": "", "judge": "nvidia:openai/gpt-oss-20b", "seconds": 22.7}
+{"id": "839", "metric": "answer_relevancy", "value": 0.8218476511874755, "error": "", "judge": "nvidia:openai/gpt-oss-20b", "seconds": 6.1}
+{"id": "845", "metric": "faithfulness", "value": 1.0, "error": "", "judge": "nvidia:openai/gpt-oss-20b", "seconds": 3.3}
+{"id": "845", "metric": "answer_relevancy", "value": 0.9406204358914922, "error": "", "judge": "nvidia:openai/gpt-oss-20b", "seconds": 4.4}
+{"id": "837", "metric": "factual_correctness_recall", "value": 0.67, "error": "", "judge": "nvidia:openai/gpt-oss-20b", "seconds": 30.2}
+{"id": "839", "metric": "faithfulness", "value": 1.0, "error": "", "judge": "nvidia:openai/gpt-oss-20b", "seconds": 22.3}
+{"id": "847", "metric": "answer_relevancy", "value": 0.8592710407690575, "error": "", "judge": "nvidia:openai/gpt-oss-20b", "seconds": 4.0}
+{"id": "839", "metric": "factual_correctness_recall", "value": 0.5, "error": "", "judge": "nvidia:openai/gpt-oss-20b", "seconds": 27.1}
+{"id": "852", "metric": "faithfulness", "value": 1.0, "error": "", "judge": "nvidia:openai/gpt-oss-20b", "seconds": 0.0}
+{"id": "845", "metric": "factual_correctness_recall", "value": 0.33, "error": "", "judge": "nvidia:openai/gpt-oss-20b", "seconds": 17.6}
+{"id": "852", "metric": "factual_correctness_recall", "value": 0.0, "error": "", "judge": "nvidia:openai/gpt-oss-20b", "seconds": 0.0}
+{"id": "852", "metric": "answer_relevancy", "value": 0.8304066620708209, "error": "", "judge": "nvidia:openai/gpt-oss-20b", "seconds": 2.5}
+{"id": "847", "metric": "faithfulness", "value": 0.6666666666666666, "error": "", "judge": "nvidia:openai/gpt-oss-20b", "seconds": 16.2}
+{"id": "859", "metric": "answer_relevancy", "value": 0.9194127116133238, "error": "", "judge": "nvidia:openai/gpt-oss-20b", "seconds": 7.1}
+{"id": "847", "metric": "factual_correctness_recall", "value": 0.0, "error": "", "judge": "nvidia:openai/gpt-oss-20b", "seconds": 21.1}
+{"id": "870", "metric": "answer_relevancy", "value": 0.8646498775211414, "error": "", "judge": "nvidia:openai/gpt-oss-20b", "seconds": 3.8}
+{"id": "859", "metric": "factual_correctness_recall", "value": 0.0, "error": "", "judge": "nvidia:openai/gpt-oss-20b", "seconds": 18.5}
+{"id": "859", "metric": "faithfulness", "value": 0.75, "error": "", "judge": "nvidia:openai/gpt-oss-20b", "seconds": 23.8}
+{"id": "873", "metric": "answer_relevancy", "value": 0.9366891206882989, "error": "", "judge": "nvidia:openai/gpt-oss-20b", "seconds": 5.2}
+{"id": "870", "metric": "faithfulness", "value": 0.5, "error": "", "judge": "nvidia:openai/gpt-oss-20b", "seconds": 18.1}
+{"id": "879", "metric": "answer_relevancy", "value": 0.8406423515416336, "error": "", "judge": "nvidia:openai/gpt-oss-20b", "seconds": 5.6}
+{"id": "873", "metric": "faithfulness", "value": 0.875, "error": "", "judge": "nvidia:openai/gpt-oss-20b", "seconds": 16.4}
+{"id": "880", "metric": "faithfulness", "value": 1.0, "error": "", "judge": "nvidia:openai/gpt-oss-20b", "seconds": 0.0}
+{"id": "880", "metric": "answer_relevancy", "value": 0.7315848757527883, "error": "", "judge": "nvidia:openai/gpt-oss-20b", "seconds": 4.0}
+{"id": "880", "metric": "factual_correctness_recall", "value": 0.33, "error": "", "judge": "nvidia:openai/gpt-oss-20b", "seconds": 0.0}
+{"id": "879", "metric": "faithfulness", "value": 1.0, "error": "", "judge": "nvidia:openai/gpt-oss-20b", "seconds": 19.0}
+{"id": "882", "metric": "answer_relevancy", "value": 0.8541972220023522, "error": "", "judge": "nvidia:openai/gpt-oss-20b", "seconds": 4.9}
+{"id": "879", "metric": "factual_correctness_recall", "value": 0.5, "error": "", "judge": "nvidia:openai/gpt-oss-20b", "seconds": 20.3}
+{"id": "873", "metric": "factual_correctness_recall", "value": 0.09, "error": "", "judge": "nvidia:openai/gpt-oss-20b", "seconds": 33.2}
+{"id": "882", "metric": "faithfulness", "value": 0.75, "error": "", "judge": "nvidia:openai/gpt-oss-20b", "seconds": 20.1}
+{"id": "903", "metric": "faithfulness", "value": 0.3333333333333333, "error": "", "judge": "nvidia:openai/gpt-oss-20b", "seconds": 0.0}
+{"id": "903", "metric": "answer_relevancy", "value": 0.8634767368898076, "error": "", "judge": "nvidia:openai/gpt-oss-20b", "seconds": 1.7}
+{"id": "903", "metric": "factual_correctness_recall", "value": 0.33, "error": "", "judge": "nvidia:openai/gpt-oss-20b", "seconds": 0.0}
+{"id": "887", "metric": "faithfulness", "value": 0.0, "error": "", "judge": "nvidia:openai/gpt-oss-20b", "seconds": 9.9}
+{"id": "887", "metric": "answer_relevancy", "value": 0.0, "error": "", "judge": "nvidia:openai/gpt-oss-20b", "seconds": 7.5}
+{"id": "904", "metric": "answer_relevancy", "value": 0.905310077807593, "error": "", "judge": "nvidia:openai/gpt-oss-20b", "seconds": 6.3}
+{"id": "907", "metric": "faithfulness", "value": 1.0, "error": "", "judge": "nvidia:openai/gpt-oss-20b", "seconds": 0.0}
+{"id": "882", "metric": "factual_correctness_recall", "value": 0.5, "error": "", "judge": "nvidia:openai/gpt-oss-20b", "seconds": 20.4}
+{"id": "907", "metric": "answer_relevancy", "value": 0.94041598985117, "error": "", "judge": "nvidia:openai/gpt-oss-20b", "seconds": 3.2}
+{"id": "911", "metric": "answer_relevancy", "value": 0.7566495554677571, "error": "", "judge": "nvidia:openai/gpt-oss-20b", "seconds": 6.8}
+{"id": "904", "metric": "faithfulness", "value": 1.0, "error": "", "judge": "nvidia:openai/gpt-oss-20b", "seconds": 25.6}
+{"id": "911", "metric": "faithfulness", "value": 1.0, "error": "", "judge": "nvidia:openai/gpt-oss-20b", "seconds": 20.2}
+{"id": "913", "metric": "answer_relevancy", "value": 0.3693064773351604, "error": "", "judge": "nvidia:openai/gpt-oss-20b", "seconds": 2.5}
+{"id": "914", "metric": "faithfulness", "value": 1.0, "error": "", "judge": "nvidia:openai/gpt-oss-20b", "seconds": 0.0}
+{"id": "904", "metric": "factual_correctness_recall", "value": 1.0, "error": "", "judge": "nvidia:openai/gpt-oss-20b", "seconds": 30.6}
+{"id": "913", "metric": "faithfulness", "value": 0.0, "error": "", "judge": "nvidia:openai/gpt-oss-20b", "seconds": 10.7}
+{"id": "914", "metric": "answer_relevancy", "value": 0.8507520566879396, "error": "", "judge": "nvidia:openai/gpt-oss-20b", "seconds": 4.1}
+{"id": "921", "metric": "answer_relevancy", "value": 0.8332803502589994, "error": "", "judge": "nvidia:openai/gpt-oss-20b", "seconds": 5.5}
+{"id": "911", "metric": "factual_correctness_recall", "value": 0.67, "error": "", "judge": "nvidia:openai/gpt-oss-20b", "seconds": 30.7}
+{"id": "921", "metric": "faithfulness", "value": 1.0, "error": "", "judge": "nvidia:openai/gpt-oss-20b", "seconds": 18.2}
+{"id": "922", "metric": "answer_relevancy", "value": 0.849461388416675, "error": "", "judge": "nvidia:openai/gpt-oss-20b", "seconds": 5.9}
+{"id": "936", "metric": "faithfulness", "value": 1.0, "error": "", "judge": "nvidia:openai/gpt-oss-20b", "seconds": 0.0}
+{"id": "921", "metric": "factual_correctness_recall", "value": 0.0, "error": "", "judge": "nvidia:openai/gpt-oss-20b", "seconds": 20.0}
+{"id": "922", "metric": "faithfulness", "value": 0.75, "error": "", "judge": "nvidia:openai/gpt-oss-20b", "seconds": 16.0}
+{"id": "936", "metric": "factual_correctness_recall", "value": 0.5, "error": "", "judge": "nvidia:openai/gpt-oss-20b", "seconds": 0.0}
+{"id": "936", "metric": "answer_relevancy", "value": 0.8283278876221786, "error": "", "judge": "nvidia:openai/gpt-oss-20b", "seconds": 3.3}
+{"id": "956", "metric": "answer_relevancy", "value": 0.7987625470552874, "error": "", "judge": "nvidia:openai/gpt-oss-20b", "seconds": 5.2}
+{"id": "957", "metric": "answer_relevancy", "value": 0.952710410552401, "error": "", "judge": "nvidia:openai/gpt-oss-20b", "seconds": 5.6}
+{"id": "922", "metric": "factual_correctness_recall", "value": 0.5, "error": "", "judge": "nvidia:openai/gpt-oss-20b", "seconds": 26.7}
+{"id": "957", "metric": "faithfulness", "value": 1.0, "error": "", "judge": "nvidia:openai/gpt-oss-20b", "seconds": 32.0}
+{"id": "956", "metric": "faithfulness", "value": 1.0, "error": "", "judge": "nvidia:openai/gpt-oss-20b", "seconds": 33.6}
+{"id": "960", "metric": "answer_relevancy", "value": 0.8568298989791189, "error": "", "judge": "nvidia:openai/gpt-oss-20b", "seconds": 7.0}
+{"id": "957", "metric": "factual_correctness_recall", "value": 0.75, "error": "", "judge": "nvidia:openai/gpt-oss-20b", "seconds": 36.4}
+{"id": "960", "metric": "faithfulness", "value": 0.75, "error": "", "judge": "nvidia:openai/gpt-oss-20b", "seconds": 26.3}
+{"id": "967", "metric": "answer_relevancy", "value": 0.9507837238748528, "error": "", "judge": "nvidia:openai/gpt-oss-20b", "seconds": 6.2}
+{"id": "967", "metric": "faithfulness", "value": 1.0, "error": "", "judge": "nvidia:openai/gpt-oss-20b", "seconds": 19.5}
+{"id": "960", "metric": "factual_correctness_recall", "value": 0.33, "error": "", "judge": "nvidia:openai/gpt-oss-20b", "seconds": 26.5}
+{"id": "971", "metric": "answer_relevancy", "value": 0.916408756856458, "error": "", "judge": "nvidia:openai/gpt-oss-20b", "seconds": 7.7}
+{"id": "967", "metric": "factual_correctness_recall", "value": 0.67, "error": "", "judge": "nvidia:openai/gpt-oss-20b", "seconds": 23.1}
+{"id": "975", "metric": "answer_relevancy", "value": 0.9835636741215484, "error": "", "judge": "nvidia:openai/gpt-oss-20b", "seconds": 5.6}
+{"id": "971", "metric": "faithfulness", "value": 0.6, "error": "", "judge": "nvidia:openai/gpt-oss-20b", "seconds": 28.0}
+{"id": "971", "metric": "factual_correctness_recall", "value": 0.25, "error": "", "judge": "nvidia:openai/gpt-oss-20b", "seconds": 23.3}
+{"id": "975", "metric": "faithfulness", "value": 0.6, "error": "", "judge": "nvidia:openai/gpt-oss-20b", "seconds": 17.8}
+{"id": "982", "metric": "answer_relevancy", "value": 0.9505293087520027, "error": "", "judge": "nvidia:openai/gpt-oss-20b", "seconds": 6.1}
+{"id": "985", "metric": "answer_relevancy", "value": 0.7338174200153446, "error": "", "judge": "nvidia:openai/gpt-oss-20b", "seconds": 4.9}
+{"id": "982", "metric": "faithfulness", "value": 0.6666666666666666, "error": "", "judge": "nvidia:openai/gpt-oss-20b", "seconds": 17.0}
+{"id": "985", "metric": "faithfulness", "value": 1.0, "error": "", "judge": "nvidia:openai/gpt-oss-20b", "seconds": 13.6}
+{"id": "993", "metric": "answer_relevancy", "value": 0.9553861791738166, "error": "", "judge": "nvidia:openai/gpt-oss-20b", "seconds": 6.5}
+{"id": "982", "metric": "factual_correctness_recall", "value": 0.25, "error": "", "judge": "nvidia:openai/gpt-oss-20b", "seconds": 26.1}
+{"id": "993", "metric": "faithfulness", "value": 0.6666666666666666, "error": "", "judge": "nvidia:openai/gpt-oss-20b", "seconds": 17.3}
+{"id": "1012", "metric": "answer_relevancy", "value": 0.9784507116078819, "error": "", "judge": "nvidia:openai/gpt-oss-20b", "seconds": 4.8}
+{"id": "1012", "metric": "faithfulness", "value": 1.0, "error": "", "judge": "nvidia:openai/gpt-oss-20b", "seconds": 8.5}
+{"id": "1014", "metric": "faithfulness", "value": 1.0, "error": "", "judge": "nvidia:openai/gpt-oss-20b", "seconds": 0.0}
+{"id": "985", "metric": "factual_correctness_recall", "value": 1.0, "error": "", "judge": "nvidia:openai/gpt-oss-20b", "seconds": 25.6}
+{"id": "1014", "metric": "answer_relevancy", "value": 0.0, "error": "", "judge": "nvidia:openai/gpt-oss-20b", "seconds": 2.6}
+{"id": "1019", "metric": "answer_relevancy", "value": 0.698146019149811, "error": "", "judge": "nvidia:openai/gpt-oss-20b", "seconds": 7.1}
+{"id": "993", "metric": "factual_correctness_recall", "value": 0.5, "error": "", "judge": "nvidia:openai/gpt-oss-20b", "seconds": 30.3}
+{"id": "1012", "metric": "factual_correctness_recall", "value": 0.33, "error": "", "judge": "nvidia:openai/gpt-oss-20b", "seconds": 19.3}
+{"id": "1019", "metric": "faithfulness", "value": 0.6666666666666666, "error": "", "judge": "nvidia:openai/gpt-oss-20b", "seconds": 18.4}
+{"id": "1020", "metric": "answer_relevancy", "value": 0.8674929276465555, "error": "", "judge": "nvidia:openai/gpt-oss-20b", "seconds": 5.0}
+{"id": "1019", "metric": "factual_correctness_recall", "value": 0.0, "error": "", "judge": "nvidia:openai/gpt-oss-20b", "seconds": 21.5}
+{"id": "1021", "metric": "answer_relevancy", "value": 0.9111783355187274, "error": "", "judge": "nvidia:openai/gpt-oss-20b", "seconds": 4.7}
+{"id": "1020", "metric": "factual_correctness_recall", "value": 0.0, "error": "", "judge": "nvidia:openai/gpt-oss-20b", "seconds": 32.6}
+{"id": "1021", "metric": "factual_correctness_recall", "value": 0.0, "error": "", "judge": "nvidia:openai/gpt-oss-20b", "seconds": 29.3}
+{"id": "1024", "metric": "faithfulness", "value": 0.75, "error": "", "judge": "nvidia:openai/gpt-oss-20b", "seconds": 14.8}
+{"id": "1021", "metric": "faithfulness", "value": 0.5555555555555556, "error": "", "judge": "nvidia:openai/gpt-oss-20b", "seconds": 44.3}
+{"id": "1020", "metric": "faithfulness", "value": 0.9, "error": "", "judge": "nvidia:openai/gpt-oss-20b", "seconds": 52.6}
+{"id": "1024", "metric": "answer_relevancy", "value": 0.7587736917077592, "error": "", "judge": "nvidia:openai/gpt-oss-20b", "seconds": 5.5}
+{"id": "1029", "metric": "answer_relevancy", "value": 0.9228443735747843, "error": "", "judge": "nvidia:openai/gpt-oss-20b", "seconds": 5.7}
+{"id": "1029", "metric": "faithfulness", "value": 1.0, "error": "", "judge": "nvidia:openai/gpt-oss-20b", "seconds": 22.2}
+{"id": "1024", "metric": "factual_correctness_recall", "value": 1.0, "error": "", "judge": "nvidia:openai/gpt-oss-20b", "seconds": 25.1}
+{"id": "1041", "metric": "answer_relevancy", "value": 0.8841926685741948, "error": "", "judge": "nvidia:openai/gpt-oss-20b", "seconds": 4.6}
+{"id": "1041", "metric": "faithfulness", "value": 0.75, "error": "", "judge": "nvidia:openai/gpt-oss-20b", "seconds": 22.6}
+{"id": "1049", "metric": "answer_relevancy", "value": 0.9157383397738821, "error": "", "judge": "nvidia:openai/gpt-oss-20b", "seconds": 6.2}
+{"id": "1029", "metric": "factual_correctness_recall", "value": 0.43, "error": "", "judge": "nvidia:openai/gpt-oss-20b", "seconds": 39.9}
+{"id": "1041", "metric": "factual_correctness_recall", "value": 0.0, "error": "", "judge": "nvidia:openai/gpt-oss-20b", "seconds": 26.0}
+{"id": "1049", "metric": "faithfulness", "value": 0.8333333333333334, "error": "", "judge": "nvidia:openai/gpt-oss-20b", "seconds": 30.1}
+{"id": "1049", "metric": "factual_correctness_recall", "value": 0.0, "error": "", "judge": "nvidia:openai/gpt-oss-20b", "seconds": 20.7}
+{"id": "1062", "metric": "answer_relevancy", "value": 0.8773113183786098, "error": "", "judge": "nvidia:openai/gpt-oss-20b", "seconds": 8.2}
+{"id": "1086", "metric": "answer_relevancy", "value": 0.9581127735794542, "error": "", "judge": "nvidia:openai/gpt-oss-20b", "seconds": 7.1}
+{"id": "1062", "metric": "faithfulness", "value": 0.75, "error": "", "judge": "nvidia:openai/gpt-oss-20b", "seconds": 24.1}
+{"id": "1062", "metric": "factual_correctness_recall", "value": 0.67, "error": "", "judge": "nvidia:openai/gpt-oss-20b", "seconds": 20.7}
+{"id": "1088", "metric": "answer_relevancy", "value": 0.9446427779699301, "error": "", "judge": "nvidia:openai/gpt-oss-20b", "seconds": 4.8}
+{"id": "1086", "metric": "factual_correctness_recall", "value": 1.0, "error": "", "judge": "nvidia:openai/gpt-oss-20b", "seconds": 31.5}
+{"id": "1086", "metric": "faithfulness", "value": 1.0, "error": "", "judge": "nvidia:openai/gpt-oss-20b", "seconds": 40.5}
+{"id": "1088", "metric": "faithfulness", "value": 0.9, "error": "", "judge": "nvidia:openai/gpt-oss-20b", "seconds": 32.2}
+{"id": "1089", "metric": "answer_relevancy", "value": 0.813087460199781, "error": "", "judge": "nvidia:openai/gpt-oss-20b", "seconds": 5.0}
+{"id": "1088", "metric": "factual_correctness_recall", "value": 1.0, "error": "", "judge": "nvidia:openai/gpt-oss-20b", "seconds": 39.8}
+{"id": "1099", "metric": "faithfulness", "value": 1.0, "error": "", "judge": "nvidia:openai/gpt-oss-20b", "seconds": 22.5}
+{"id": "1099", "metric": "answer_relevancy", "value": 0.8639306752612678, "error": "", "judge": "nvidia:openai/gpt-oss-20b", "seconds": 5.1}
+{"id": "1089", "metric": "factual_correctness_recall", "value": 0.0, "error": "", "judge": "nvidia:openai/gpt-oss-20b", "seconds": 30.2}
+{"id": "1100", "metric": "answer_relevancy", "value": 0.96160130947066, "error": "", "judge": "nvidia:openai/gpt-oss-20b", "seconds": 5.2}
+{"id": "1089", "metric": "faithfulness", "value": 1.0, "error": "", "judge": "nvidia:openai/gpt-oss-20b", "seconds": 40.8}
+{"id": "1104", "metric": "answer_relevancy", "value": 0.7799266368008076, "error": "", "judge": "nvidia:openai/gpt-oss-20b", "seconds": 7.7}
+{"id": "1100", "metric": "faithfulness", "value": 0.7142857142857143, "error": "", "judge": "nvidia:openai/gpt-oss-20b", "seconds": 21.8}
+{"id": "1104", "metric": "faithfulness", "value": 1.0, "error": "", "judge": "nvidia:openai/gpt-oss-20b", "seconds": 22.2}
+{"id": "1107", "metric": "answer_relevancy", "value": 0.8951028603198489, "error": "", "judge": "nvidia:openai/gpt-oss-20b", "seconds": 6.2}
+{"id": "1107", "metric": "faithfulness", "value": 1.0, "error": "", "judge": "nvidia:openai/gpt-oss-20b", "seconds": 18.7}
+{"id": "1104", "metric": "factual_correctness_recall", "value": 0.33, "error": "", "judge": "nvidia:openai/gpt-oss-20b", "seconds": 23.4}
+{"id": "1110", "metric": "answer_relevancy", "value": 0.9465365107555751, "error": "", "judge": "nvidia:openai/gpt-oss-20b", "seconds": 5.5}
+{"id": "1107", "metric": "factual_correctness_recall", "value": 0.5, "error": "", "judge": "nvidia:openai/gpt-oss-20b", "seconds": 19.4}
+{"id": "1121", "metric": "answer_relevancy", "value": 0.8403921208005404, "error": "", "judge": "nvidia:openai/gpt-oss-20b", "seconds": 5.8}
+{"id": "1110", "metric": "factual_correctness_recall", "value": 0.0, "error": "", "judge": "nvidia:openai/gpt-oss-20b", "seconds": 17.7}
+{"id": "1121", "metric": "faithfulness", "value": 1.0, "error": "", "judge": "nvidia:openai/gpt-oss-20b", "seconds": 15.2}
+{"id": "1110", "metric": "faithfulness", "value": 0.9, "error": "", "judge": "nvidia:openai/gpt-oss-20b", "seconds": 26.8}
+{"id": "1130", "metric": "answer_relevancy", "value": 0.8479195507834922, "error": "", "judge": "nvidia:openai/gpt-oss-20b", "seconds": 7.2}
+{"id": "1130", "metric": "faithfulness", "value": 0.6666666666666666, "error": "", "judge": "nvidia:openai/gpt-oss-20b", "seconds": 15.3}
+{"id": "1121", "metric": "factual_correctness_recall", "value": 0.5, "error": "", "judge": "nvidia:openai/gpt-oss-20b", "seconds": 22.3}
+{"id": "1130", "metric": "factual_correctness_recall", "value": 0.0, "error": "", "judge": "nvidia:openai/gpt-oss-20b", "seconds": 19.7}
+{"id": "1132", "metric": "answer_relevancy", "value": 0.8659552820589349, "error": "", "judge": "nvidia:openai/gpt-oss-20b", "seconds": 7.8}
+{"id": "1137", "metric": "answer_relevancy", "value": 0.9828752428313438, "error": "", "judge": "nvidia:openai/gpt-oss-20b", "seconds": 4.6}
+{"id": "1132", "metric": "faithfulness", "value": 0.8333333333333334, "error": "", "judge": "nvidia:openai/gpt-oss-20b", "seconds": 37.1}
+{"id": "1132", "metric": "factual_correctness_recall", "value": 0.0, "error": "", "judge": "nvidia:openai/gpt-oss-20b", "seconds": 29.3}
+{"id": "1137", "metric": "factual_correctness_recall", "value": 0.67, "error": "", "judge": "nvidia:openai/gpt-oss-20b", "seconds": 25.6}
+{"id": "1137", "metric": "faithfulness", "value": 0.8571428571428571, "error": "", "judge": "nvidia:openai/gpt-oss-20b", "seconds": 34.4}
+{"id": "1140", "metric": "answer_relevancy", "value": 0.8420018369863974, "error": "", "judge": "nvidia:openai/gpt-oss-20b", "seconds": 6.0}
+{"id": "1144", "metric": "answer_relevancy", "value": 0.8829745085843917, "error": "", "judge": "nvidia:openai/gpt-oss-20b", "seconds": 5.4}
+{"id": "1140", "metric": "faithfulness", "value": 0.6666666666666666, "error": "", "judge": "nvidia:openai/gpt-oss-20b", "seconds": 17.9}
+{"id": "1146", "metric": "faithfulness", "value": 1.0, "error": "", "judge": "nvidia:openai/gpt-oss-20b", "seconds": 7.5}
+{"id": "1144", "metric": "faithfulness", "value": 1.0, "error": "", "judge": "nvidia:openai/gpt-oss-20b", "seconds": 18.6}
+{"id": "1140", "metric": "factual_correctness_recall", "value": 0.0, "error": "", "judge": "nvidia:openai/gpt-oss-20b", "seconds": 21.7}
+{"id": "1146", "metric": "answer_relevancy", "value": 0.9761684820158214, "error": "", "judge": "nvidia:openai/gpt-oss-20b", "seconds": 5.3}
+{"id": "1150", "metric": "answer_relevancy", "value": 0.9180368325217542, "error": "", "judge": "nvidia:openai/gpt-oss-20b", "seconds": 6.9}
+{"id": "1144", "metric": "factual_correctness_recall", "value": 0.33, "error": "", "judge": "nvidia:openai/gpt-oss-20b", "seconds": 25.7}
+{"id": "1150", "metric": "faithfulness", "value": 1.0, "error": "", "judge": "nvidia:openai/gpt-oss-20b", "seconds": 14.4}
+{"id": "1146", "metric": "factual_correctness_recall", "value": 0.4, "error": "", "judge": "nvidia:openai/gpt-oss-20b", "seconds": 20.1}
+{"id": "1163", "metric": "answer_relevancy", "value": 0.8851369517238036, "error": "", "judge": "nvidia:openai/gpt-oss-20b", "seconds": 8.3}
+{"id": "1163", "metric": "faithfulness", "value": 0.6666666666666666, "error": "", "judge": "nvidia:openai/gpt-oss-20b", "seconds": 12.8}
+{"id": "1175", "metric": "answer_relevancy", "value": 0.0, "error": "", "judge": "nvidia:openai/gpt-oss-20b", "seconds": 4.9}
+{"id": "1175", "metric": "faithfulness", "value": 1.0, "error": "", "judge": "nvidia:openai/gpt-oss-20b", "seconds": 11.2}
+{"id": "1150", "metric": "factual_correctness_recall", "value": 0.67, "error": "", "judge": "nvidia:openai/gpt-oss-20b", "seconds": 27.7}
+{"id": "1179", "metric": "answer_relevancy", "value": 0.6769495018440089, "error": "", "judge": "nvidia:openai/gpt-oss-20b", "seconds": 4.8}
+{"id": "1163", "metric": "factual_correctness_recall", "value": 0.0, "error": "", "judge": "nvidia:openai/gpt-oss-20b", "seconds": 21.5}
+{"id": "1180", "metric": "answer_relevancy", "value": 0.7488371635203123, "error": "", "judge": "nvidia:openai/gpt-oss-20b", "seconds": 4.7}
+{"id": "1179", "metric": "faithfulness", "value": 0.5, "error": "", "judge": "nvidia:openai/gpt-oss-20b", "seconds": 15.5}
+{"id": "1185", "metric": "answer_relevancy", "value": 0.8940348801907682, "error": "", "judge": "nvidia:openai/gpt-oss-20b", "seconds": 6.6}
+{"id": "1185", "metric": "faithfulness", "value": 1.0, "error": "", "judge": "nvidia:openai/gpt-oss-20b", "seconds": 13.0}
+{"id": "1180", "metric": "factual_correctness_recall", "value": 1.0, "error": "", "judge": "nvidia:openai/gpt-oss-20b", "seconds": 18.9}
+{"id": "1187", "metric": "answer_relevancy", "value": 0.7638013391288249, "error": "", "judge": "nvidia:openai/gpt-oss-20b", "seconds": 4.2}
+{"id": "1180", "metric": "faithfulness", "value": 1.0, "error": "", "judge": "nvidia:openai/gpt-oss-20b", "seconds": 32.4}
+{"id": "1185", "metric": "factual_correctness_recall", "value": 1.0, "error": "", "judge": "nvidia:openai/gpt-oss-20b", "seconds": 16.2}
+{"id": "1191", "metric": "answer_relevancy", "value": 0.0, "error": "", "judge": "nvidia:openai/gpt-oss-20b", "seconds": 4.1}
+{"id": "1187", "metric": "faithfulness", "value": 1.0, "error": "", "judge": "nvidia:openai/gpt-oss-20b", "seconds": 18.2}
+{"id": "1187", "metric": "factual_correctness_recall", "value": 1.0, "error": "", "judge": "nvidia:openai/gpt-oss-20b", "seconds": 12.4}
+{"id": "1196", "metric": "faithfulness", "value": 0.0, "error": "", "judge": "nvidia:openai/gpt-oss-20b", "seconds": 0.0}
+{"id": "1196", "metric": "answer_relevancy", "value": 0.8015927400001693, "error": "", "judge": "nvidia:openai/gpt-oss-20b", "seconds": 1.7}
+{"id": "1197", "metric": "faithfulness", "value": 1.0, "error": "", "judge": "nvidia:openai/gpt-oss-20b", "seconds": 0.0}
+{"id": "1197", "metric": "answer_relevancy", "value": 0.7619347955886157, "error": "", "judge": "nvidia:openai/gpt-oss-20b", "seconds": 4.0}
+{"id": "1194", "metric": "answer_relevancy", "value": 0.8618094543176595, "error": "", "judge": "nvidia:openai/gpt-oss-20b", "seconds": 8.3}
+{"id": "1191", "metric": "faithfulness", "value": 1.0, "error": "", "judge": "nvidia:openai/gpt-oss-20b", "seconds": 16.2}
+{"id": "1200", "metric": "faithfulness", "value": 0.0, "error": "", "judge": "nvidia:openai/gpt-oss-20b", "seconds": 0.0}
+{"id": "1200", "metric": "answer_relevancy", "value": 0.9442239470407306, "error": "", "judge": "nvidia:openai/gpt-oss-20b", "seconds": 1.8}
+{"id": "1202", "metric": "faithfulness", "value": 1.0, "error": "", "judge": "nvidia:openai/gpt-oss-20b", "seconds": 0.0}
+{"id": "1202", "metric": "answer_relevancy", "value": 0.7908232922556242, "error": "", "judge": "nvidia:openai/gpt-oss-20b", "seconds": 1.7}
+{"id": "1202", "metric": "factual_correctness_recall", "value": 0.5, "error": "", "judge": "nvidia:openai/gpt-oss-20b", "seconds": 0.0}
+{"id": "1199", "metric": "answer_relevancy", "value": 0.8412607190078424, "error": "", "judge": "nvidia:openai/gpt-oss-20b", "seconds": 7.4}
+{"id": "1199", "metric": "faithfulness", "value": 1.0, "error": "", "judge": "nvidia:openai/gpt-oss-20b", "seconds": 14.4}
+{"id": "1194", "metric": "faithfulness", "value": 0.0, "error": "", "judge": "nvidia:openai/gpt-oss-20b", "seconds": 24.5}
+{"id": "1204", "metric": "answer_relevancy", "value": 0.8968013777747771, "error": "", "judge": "nvidia:openai/gpt-oss-20b", "seconds": 8.8}
+{"id": "1207", "metric": "answer_relevancy", "value": 0.7336851906672356, "error": "", "judge": "nvidia:openai/gpt-oss-20b", "seconds": 4.7}
+{"id": "1204", "metric": "faithfulness", "value": 0.0, "error": "", "judge": "nvidia:openai/gpt-oss-20b", "seconds": 18.8}
+{"id": "1213", "metric": "answer_relevancy", "value": 0.9261936010795123, "error": "", "judge": "nvidia:openai/gpt-oss-20b", "seconds": 6.3}
+{"id": "1216", "metric": "answer_relevancy", "value": 0.9162709034035847, "error": "", "judge": "nvidia:openai/gpt-oss-20b", "seconds": 3.8}
+{"id": "1207", "metric": "faithfulness", "value": 1.0, "error": "", "judge": "nvidia:openai/gpt-oss-20b", "seconds": 19.3}
+{"id": "1216", "metric": "faithfulness", "value": 1.0, "error": "", "judge": "nvidia:openai/gpt-oss-20b", "seconds": 12.7}
+{"id": "1221", "metric": "answer_relevancy", "value": 0.8146789484915168, "error": "", "judge": "nvidia:openai/gpt-oss-20b", "seconds": 5.6}
+{"id": "1216", "metric": "factual_correctness_recall", "value": 0.33, "error": "", "judge": "nvidia:openai/gpt-oss-20b", "seconds": 24.3}
+{"id": "1213", "metric": "faithfulness", "value": 0.8888888888888888, "error": "", "judge": "nvidia:openai/gpt-oss-20b", "seconds": 50.9}
+{"id": "1221", "metric": "factual_correctness_recall", "value": 1.0, "error": "", "judge": "nvidia:openai/gpt-oss-20b", "seconds": 25.9}
+{"id": "1225", "metric": "faithfulness", "value": 1.0, "error": "", "judge": "nvidia:openai/gpt-oss-20b", "seconds": 15.1}
+{"id": "1221", "metric": "faithfulness", "value": 0.8888888888888888, "error": "", "judge": "nvidia:openai/gpt-oss-20b", "seconds": 36.6}
+{"id": "1225", "metric": "answer_relevancy", "value": 0.9330667376868372, "error": "", "judge": "nvidia:openai/gpt-oss-20b", "seconds": 6.0}
+{"id": "1232", "metric": "faithfulness", "value": 0.6666666666666666, "error": "", "judge": "nvidia:openai/gpt-oss-20b", "seconds": 0.0}
+{"id": "1226", "metric": "answer_relevancy", "value": 0.933441660528089, "error": "", "judge": "nvidia:openai/gpt-oss-20b", "seconds": 7.1}
+{"id": "1232", "metric": "factual_correctness_recall", "value": 0.5, "error": "", "judge": "nvidia:openai/gpt-oss-20b", "seconds": 0.0}
+{"id": "1232", "metric": "answer_relevancy", "value": 0.9422479159990651, "error": "", "judge": "nvidia:openai/gpt-oss-20b", "seconds": 3.4}
+{"id": "1241", "metric": "answer_relevancy", "value": 0.8624548173201835, "error": "", "judge": "nvidia:openai/gpt-oss-20b", "seconds": 5.5}
+{"id": "1226", "metric": "faithfulness", "value": 0.8571428571428571, "error": "", "judge": "nvidia:openai/gpt-oss-20b", "seconds": 34.0}
+{"id": "1245", "metric": "faithfulness", "value": 0.0, "error": "", "judge": "nvidia:openai/gpt-oss-20b", "seconds": 0.0}
+{"id": "1225", "metric": "factual_correctness_recall", "value": 0.25, "error": "", "judge": "nvidia:openai/gpt-oss-20b", "seconds": 35.6}
+{"id": "1245", "metric": "answer_relevancy", "value": 0.7413493195465225, "error": "", "judge": "nvidia:openai/gpt-oss-20b", "seconds": 2.6}
+{"id": "1259", "metric": "answer_relevancy", "value": 0.8944885592731692, "error": "", "judge": "nvidia:openai/gpt-oss-20b", "seconds": 4.2}
+{"id": "1241", "metric": "faithfulness", "value": 1.0, "error": "", "judge": "nvidia:openai/gpt-oss-20b", "seconds": 33.7}
+{"id": "1241", "metric": "factual_correctness_recall", "value": 0.33, "error": "", "judge": "nvidia:openai/gpt-oss-20b", "seconds": 39.1}
+{"id": "1262", "metric": "answer_relevancy", "value": 0.8818363641229278, "error": "", "judge": "nvidia:openai/gpt-oss-20b", "seconds": 4.4}
+{"id": "1259", "metric": "faithfulness", "value": 1.0, "error": "", "judge": "nvidia:openai/gpt-oss-20b", "seconds": 28.2}
+{"id": "1262", "metric": "faithfulness", "value": 1.0, "error": "", "judge": "nvidia:openai/gpt-oss-20b", "seconds": 22.2}
+{"id": "1259", "metric": "factual_correctness_recall", "value": 0.0, "error": "", "judge": "nvidia:openai/gpt-oss-20b", "seconds": 28.6}
+{"id": "1266", "metric": "answer_relevancy", "value": 0.8560304521698202, "error": "", "judge": "nvidia:openai/gpt-oss-20b", "seconds": 6.6}
+{"id": "1262", "metric": "factual_correctness_recall", "value": 1.0, "error": "", "judge": "nvidia:openai/gpt-oss-20b", "seconds": 19.8}
+{"id": "1270", "metric": "answer_relevancy", "value": 0.8775447278162792, "error": "", "judge": "nvidia:openai/gpt-oss-20b", "seconds": 6.9}
+{"id": "1270", "metric": "faithfulness", "value": 0.25, "error": "", "judge": "nvidia:openai/gpt-oss-20b", "seconds": 16.3}
+{"id": "1266", "metric": "factual_correctness_recall", "value": 1.0, "error": "", "judge": "nvidia:openai/gpt-oss-20b", "seconds": 30.5}
+{"id": "1271", "metric": "faithfulness", "value": 1.0, "error": "", "judge": "nvidia:openai/gpt-oss-20b", "seconds": 13.2}
+{"id": "1266", "metric": "faithfulness", "value": 0.6666666666666666, "error": "", "judge": "nvidia:openai/gpt-oss-20b", "seconds": 38.4}
+{"id": "1270", "metric": "factual_correctness_recall", "value": 0.67, "error": "", "judge": "nvidia:openai/gpt-oss-20b", "seconds": 18.2}
+{"id": "1271", "metric": "answer_relevancy", "value": 0.9863499144827917, "error": "", "judge": "nvidia:openai/gpt-oss-20b", "seconds": 9.0}
+{"id": "1272", "metric": "answer_relevancy", "value": 0.8250437467161934, "error": "", "judge": "nvidia:openai/gpt-oss-20b", "seconds": 8.0}
+{"id": "1273", "metric": "answer_relevancy", "value": 0.7756366094709626, "error": "", "judge": "nvidia:openai/gpt-oss-20b", "seconds": 4.9}
+{"id": "1273", "metric": "faithfulness", "value": 1.0, "error": "", "judge": "nvidia:openai/gpt-oss-20b", "seconds": 10.5}
+{"id": "1272", "metric": "faithfulness", "value": 0.6666666666666666, "error": "", "judge": "nvidia:openai/gpt-oss-20b", "seconds": 25.4}
+{"id": "1274", "metric": "answer_relevancy", "value": 0.9156135118340005, "error": "", "judge": "nvidia:openai/gpt-oss-20b", "seconds": 1.8}
+{"id": "1274", "metric": "factual_correctness_recall", "value": 0.0, "error": "", "judge": "nvidia:openai/gpt-oss-20b", "seconds": 0.0}
+{"id": "1271", "metric": "factual_correctness_recall", "value": 0.33, "error": "", "judge": "nvidia:openai/gpt-oss-20b", "seconds": 29.6}
+{"id": "1273", "metric": "factual_correctness_recall", "value": 0.33, "error": "", "judge": "nvidia:openai/gpt-oss-20b", "seconds": 16.4}
+{"id": "1274", "metric": "faithfulness", "value": 1.0, "error": "", "judge": "nvidia:openai/gpt-oss-20b", "seconds": 15.0}
+{"id": "1278", "metric": "answer_relevancy", "value": 0.7229648095388373, "error": "", "judge": "nvidia:openai/gpt-oss-20b", "seconds": 10.1}
+{"id": "1278", "metric": "faithfulness", "value": 0.6666666666666666, "error": "", "judge": "nvidia:openai/gpt-oss-20b", "seconds": 15.1}
+{"id": "1279", "metric": "answer_relevancy", "value": 0.7561472333144849, "error": "", "judge": "nvidia:openai/gpt-oss-20b", "seconds": 10.3}
+{"id": "1281", "metric": "faithfulness", "value": 1.0, "error": "", "judge": "nvidia:openai/gpt-oss-20b", "seconds": 0.0}
+{"id": "1279", "metric": "faithfulness", "value": 1.0, "error": "", "judge": "nvidia:openai/gpt-oss-20b", "seconds": 13.5}
+{"id": "1281", "metric": "answer_relevancy", "value": 0.8575337507363732, "error": "", "judge": "nvidia:openai/gpt-oss-20b", "seconds": 2.6}
+{"id": "1280", "metric": "answer_relevancy", "value": 0.8764351878752049, "error": "", "judge": "nvidia:openai/gpt-oss-20b", "seconds": 10.3}
+{"id": "1282", "metric": "answer_relevancy", "value": 0.8987775561738983, "error": "", "judge": "nvidia:openai/gpt-oss-20b", "seconds": 7.7}
+{"id": "1280", "metric": "faithfulness", "value": 1.0, "error": "", "judge": "nvidia:openai/gpt-oss-20b", "seconds": 16.2}
+{"id": "1290", "metric": "answer_relevancy", "value": 0.9365063849382257, "error": "", "judge": "nvidia:openai/gpt-oss-20b", "seconds": 5.9}
+{"id": "1282", "metric": "faithfulness", "value": 1.0, "error": "", "judge": "nvidia:openai/gpt-oss-20b", "seconds": 22.3}
+{"id": "1292", "metric": "answer_relevancy", "value": 0.8317157120950375, "error": "", "judge": "nvidia:openai/gpt-oss-20b", "seconds": 8.9}
+{"id": "1290", "metric": "factual_correctness_recall", "value": 1.0, "error": "", "judge": "nvidia:openai/gpt-oss-20b", "seconds": 20.0}
+{"id": "1292", "metric": "faithfulness", "value": 1.0, "error": "", "judge": "nvidia:openai/gpt-oss-20b", "seconds": 21.2}
+{"id": "1298", "metric": "answer_relevancy", "value": 0.937808104113453, "error": "", "judge": "nvidia:openai/gpt-oss-20b", "seconds": 6.3}
+{"id": "1303", "metric": "faithfulness", "value": 0.0, "error": "", "judge": "nvidia:openai/gpt-oss-20b", "seconds": 0.0}
+{"id": "1303", "metric": "answer_relevancy", "value": 0.8442891255204862, "error": "", "judge": "nvidia:openai/gpt-oss-20b", "seconds": 1.8}
+{"id": "1303", "metric": "factual_correctness_recall", "value": 0.0, "error": "", "judge": "nvidia:openai/gpt-oss-20b", "seconds": 0.0}
+{"id": "1290", "metric": "faithfulness", "value": 1.0, "error": "", "judge": "nvidia:openai/gpt-oss-20b", "seconds": 36.7}
+{"id": "1316", "metric": "answer_relevancy", "value": 0.0, "error": "", "judge": "nvidia:openai/gpt-oss-20b", "seconds": 8.4}
+{"id": "1298", "metric": "faithfulness", "value": 1.0, "error": "", "judge": "nvidia:openai/gpt-oss-20b", "seconds": 24.8}
+{"id": "1319", "metric": "answer_relevancy", "value": 0.9522416602440739, "error": "", "judge": "nvidia:openai/gpt-oss-20b", "seconds": 4.3}
+{"id": "1316", "metric": "faithfulness", "value": 1.0, "error": "", "judge": "nvidia:openai/gpt-oss-20b", "seconds": 22.7}
+{"id": "1298", "metric": "factual_correctness_recall", "value": 1.0, "error": "", "judge": "nvidia:openai/gpt-oss-20b", "seconds": 27.0}
+{"id": "1320", "metric": "answer_relevancy", "value": 0.905536604960099, "error": "", "judge": "nvidia:openai/gpt-oss-20b", "seconds": 7.9}
+{"id": "1319", "metric": "factual_correctness_recall", "value": 0.33, "error": "", "judge": "nvidia:openai/gpt-oss-20b", "seconds": 29.6}
+{"id": "1319", "metric": "faithfulness", "value": 1.0, "error": "", "judge": "nvidia:openai/gpt-oss-20b", "seconds": 39.2}
+{"id": "1320", "metric": "factual_correctness_recall", "value": 0.0, "error": "", "judge": "nvidia:openai/gpt-oss-20b", "seconds": 25.4}
+{"id": "1335", "metric": "faithfulness", "value": 0.5, "error": "", "judge": "nvidia:openai/gpt-oss-20b", "seconds": 0.0}
+{"id": "1320", "metric": "faithfulness", "value": 0.75, "error": "", "judge": "nvidia:openai/gpt-oss-20b", "seconds": 38.1}
+{"id": "1335", "metric": "factual_correctness_recall", "value": 0.67, "error": "", "judge": "nvidia:openai/gpt-oss-20b", "seconds": 0.0}
+{"id": "1335", "metric": "answer_relevancy", "value": 0.8488443135862734, "error": "", "judge": "nvidia:openai/gpt-oss-20b", "seconds": 4.9}
+{"id": "1332", "metric": "answer_relevancy", "value": 0.9125032186725406, "error": "", "judge": "nvidia:openai/gpt-oss-20b", "seconds": 8.8}
+{"id": "1336", "metric": "answer_relevancy", "value": 0.9092230385889609, "error": "", "judge": "nvidia:openai/gpt-oss-20b", "seconds": 6.5}
+{"id": "1336", "metric": "faithfulness", "value": 1.0, "error": "", "judge": "nvidia:openai/gpt-oss-20b", "seconds": 14.3}
+{"id": "1337", "metric": "answer_relevancy", "value": 0.714855883725502, "error": "", "judge": "nvidia:openai/gpt-oss-20b", "seconds": 5.8}
+{"id": "1336", "metric": "factual_correctness_recall", "value": 0.5, "error": "", "judge": "nvidia:openai/gpt-oss-20b", "seconds": 24.6}
+{"id": "1337", "metric": "faithfulness", "value": 0.8, "error": "", "judge": "nvidia:openai/gpt-oss-20b", "seconds": 23.8}
+{"id": "1339", "metric": "answer_relevancy", "value": 0.9442365093581339, "error": "", "judge": "nvidia:openai/gpt-oss-20b", "seconds": 3.9}
+{"id": "1332", "metric": "faithfulness", "value": 0.9230769230769231, "error": "", "judge": "nvidia:openai/gpt-oss-20b", "seconds": 49.2}
+{"id": "1339", "metric": "faithfulness", "value": 1.0, "error": "", "judge": "nvidia:openai/gpt-oss-20b", "seconds": 20.4}
+{"id": "1337", "metric": "factual_correctness_recall", "value": 1.0, "error": "", "judge": "nvidia:openai/gpt-oss-20b", "seconds": 27.2}
+{"id": "1352", "metric": "faithfulness", "value": 1.0, "error": "", "judge": "nvidia:openai/gpt-oss-20b", "seconds": 0.0}
+{"id": "1352", "metric": "answer_relevancy", "value": 0.9662431898196484, "error": "", "judge": "nvidia:openai/gpt-oss-20b", "seconds": 2.6}
+{"id": "1352", "metric": "factual_correctness_recall", "value": 0.0, "error": "", "judge": "nvidia:openai/gpt-oss-20b", "seconds": 0.0}
+{"id": "1344", "metric": "answer_relevancy", "value": 0.8714144807897036, "error": "", "judge": "nvidia:openai/gpt-oss-20b", "seconds": 6.0}
+{"id": "1339", "metric": "factual_correctness_recall", "value": 0.33, "error": "", "judge": "nvidia:openai/gpt-oss-20b", "seconds": 22.8}
+{"id": "1359", "metric": "answer_relevancy", "value": 0.9150198828480013, "error": "", "judge": "nvidia:openai/gpt-oss-20b", "seconds": 8.0}
+{"id": "1344", "metric": "faithfulness", "value": 0.7058823529411765, "error": "", "judge": "nvidia:openai/gpt-oss-20b", "seconds": 33.2}
+{"id": "1362", "metric": "faithfulness", "value": 1.0, "error": "", "judge": "nvidia:openai/gpt-oss-20b", "seconds": 11.7}
+{"id": "1362", "metric": "answer_relevancy", "value": 0.816019726817426, "error": "", "judge": "nvidia:openai/gpt-oss-20b", "seconds": 4.6}
+{"id": "1359", "metric": "faithfulness", "value": 0.8333333333333334, "error": "", "judge": "nvidia:openai/gpt-oss-20b", "seconds": 27.8}
+{"id": "1368", "metric": "faithfulness", "value": 1.0, "error": "", "judge": "nvidia:openai/gpt-oss-20b", "seconds": 0.0}
+{"id": "1368", "metric": "answer_relevancy", "value": 0.0, "error": "", "judge": "nvidia:openai/gpt-oss-20b", "seconds": 1.7}
+{"id": "1368", "metric": "factual_correctness_recall", "value": 0.0, "error": "", "judge": "nvidia:openai/gpt-oss-20b", "seconds": 0.0}
+{"id": "1359", "metric": "factual_correctness_recall", "value": 1.0, "error": "", "judge": "nvidia:openai/gpt-oss-20b", "seconds": 22.4}
+{"id": "1363", "metric": "answer_relevancy", "value": 0.0, "error": "", "judge": "nvidia:openai/gpt-oss-20b", "seconds": 7.1}
+{"id": "1363", "metric": "faithfulness", "value": 1.0, "error": "", "judge": "nvidia:openai/gpt-oss-20b", "seconds": 12.8}
+{"id": "1370", "metric": "answer_relevancy", "value": 0.9618309075237899, "error": "", "judge": "nvidia:openai/gpt-oss-20b", "seconds": 7.1}
+{"id": "1379", "metric": "answer_relevancy", "value": 0.9345496901096432, "error": "", "judge": "nvidia:openai/gpt-oss-20b", "seconds": 4.2}
+{"id": "1370", "metric": "faithfulness", "value": 0.6666666666666666, "error": "", "judge": "nvidia:openai/gpt-oss-20b", "seconds": 16.1}
+{"id": "1370", "metric": "factual_correctness_recall", "value": 0.67, "error": "", "judge": "nvidia:openai/gpt-oss-20b", "seconds": 14.7}
+{"id": "1382", "metric": "answer_relevancy", "value": 0.7495346384681346, "error": "", "judge": "nvidia:openai/gpt-oss-20b", "seconds": 5.8}
+{"id": "1382", "metric": "faithfulness", "value": 0.8333333333333334, "error": "", "judge": "nvidia:openai/gpt-oss-20b", "seconds": 23.1}
+{"id": "1379", "metric": "faithfulness", "value": 1.0, "error": "", "judge": "nvidia:openai/gpt-oss-20b", "seconds": 34.4}
+{"id": "1385", "metric": "answer_relevancy", "value": 0.9848975235063677, "error": "", "judge": "nvidia:openai/gpt-oss-20b", "seconds": 4.1}
+{"id": "1379", "metric": "factual_correctness_recall", "value": 0.18, "error": "", "judge": "nvidia:openai/gpt-oss-20b", "seconds": 41.3}
+{"id": "1385", "metric": "faithfulness", "value": 1.0, "error": "", "judge": "nvidia:openai/gpt-oss-20b", "seconds": 17.2}
+{"id": "1382", "metric": "factual_correctness_recall", "value": 0.75, "error": "", "judge": "nvidia:openai/gpt-oss-20b", "seconds": 33.3}
+{"id": "1389", "metric": "answer_relevancy", "value": 0.8061952811523243, "error": "", "judge": "nvidia:openai/gpt-oss-20b", "seconds": 6.3}
+{"id": "1395", "metric": "faithfulness", "value": 0.0, "error": "", "judge": "nvidia:openai/gpt-oss-20b", "seconds": 0.0}
+{"id": "1395", "metric": "answer_relevancy", "value": 0.9055732485873641, "error": "", "judge": "nvidia:openai/gpt-oss-20b", "seconds": 1.8}
+{"id": "1385", "metric": "factual_correctness_recall", "value": 1.0, "error": "", "judge": "nvidia:openai/gpt-oss-20b", "seconds": 21.9}
+{"id": "1389", "metric": "factual_correctness_recall", "value": 0.33, "error": "", "judge": "nvidia:openai/gpt-oss-20b", "seconds": 22.0}
+{"id": "1389", "metric": "faithfulness", "value": 0.6, "error": "", "judge": "nvidia:openai/gpt-oss-20b", "seconds": 26.0}
