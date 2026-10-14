@@ -157,7 +157,7 @@ The API tests run against a temporary data folder and never touch `.data/`. Host
 
 ## Evaluation
 
-[`benchmarks/`](benchmarks/README.md) measures OmniDoc on public benchmarks and keeps every run: FinanceBench and MMLongBench-Doc for cited answers over long documents (graded by a judge model from another family) and BEIR SciFact for the search alone (exact retrieval metrics, no judge). `evaluation/` runs a few hand-written questions as a smoke test; its numbers are not benchmark results. Other public benchmarks that fit OmniDoc include OmniDocBench and olmOCR-Bench (parsing), MultiHop-RAG (cited QA), GraphRAG-Bench (graph retrieval), UniDoc-Bench (long multimodal documents), ViDoRe v3 (visual retrieval) and RAGTruth (hallucination detection).
+[`benchmarks/`](benchmarks/README.md) measures OmniDoc on public benchmarks and keeps every run: FinanceBench and MMLongBench-Doc for cited answers over long documents (graded by a judge model from another family) BEIR SciFact for the search alone (exact retrieval metrics, no judge), and SciFact claims answered end to end and scored with RAGAS (faithfulness, answer relevancy, factual correctness) and against the gold verdicts. `evaluation/` runs a few hand-written questions as a smoke test; its numbers are not benchmark results. Other public benchmarks that fit OmniDoc include OmniDocBench and olmOCR-Bench (parsing), MultiHop-RAG (cited QA), GraphRAG-Bench (graph retrieval), UniDoc-Bench (long multimodal documents), ViDoRe v3 (visual retrieval) and RAGTruth (hallucination detection).
 
 ## Privacy
 
