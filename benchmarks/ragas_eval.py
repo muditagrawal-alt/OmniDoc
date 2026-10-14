@@ -438,6 +438,10 @@ def write_summary(run_dir: Path) -> Dict[str, Any]:
     evidence = {"in_context": mean_ci([gold_in(r, False) for r in with_evidence]),
                 "cited": mean_ci([gold_in(r, True) for r in with_evidence])}
     ragas = {m: mean_ci([s["value"] for s in scores if s["metric"] == m]) for m in METRICS}
+    # A decline ("the documents do not contain X") cannot be inferred from passages that never mention X,
+    # so RAGAS scores it low: faithfulness is also given for the answers that state a verdict.
+    stated = {r["id"] for r in ok if r.get("verdict") in ("supported", "refuted")}
+    ragas["faithfulness_of_verdicts"] = mean_ci([s["value"] for s in scores if s["metric"] == "faithfulness" and s["id"] in stated])
     judge_errors = sum(1 for r in latest_rows_by(run_dir / "scores.jsonl", ("id", "metric")) if r.get("value") is None) \
         if (run_dir / "scores.jsonl").exists() else 0
     times = [r["total_s"] for r in ok if r.get("total_s")]
@@ -482,6 +486,8 @@ def render(run: str, config: Dict[str, Any], s: Dict[str, Any], ok: List[Dict[st
            f"| Gold evidence among the passages the answer was written from | {pct(ev['in_context'])} | exact |",
            f"| Gold evidence cited in the answer | {pct(ev['cited'])} | exact |",
            f"| Faithfulness | {pct(rg['faithfulness'])} | judge |",
+           f"| Faithfulness of the answers that state a verdict (declines score low by design) | "
+           f"{pct(rg.get('faithfulness_of_verdicts'))} | judge |",
            f"| Answer relevancy | {pct(rg['answer_relevancy'])} | judge + embeddings |",
            f"| Factual correctness (recall of the gold rationale) | {pct(rg['factual_correctness_recall'])} | judge |",
            "", "## Verdicts", "",
@@ -524,7 +530,8 @@ def write_history() -> None:
         rows.append(f"| [{p.parent.name}]({p.parent.name}/report.md) | `{c['commit']}` | {s['answers']} | "
                     f"**{m(s['verdict']['accuracy'])}** | {m(s['verdict'].get('accuracy_with_evidence'))} | "
                     f"{s['verdict']['macro_f1'] * 100:.1f}% | {m(s['evidence']['in_context'])} | "
-                    f"{m(s['ragas']['faithfulness'])} | {m(s['ragas']['answer_relevancy'])} | "
+                    f"{m(s['ragas']['faithfulness'])} | {m(s['ragas'].get('faithfulness_of_verdicts'))} | "
+                    f"{m(s['ragas']['answer_relevancy'])} | "
                     f"{m(s['ragas']['factual_correctness_recall'])} | {(c.get('judge') or {}).get('model', '-')} |")
     RESULTS.mkdir(parents=True, exist_ok=True)
     (RESULTS / "HISTORY.md").write_text("\n".join([
@@ -532,8 +539,8 @@ def write_history() -> None:
         "Every run of `benchmarks/ragas_eval.py` on the BEIR SciFact test claims: verdicts and evidence are scored "
         "exactly, the RAGAS metrics by a judge model of another family than the answer model.", "",
         "| Run | Commit | Answers | Verdict accuracy | On claims with evidence | Macro-F1 | Gold evidence in context | "
-        "Faithfulness | Answer relevancy | Factual correctness (recall) | Judge |",
-        "|---|---|---|---|---|---|---|---|---|---|---|", *rows]) + "\n")
+        "Faithfulness | Faithfulness (verdicts) | Answer relevancy | Factual correctness (recall) | Judge |",
+        "|---|---|---|---|---|---|---|---|---|---|---|---|", *rows]) + "\n")
 
 
 def report(args: argparse.Namespace) -> None:
