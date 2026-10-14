@@ -1,0 +1,24 @@
+{
+ "label": "revision-d",
+ "split": "dev",
+ "started": "2026-10-14T20:33:49",
+ "commit": "c797a99",
+ "uncommitted_changes": false,
+ "benchmarks": [
+  "financebench",
+  "mmlongbench"
+ ],
+ "settings": {
+  "provider": "nvidia",
+  "model": "nvidia:nvidia/nemotron-3-super-120b-a12b",
+  "vision": "gemini:gemini-3.5-flash-lite",
+  "embed": "nomic-embed-text",
+  "judge": "nvidia:openai/gpt-oss-20b"
+ },
+ "work": "/Users/muditagrawal/Projects/zee work/OmniDoc/benchmarks/work",
+ "code": "/Users/muditagrawal/Projects/zee work/OmniDoc/benchmarks/work/code/revD",
+ "scope": "each question is asked about its own document (document_ids = [doc]); web search off",
+ "pacing": "20s between questions; answers that failed are asked again up to 5 times",
+ "kept_index": "the index was kept although the indexing files changed (--keep-index)",
+ "notes": "Revision D on the development split: retrieval embeds with nomic task prefixes and orders passages by the cross-encoder fused with the hybrid order (cross-encoder on the CPU); the sentence check accepts figures computed from figures the answer has just given, and a rewrite keeps such calculations with their inputs; yes/no questions are decided from what the evidence shows or implies. Development indexes of revision C kept; the server re-embedded them with the task prefixes (index version 3)."
+}
