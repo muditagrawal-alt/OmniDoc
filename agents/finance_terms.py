@@ -43,6 +43,8 @@ SYNONYMS = (
     (r"geograph\w*|regions?|countries", "geographic information revenues by geographic area"),
     (r"restructuring", "restructuring charges"),
     (r"guidance|outlook", "outlook guidance expects"),
+    (r"registered|securities exchange|trading symbol", "securities registered pursuant to section 12(b) title of each class "
+                                                       "trading symbol name of each exchange on which registered"),
 )
 
 # Standard definitions, given to the writers only for the metrics a question names.
@@ -89,6 +91,7 @@ NAMES = (
 AVERAGE = re.compile(r"\baverage\b|turnover|\bROA\b|\bROE\b|return on|days (sales|payables?|inventory)|\bD[SPI]O\b|cash conversion", re.I)
 # FinanceBench-style invitation: "If inventory turnover is not a useful metric for a company like this, then state that..."
 NOT_MEANINGFUL = re.compile(r"not (a )?(useful|meaningful|relevant)", re.I)
+REGISTERED = re.compile(r"registered|securities exchange|trading symbol", re.I)
 
 
 def notes_for(question: str) -> str:
@@ -96,6 +99,10 @@ def notes_for(question: str) -> str:
     q = (question or "").replace("_", " ")  # "cash_ratio"
     lines = [d for pattern, d in DEFINITIONS if re.search(pattern, q, re.I)]
     lines += [n for pattern, n in NAMES if re.search(pattern, q, re.I)]
+    if REGISTERED.search(q):
+        lines.append("A filing's cover page lists every class of securities registered on a national securities exchange "
+                     "(Section 12(b) of the Act): a kind of security missing from that list (debt securities when only "
+                     "common shares are listed) is not registered, so the answer is that there are none.")
     if not lines:
         return ""
     lines.insert(0, "When the question defines the metric or names the statements to use, follow that exactly; "
