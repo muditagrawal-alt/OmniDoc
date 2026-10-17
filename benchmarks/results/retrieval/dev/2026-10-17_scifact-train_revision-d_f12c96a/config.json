@@ -1,0 +1,37 @@
+{
+ "label": "revision-d",
+ "dataset": "scifact",
+ "split": "train",
+ "modes": [
+  "bm25",
+  "dense",
+  "hybrid",
+  "omnidoc"
+ ],
+ "commit": "f12c96a",
+ "uncommitted_changes": true,
+ "documents": 5183,
+ "questions": 809,
+ "relevant_pairs": 919,
+ "index": {
+  "fingerprint": "b373344dd0d6",
+  "commit": "4249ac6",
+  "documents": 5183,
+  "passages": 5688,
+  "failed_embeddings": 0,
+  "seconds": 1.2,
+  "built": "2026-10-17T22:56:23"
+ },
+ "embedding_model": "nomic-embed-text",
+ "reranker": "cross-encoder/ms-marco-MiniLM-L-6-v2",
+ "omnidoc_search": {
+  "candidates_per_query": 12,
+  "reranked_pool": 30,
+  "top_k": 10
+ },
+ "search_seconds": 273.3,
+ "omnidoc_search_median_s": 0.26,
+ "omnidoc_search_p90_s": 0.343,
+ "questions_with_finance_terms_query": 61,
+ "notes": "revision D with the cross-encoder on the CPU: the comparison for the embedder experiment"
+}
