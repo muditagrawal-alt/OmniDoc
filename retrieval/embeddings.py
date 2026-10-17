@@ -13,6 +13,7 @@ models never mixes vectors. Queries and passages are embedded differently where 
 expects it (E5 "query:" / "passage:", Nomic "search_query:" / "search_document:" prefixes).
 """
 import os
+import time
 import pickle
 import hashlib
 import logging
@@ -112,12 +113,13 @@ class EmbeddingService:
         from agents.llm_providers import REGISTRY, parse_spec, openai_embed
         provider, name = parse_spec(self.model_name)
         p = REGISTRY[provider]
-        return openai_embed(p, name or p.embed_model, [self._prefix(t, kind) for t in texts])
+        return openai_embed(p, name or p.embed_model, [self._prefix(t, kind) for t in texts], kind=kind)
 
     # -------------------------------------------------------------------- cache
     def _key(self, text: str, kind: str) -> str:
-        # Models with task prefixes embed a query and a passage of the same text differently.
-        material = f"{self.model_name}\x00{kind if self._prefix('', kind) else ''}\x00{text}"
+        # Models with task prefixes or query / passage modes embed the same text differently by kind.
+        asymmetric = bool(self._prefix("", kind)) or self.kind in ("nvidia", "jina")
+        material = f"{self.model_name}\x00{kind if asymmetric else ''}\x00{text}"
         return hashlib.md5(material.encode("utf-8"), usedforsecurity=False).hexdigest()  # cache file name only
 
     def _read_cache(self, key: str) -> Optional[List[float]]:
@@ -153,11 +155,15 @@ class EmbeddingService:
         for start in range(0, len(missing), _EMBED_BATCH):
             idxs = missing[start:start + _EMBED_BATCH]
             batch = [texts[i] if texts[i].strip() else " " for i in idxs]
-            try:
-                vectors = self._embed_remote(batch, kind)
-            except Exception as e:
-                logger.error(f"Embedding failed with {self.model_name}: {e}")
-                vectors = [None] * len(batch)
+            vectors = [None] * len(batch)
+            # A hosted API may throttle a burst of batches: wait and retry before falling back to lexical search.
+            for wait in (0, 10, 30, 60) if self.kind not in ("ollama", "st") else (0,):
+                time.sleep(wait)
+                try:
+                    vectors = self._embed_remote(batch, kind)
+                    break
+                except Exception as e:
+                    logger.error(f"Embedding failed with {self.model_name}: {e}")
             for i, emb in zip(idxs, vectors):
                 if emb:
                     self.dimension = len(emb)
