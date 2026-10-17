@@ -761,3 +761,20 @@ def test_the_cross_encoder_avoids_apple_gpus(monkeypatch):
     monkeypatch.setattr(R, "_FAILED_MODELS", {})
     assert R._load_cross_encoder("stub") is not None
     assert seen["device"] == ("cuda" if torch.cuda.is_available() else "cpu")  # never "mps": memory grows per input shape
+
+
+def test_hosted_retrieval_embeddings_say_whether_they_embed_a_query_or_a_passage(monkeypatch):
+    from types import SimpleNamespace
+    sent = []
+
+    class Reply:
+        status_code = 200
+
+        def json(self):
+            return {"data": [{"index": 0, "embedding": [0.1, 0.2]}]}
+    monkeypatch.setattr(P, "_http", lambda *a, **k: SimpleNamespace(post=lambda url, headers=None, json=None, **kw: sent.append(json) or Reply()))
+    P.openai_embed(P.REGISTRY["nvidia"], "nvidia/nemotron-3-embed-1b", ["x"], kind="query")
+    P.openai_embed(P.REGISTRY["nvidia"], "nvidia/nemotron-3-embed-1b", ["x"])
+    P.openai_embed(P.REGISTRY["jina"], "jina-embeddings-v3", ["x"], kind="query")
+    assert [b.get("input_type") for b in sent[:2]] == ["query", "passage"] and sent[0]["truncate"] == "END"
+    assert sent[2]["task"] == "retrieval.query"
