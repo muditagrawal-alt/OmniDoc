@@ -52,16 +52,23 @@ def doc_filter_expr(doc_ids: Optional[List[str]]) -> Optional[str]:
     return f"doc_id IN ({', '.join(_quote(d) for d in valid)})"
 
 
-def rrf_fuse(rankings: List[List[str]], k: int = RRF_K) -> Dict[str, float]:
-    """Reciprocal Rank Fusion: score(d) = sum over rankings of 1 / (k + rank(d)), rank from 1."""
+# Weight of the vector ranking against the keyword (BM25) ranking in hybrid search. 1 suits
+# nomic-embed-text, whose vectors and BM25 are about as good; a stronger embedder is best weighted
+# higher (NVIDIA nemotron-3-embed-1b on BEIR SciFact train questions, nDCG@10: vectors alone 0.774,
+# fused at weight 3 0.760, fused equally 0.753).
+DENSE_WEIGHT = float(os.getenv("OMNIDOC_DENSE_WEIGHT", "1"))
+
+
+def rrf_fuse(rankings: List[List[str]], k: int = RRF_K, weights: Optional[List[float]] = None) -> Dict[str, float]:
+    """Reciprocal Rank Fusion: score(d) = sum over rankings of weight / (k + rank(d)), rank from 1."""
     fused: Dict[str, float] = {}
-    for ranking in rankings:
+    for ranking, weight in zip(rankings, weights or [1.0] * len(rankings)):
         seen = set()
         for rank, cid in enumerate(ranking, 1):
             if cid in seen:
                 continue
             seen.add(cid)
-            fused[cid] = fused.get(cid, 0.0) + 1.0 / (k + rank)
+            fused[cid] = fused.get(cid, 0.0) + weight / (k + rank)
     return fused
 
 
@@ -237,10 +244,12 @@ class LanceDBStore:
         pool = max(top_k * 3, 15)
         rows: Dict[str, Dict[str, Any]] = {}
         rankings: List[List[str]] = []
+        weights: List[float] = []
 
         try:
             vec_rows = self._vector_search(query_vector, pool, filter_expr)
             rankings.append([str(r["id"]) for r in vec_rows])
+            weights.append(DENSE_WEIGHT)
             for r in vec_rows:
                 rows.setdefault(str(r["id"]), r)
         except Exception as e:
@@ -249,12 +258,13 @@ class LanceDBStore:
         try:
             fts_rows = self._fts_search(query, pool, filter_expr)
             rankings.append([str(r["id"]) for r in fts_rows])
+            weights.append(1.0)
             for r in fts_rows:
                 rows.setdefault(str(r["id"]), r)
         except Exception as e:
             logger.warning(f"Full-text search failed: {e}")
 
-        fused = rrf_fuse(rankings)
+        fused = rrf_fuse(rankings, weights=weights)
         ordered = sorted(fused, key=lambda cid: fused[cid], reverse=True)[:top_k]
 
         results: List[RetrievedChunk] = []
