@@ -1,0 +1,39 @@
+{
+ "label": "nemotron-embed-w3",
+ "dataset": "scifact",
+ "split": "test",
+ "modes": [
+  "bm25",
+  "dense",
+  "hybrid",
+  "omnidoc",
+  "rerank-100"
+ ],
+ "commit": "0508fe7",
+ "uncommitted_changes": false,
+ "documents": 5183,
+ "questions": 300,
+ "relevant_pairs": 339,
+ "index": {
+  "fingerprint": "0992a652b0c0",
+  "commit": "9363f8a",
+  "documents": 5183,
+  "passages": 5688,
+  "failed_embeddings": 0,
+  "seconds": 1.9,
+  "built": "2026-10-17T23:28:30"
+ },
+ "embedding_model": "nvidia:nvidia/nemotron-3-embed-1b",
+ "reranker": "cross-encoder/ms-marco-MiniLM-L-6-v2",
+ "dense_weight": 3.0,
+ "omnidoc_search": {
+  "candidates_per_query": 12,
+  "reranked_pool": 30,
+  "top_k": 10
+ },
+ "search_seconds": 1084.6,
+ "omnidoc_search_median_s": 0.321,
+ "omnidoc_search_p90_s": 0.464,
+ "questions_with_finance_terms_query": 17,
+ "notes": "NVIDIA nemotron-3-embed-1b (hosted, free) with the vector ranking weighted 3x against keywords (OMNIDOC_DENSE_WEIGHT=3), the setting chosen on the train questions"
+}
