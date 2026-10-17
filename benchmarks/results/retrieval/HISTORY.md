@@ -6,3 +6,4 @@ Every run of `benchmarks/beir.py`: nDCG@10 per search mode on the BEIR test ques
 |---|---|---|---|---|---|---|---|---|---|
 | [2026-10-13_scifact_baseline_e0913f0](2026-10-13_scifact_baseline_e0913f0/report.md) | scifact | `e0913f0` | 0.688 | 0.702 | 0.737 | **0.713** | 0.873 | 0.678 | 0.962 |
 | [2026-10-14_scifact_prefixes-fusion_4515e3e](2026-10-14_scifact_prefixes-fusion_4515e3e/report.md) | scifact | `4515e3e` | 0.688 | 0.705 | 0.732 | **0.732** | 0.863 | 0.678 | 0.958 |
+| [2026-10-17_scifact_nemotron-embed-w3_0508fe7](2026-10-17_scifact_nemotron-embed-w3_0508fe7/report.md) | scifact | `0508fe7` | 0.688 | 0.754 | 0.753 | **0.742** | 0.877 | 0.680 | 0.977 |
