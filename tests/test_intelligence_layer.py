@@ -778,3 +778,11 @@ def test_hosted_retrieval_embeddings_say_whether_they_embed_a_query_or_a_passage
     P.openai_embed(P.REGISTRY["jina"], "jina-embeddings-v3", ["x"], kind="query")
     assert [b.get("input_type") for b in sent[:2]] == ["query", "passage"] and sent[0]["truncate"] == "END"
     assert sent[2]["task"] == "retrieval.query"
+
+
+def test_rank_fusion_weights_one_ranking_over_another():
+    from retrieval.lancedb_store import rrf_fuse
+    equal = rrf_fuse([["a", "b"], ["b", "a"]])
+    assert equal["a"] == equal["b"]
+    weighted = rrf_fuse([["a", "b"], ["b", "a"]], weights=[3.0, 1.0])
+    assert weighted["a"] > weighted["b"]
