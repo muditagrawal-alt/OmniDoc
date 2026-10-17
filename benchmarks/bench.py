@@ -391,6 +391,13 @@ def ensure_index(bench: str, manifest: Dict[str, Any], settings: Dict[str, str],
                 state.update(kept_from=state.get("fingerprint"), fingerprint=fingerprint)
                 state_path.write_text(json.dumps(state, indent=1) + "\n")
             return state
+    saved = json.loads(state_path.read_text()) if state_path.exists() else {}
+    if saved.get("docs") and not reingest and not wait and saved.get("fingerprint") == fingerprint:
+        missing = sorted(set(manifest["documents"]) - set(saved["docs"]))
+        if missing:  # e.g. the next batch of a long benchmark: the documents are added to the index
+            log(f"{bench}: the index holds {len(saved['docs'])} documents; adding {len(missing)}")
+            saved["pending"] = True
+            return saved
     if wait and not reingest and not current():
         log(f"{bench}: waiting for the index being built by another process ({fingerprint})")
         deadline = time.time() + 6 * 3600
@@ -550,11 +557,23 @@ def run(args: argparse.Namespace) -> None:
             **({"kept_index": "the index was kept although the indexing files changed (--keep-index)"} if args.keep_index else {}),
             "notes": args.notes or "",
         }, indent=1) + "\n")
+    if args.batch:
+        config = json.loads(config_path.read_text())
+        config.setdefault("batches", []).append({"batch": args.batch, "commit": commit, "uncommitted_changes": dirty,
+                                                  "started": dt.datetime.now().isoformat(timespec="seconds")})
+        config_path.write_text(json.dumps(config, indent=1) + "\n")
     results_path = run_dir / "results.jsonl"
     previous = {r["id"]: r for r in latest_rows(results_path)}
     done = {i for i, r in previous.items() if not r.get("error") and not PIPELINE_ERROR.search(r.get("answer") or "")}
     for bench in benches:
         manifest = json.loads(manifest_path(bench).read_text())
+        if args.batch:
+            # One slice of the documents (every N-th, so each batch mixes document types) and their questions.
+            k, n = (int(x) for x in args.batch.split("/"))
+            docs = manifest["documents"][k - 1::n]
+            manifest = {**manifest, "documents": docs,
+                        "questions": [q for q in manifest["questions"] if q["doc"] in set(docs)]}
+            log(f"{bench}: batch {k}/{n}: {len(docs)} documents, {len(manifest['questions'])} questions")
         questions = load_questions(bench)
         server = Server(bench, settings, args.port)
         state = ensure_index(bench, manifest, settings, args.reingest, args.wait_index, args.keep_index)
@@ -933,6 +952,7 @@ def main() -> None:
     r.add_argument("--keep-index", action="store_true",
                    help="reuse the existing index although indexing files changed (only for changes that do not alter what is stored)")
     r.add_argument("--pause", type=float, default=PAUSE_S, help=f"seconds between questions (default {PAUSE_S})")
+    r.add_argument("--batch", default="", help="K/N: only the K-th of N slices of the documents (continue a run with --resume)")
     ix = sub.add_parser("index", help="ingest the documents only (a later run reuses the index)")
     ix.add_argument("--bench", default="financebench,mmlongbench")
     ix.add_argument("--reingest", action="store_true")
