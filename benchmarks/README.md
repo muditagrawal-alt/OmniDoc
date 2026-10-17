@@ -71,6 +71,25 @@ get their own indexes (`benchmarks/work/<benchmark>-dev`) and are stored under
 .venv/bin/python -I benchmarks/bench.py report                      # rebuild every report and HISTORY.md
 ```
 
+### Full benchmarks, in batches
+
+`--split full` runs every question: all 150 open-source FinanceBench questions over 84 filings, and
+all 1,091 MMLongBench-Doc questions over 135 PDFs. Documents already indexed are kept and only the
+others are ingested. A long benchmark can be split into batches that each fit a night and the free
+quotas: `--batch K/N` takes every N-th document (so each batch mixes document kinds) with its
+questions, the index grows batch by batch, and `--resume` keeps the answers in one run folder.
+
+```bash
+.venv/bin/python -I benchmarks/bench.py fetch --split full --bench financebench
+.venv/bin/python -I benchmarks/bench.py run --label revision-d --bench financebench --split full --keep-index
+.venv/bin/python -I benchmarks/bench.py run --label revision-d --bench mmlongbench --split full --batch 1/10
+.venv/bin/python -I benchmarks/bench.py run --label revision-d --bench mmlongbench --split full --batch 2/10 --resume benchmarks/results/full/<run>
+```
+
+The full MMLongBench-Doc needs about 3,300 vision calls (2,100 figure descriptions while indexing,
+the rest reading pages while answering): with Gemini Flash-Lite's ~500 free requests a day that
+is 8 to 10 batches of about 14 documents, each about 3 hours on a laptop.
+
 The NVIDIA, Gemini and Groq keys come from `.env`. Other models can be pinned with
 `--provider`, `--model`, `--vision`, `--embed` and `--judge`. A first run of both benchmarks
 ingests about 4,000 pages (roughly 700 model calls in the background) and asks 89 questions.
