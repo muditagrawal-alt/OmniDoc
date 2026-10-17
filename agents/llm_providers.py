@@ -102,6 +102,7 @@ def build_registry() -> Dict[str, Provider]:
                   sign_up="https://console.groq.com/keys"),
         _provider("nvidia", "NVIDIA NIM", "https://integrate.api.nvidia.com/v1", "NVIDIA_API_KEY",
                   "nvidia/nemotron-3-super-120b-a12b", "nvidia/nemotron-3-super-120b-a12b", rpm=40,
+                  embed_model="nvidia/nemotron-3-embed-1b",
                   reasoning="nemotron", key_aliases=("NVIDIA_NIM_API_KEY", "NIM_API_KEY"),
                   free_note="Free with an NVIDIA Developer account (about 40 requests/min per model); meant for development and evaluation.",
                   sign_up="https://build.nvidia.com"),
@@ -430,11 +431,14 @@ def openai_stream(p: Provider, model: str, messages: List[Dict[str, Any]], on_de
     raise ProviderError(f"{p.label} rejected the request", retryable=True)
 
 
-def openai_embed(p: Provider, model: str, texts: List[str]) -> List[List[float]]:
+def openai_embed(p: Provider, model: str, texts: List[str], kind: str = "passage") -> List[List[float]]:
+    """Embeddings from an OpenAI-compatible endpoint; ``kind`` ("query" or "passage") for retrieval models that embed the two differently."""
     import httpx
     body: Dict[str, Any] = {"model": model, "input": texts}
     if p.name == "jina":
-        body["task"] = "retrieval.passage"
+        body["task"] = "retrieval.query" if kind == "query" else "retrieval.passage"
+    elif p.name == "nvidia":
+        body.update(input_type="query" if kind == "query" else "passage", truncate="END")
     try:
         resp = _http().post(f"{p.base_url}/embeddings", headers=_headers(p), json=body)
     except httpx.HTTPError as e:
