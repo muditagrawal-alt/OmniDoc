@@ -786,3 +786,11 @@ def test_rank_fusion_weights_one_ranking_over_another():
     assert equal["a"] == equal["b"]
     weighted = rrf_fuse([["a", "b"], ["b", "a"]], weights=[3.0, 1.0])
     assert weighted["a"] > weighted["b"]
+
+
+def test_finance_notes_read_the_cover_page_list_of_registered_securities():
+    from agents.finance_terms import notes_for, search_terms
+    q = "Which debt securities are registered to trade on a national securities exchange under American Express' name as of 2022?"
+    assert "Section 12(b)" in notes_for(q) and "there are none" in notes_for(q)
+    assert "section 12(b)" in search_terms(q)
+    assert "Section 12(b)" not in notes_for("What was the gross margin in FY2022?")
