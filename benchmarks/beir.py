@@ -257,11 +257,12 @@ def run(args: argparse.Namespace) -> None:
     scores = metrics(rankings, {q: qrels[q] for q in ids})
     from agents.hybrid_agent import CANDIDATES_PER_QUERY, FINAL_TOP_K, POOL_SIZE
     from retrieval.reranker import DEFAULT_RERANKER_MODEL
+    from retrieval.lancedb_store import DENSE_WEIGHT
     commit = git("rev-parse", "--short", "HEAD")
     config = {"label": args.label, "dataset": name, "split": args.split, "modes": modes, "commit": commit,
               "uncommitted_changes": bool(git("status", "--porcelain", "--untracked-files=no")),
               "documents": len(corpus), "questions": len(ids), "relevant_pairs": sum(len(qrels[q]) for q in ids),
-              "index": index, "embedding_model": EMBED_MODEL, "reranker": DEFAULT_RERANKER_MODEL,
+              "index": index, "embedding_model": EMBED_MODEL, "reranker": DEFAULT_RERANKER_MODEL, "dense_weight": DENSE_WEIGHT,
               "omnidoc_search": {"candidates_per_query": CANDIDATES_PER_QUERY, "reranked_pool": POOL_SIZE, "top_k": FINAL_TOP_K},
               "search_seconds": round(time.perf_counter() - started, 1), **timing, "notes": args.notes}
     for mode in modes:
@@ -295,7 +296,9 @@ def render(run: str, config: Dict[str, Any], scores: Dict[str, Dict[str, Any]]) 
            f"BEIR {config['dataset']}: {config['documents']:,} documents ({ix['passages']:,} passages), "
            f"{config['questions']} {config.get('split', 'test')} questions with {config['relevant_pairs']} relevant documents. Commit `{config['commit']}`"
            + (" with uncommitted changes" if config["uncommitted_changes"] else "") + ".", "",
-           f"Embeddings `{config['embedding_model']}`, reranker `{config['reranker']}`. OmniDoc's search takes "
+           f"Embeddings `{config['embedding_model']}`, reranker `{config['reranker']}`"
+           + (f", vector ranking weighted {config['dense_weight']:g}x against keywords" if config.get("dense_weight", 1) != 1 else "")
+           + ". OmniDoc's search takes "
            f"{s['candidates_per_query']} hybrid candidates per query, reranks up to {s['reranked_pool']} and hands the "
            f"top {s['top_k']} passages to the writer. Exact metrics against the benchmark's judgements; no model grades anything.", "",
            "| Mode | nDCG@10 | MRR@10 | Recall@10 | Hit@10 | Recall@100 |", "|---|---|---|---|---|---|"]
