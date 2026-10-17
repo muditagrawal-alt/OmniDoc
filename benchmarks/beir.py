@@ -56,7 +56,7 @@ BEIR_URL = "https://public.ukp.informatik.tu-darmstadt.de/thakur/BEIR/datasets/{
 DATASETS = ROOT / "benchmarks" / "datasets" / "beir"   # git-ignored; read from the zip, never extracted
 WORK = ROOT / "benchmarks" / "work"                    # indexes (git-ignored)
 RESULTS = ROOT / "benchmarks" / "results" / "retrieval"
-EMBED_MODEL = "nomic-embed-text"
+EMBED_MODEL = "nomic-embed-text"  # --embed changes it (e.g. nvidia:nvidia/nemotron-3-embed-1b)
 SPLITS = ("test", "train")
 MODES = ("bm25", "dense", "hybrid", "omnidoc", "rerank-100")
 SHALLOW = ("omnidoc", "rerank-100")  # rank only their pool: Recall@100 is not theirs to report
@@ -107,6 +107,13 @@ def fingerprint() -> str:
     for rel in ("parsing/docling_parser.py", "retrieval/embeddings.py", "retrieval/lancedb_store.py", "core/pipeline.py"):
         h.update((ROOT / rel).read_bytes())
     return h.hexdigest()[:12]
+
+
+def work_dir(name: str) -> Path:
+    """The index folder: one per dataset and embedding model, so trying a model keeps the others' indexes."""
+    if EMBED_MODEL == "nomic-embed-text":
+        return WORK / f"beir-{name}"
+    return WORK / f"beir-{name}-" + "".join(ch if ch.isalnum() else "-" for ch in EMBED_MODEL)
 
 
 def doc_key(corpus_id: str) -> str:
@@ -172,6 +179,7 @@ def search_all(queries: Dict[str, str], ids: List[str], keys: Dict[str, str], wo
     out: Dict[str, Dict[str, List[str]]] = {}
     seconds: List[float] = []
     extra_queries = 0
+    embed.embed_queries([queries[q] for q in ids])  # in batches up front (one call per question is slow on a hosted API)
     for i, qid in enumerate(ids, 1):
         q = queries[qid]
         row: Dict[str, List[str]] = {}
@@ -236,7 +244,7 @@ def metrics(rankings: Dict[str, Dict[str, List[str]]], qrels: Dict[str, Dict[str
 def run(args: argparse.Namespace) -> None:
     name = args.dataset
     corpus, queries, qrels = load(name, args.split)
-    work = WORK / f"beir-{name}"
+    work = work_dir(name)
     work.mkdir(parents=True, exist_ok=True)
     index = build_index(name, corpus, work)
     ids = [q for q in qrels if q in queries]
@@ -347,6 +355,7 @@ def report(args: argparse.Namespace) -> None:
 
 
 def main() -> None:
+    global EMBED_MODEL
     parser = argparse.ArgumentParser(description=__doc__.split("\n\n")[0])
     sub = parser.add_subparsers(dest="command", required=True)
     for cmd in ("fetch", "run", "report"):
@@ -358,9 +367,11 @@ def main() -> None:
                            help="test: the measured questions; train: other questions, for trying changes out")
             p.add_argument("--notes", default="")
             p.add_argument("--limit", type=int, default=0, help="search only the first N questions (not stored)")
+            p.add_argument("--embed", default=EMBED_MODEL, help="embedding model spec (default %(default)s)")
             p.add_argument("--modes", default=",".join(MODES),
                            help="comma-separated modes to score (rerank-100 takes most of the time)")
     args = parser.parse_args()
+    EMBED_MODEL = getattr(args, "embed", EMBED_MODEL) or EMBED_MODEL
     # Anything the imported app code writes stays in the benchmark's own folder.
     os.environ.setdefault("OMNIDOC_DATA_DIR", str(WORK / f"beir-{args.dataset}" / "data"))
     {"fetch": fetch, "run": run, "report": report}[args.command](args)
