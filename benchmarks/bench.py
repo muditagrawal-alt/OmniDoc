@@ -301,6 +301,7 @@ class Server:
         self.port = port
         self.url = f"http://127.0.0.1:{port}"
         self.proc: Optional[subprocess.Popen] = None
+        self.extra_env: Dict[str, str] = {}
 
     def env(self) -> Dict[str, str]:
         env = {k: v for k, v in os.environ.items() if not k.startswith("OMNIDOC_")}
@@ -324,6 +325,7 @@ class Server:
         provider, _, name = self.settings["model"].partition(":")
         if name and provider != "ollama":
             env[f"{provider.upper()}_MODEL"] = name
+        env.update(self.extra_env)  # settings a run tries out (--server-env), recorded in its config
         return env
 
     def start(self) -> None:
@@ -559,6 +561,7 @@ def run(args: argparse.Namespace) -> None:
             "scope": "each question is asked about its own document (document_ids = [doc]); web search off",
             "pacing": f"{args.pause}s between questions; answers that failed are asked again up to {ATTEMPTS} times",
             **({"kept_index": "the index was kept although the indexing files changed (--keep-index)"} if args.keep_index else {}),
+            **({"server_env": args.server_env} if args.server_env else {}),
             "notes": args.notes or "",
         }, indent=1) + "\n")
     if args.batch:
@@ -580,6 +583,7 @@ def run(args: argparse.Namespace) -> None:
             log(f"{bench}: batch {k}/{n}: {len(docs)} documents, {len(manifest['questions'])} questions")
         questions = load_questions(bench)
         server = Server(bench, settings, args.port)
+        server.extra_env = dict(kv.split("=", 1) for kv in args.server_env.split(",") if "=" in kv)
         state = ensure_index(bench, manifest, settings, args.reingest, args.wait_index, args.keep_index)
         try:
             server.start()  # inside the try: a server that fails to start is stopped too
@@ -956,6 +960,7 @@ def main() -> None:
     r.add_argument("--keep-index", action="store_true",
                    help="reuse the existing index although indexing files changed (only for changes that do not alter what is stored)")
     r.add_argument("--pause", type=float, default=PAUSE_S, help=f"seconds between questions (default {PAUSE_S})")
+    r.add_argument("--server-env", default="", help="KEY=VALUE,... settings for the server (e.g. OMNIDOC_DENSE_WEIGHT=3)")
     r.add_argument("--batch", default="", help="K/N: only the K-th of N slices of the documents (continue a run with --resume)")
     ix = sub.add_parser("index", help="ingest the documents only (a later run reuses the index)")
     ix.add_argument("--bench", default="financebench,mmlongbench")
