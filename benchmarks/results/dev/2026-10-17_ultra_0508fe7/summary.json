@@ -1,0 +1,170 @@
+{
+ "run": "2026-10-17_ultra_0508fe7",
+ "label": "ultra",
+ "commit": "0508fe7",
+ "uncommitted_changes": false,
+ "settings": {
+  "provider": "nvidia",
+  "model": "nvidia:nvidia/nemotron-3-ultra-550b-a55b",
+  "vision": "gemini:gemini-3.5-flash-lite",
+  "embed": "nomic-embed-text",
+  "judge": "nvidia:openai/gpt-oss-20b"
+ },
+ "notes": "Revision D code with NVIDIA Nemotron 3 Ultra (550B, free) as the answer model instead of Nemotron 3 Super (internal fast steps stay on Super); everything else as in the revision-d dev run.",
+ "caveat": "",
+ "graded": 49,
+ "benchmarks": {
+  "financebench": {
+   "n": 18,
+   "accuracy": 0.8333333333333334,
+   "accuracy_ci95": [
+    0.6077750036164076,
+    0.9416352959953425
+   ],
+   "wrong": 0.1111111111111111,
+   "declined": 0.05555555555555555,
+   "answerable_accuracy": 0.8333333333333334,
+   "unanswerable_n": 0,
+   "unanswerable_accuracy": null,
+   "f1": 0.8571428571428571,
+   "gold_page_retrieved": 0.8333333333333334,
+   "gold_page_cited": 0.7222222222222222,
+   "first_word_p50_s": 16.06,
+   "first_word_p90_s": 29.92,
+   "answer_p50_s": 21.62,
+   "answer_p90_s": 43.52,
+   "model_calls_mean": 4.111111111111111,
+   "tokens_mean": 19175.055555555555,
+   "errors": 0,
+   "retried": 0,
+   "rewritten": 3,
+   "rewritten_correct": 1,
+   "verified_mean": 0.9852941176470589,
+   "by_type": {
+    "domain-relevant": {
+     "n": 6,
+     "accuracy": 0.6666666666666666
+    },
+    "metrics-generated": {
+     "n": 6,
+     "accuracy": 1.0
+    },
+    "novel-generated": {
+     "n": 6,
+     "accuracy": 0.8333333333333334
+    }
+   },
+   "by_reasoning": {
+    "-": {
+     "n": 6,
+     "accuracy": 0.8333333333333334
+    },
+    "Information extraction": {
+     "n": 4,
+     "accuracy": 0.75
+    },
+    "Logical reasoning (based on numerical reasoning) OR Numerical reasoning OR Logical reasoning": {
+     "n": 1,
+     "accuracy": 1.0
+    },
+    "Numerical reasoning": {
+     "n": 6,
+     "accuracy": 1.0
+    },
+    "Numerical reasoning OR information extraction": {
+     "n": 1,
+     "accuracy": 0.0
+    }
+   },
+   "ingestion": {
+    "documents": 10,
+    "chunks": 3778,
+    "upload_s": 345.6,
+    "background_s": 1577.6,
+    "index_commit": "fd4356a"
+   }
+  },
+  "mmlongbench": {
+   "n": 31,
+   "accuracy": 0.8709677419354839,
+   "accuracy_ci95": [
+    0.7114724304561464,
+    0.9486579883535524
+   ],
+   "wrong": 0.12903225806451613,
+   "declined": 0.0,
+   "answerable_accuracy": 0.8846153846153846,
+   "unanswerable_n": 5,
+   "unanswerable_accuracy": 0.8,
+   "f1": 0.8679245283018868,
+   "gold_page_retrieved": 1.0,
+   "gold_page_cited": 0.8846153846153846,
+   "first_word_p50_s": 17.6,
+   "first_word_p90_s": 30.17,
+   "answer_p50_s": 22.55,
+   "answer_p90_s": 35.35,
+   "model_calls_mean": 3.5161290322580645,
+   "tokens_mean": 33508.8064516129,
+   "errors": 0,
+   "retried": 0,
+   "rewritten": 2,
+   "rewritten_correct": 2,
+   "verified_mean": 0.9712758620689655,
+   "by_evidence": {
+    "(unspecified)": {
+     "n": 1,
+     "accuracy": 1.0
+    },
+    "Figure": {
+     "n": 11,
+     "accuracy": 0.8181818181818182
+    },
+    "Multi-page": {
+     "n": 12,
+     "accuracy": 0.8333333333333334
+    },
+    "Not answerable": {
+     "n": 5,
+     "accuracy": 0.8
+    },
+    "Pure-text": {
+     "n": 4,
+     "accuracy": 1.0
+    },
+    "Single-page": {
+     "n": 14,
+     "accuracy": 0.9285714285714286
+    },
+    "Table": {
+     "n": 13,
+     "accuracy": 0.9230769230769231
+    }
+   },
+   "by_doc_type": {
+    "Academic paper": {
+     "n": 8,
+     "accuracy": 0.875
+    },
+    "Financial report": {
+     "n": 10,
+     "accuracy": 1.0
+    },
+    "Guidebook": {
+     "n": 6,
+     "accuracy": 0.6666666666666666
+    },
+    "Tutorial/Workshop": {
+     "n": 7,
+     "accuracy": 0.8571428571428571
+    }
+   },
+   "ingestion": {
+    "documents": 4,
+    "chunks": 580,
+    "upload_s": 90.0,
+    "background_s": 901.3,
+    "index_commit": "408ac1a"
+   }
+  }
+ }
+}
