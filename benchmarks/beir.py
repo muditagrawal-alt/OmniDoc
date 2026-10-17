@@ -113,7 +113,7 @@ def work_dir(name: str) -> Path:
     """The index folder: one per dataset and embedding model, so trying a model keeps the others' indexes."""
     if EMBED_MODEL == "nomic-embed-text":
         return WORK / f"beir-{name}"
-    return WORK / f"beir-{name}-" + "".join(ch if ch.isalnum() else "-" for ch in EMBED_MODEL)
+    return WORK / (f"beir-{name}-" + "".join(ch if ch.isalnum() else "-" for ch in EMBED_MODEL))
 
 
 def doc_key(corpus_id: str) -> str:
