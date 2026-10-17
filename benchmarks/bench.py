@@ -174,6 +174,12 @@ def sample_financebench() -> Dict[str, Any]:
     by_doc: Dict[str, List[Dict[str, Any]]] = {}
     for q in questions:
         by_doc.setdefault(q["doc_name"], []).append(q)
+    if SPLIT == "full":
+        return {"benchmark": "financebench", "split": SPLIT, "source": FB_QUESTIONS,
+                "selection": "every question of the open-source set",
+                "documents": sorted(by_doc),
+                "questions": [{"id": q["financebench_id"], "doc": q["doc_name"], "type": q["question_type"]}
+                              for q in sorted(questions, key=lambda q: q["financebench_id"])]}
     if SPLIT == "test":
         docs = sorted(by_doc)
         random.Random(SEED).shuffle(docs)
@@ -207,7 +213,10 @@ def sample_mmlongbench() -> Dict[str, Any]:
     lo, hi = MM_QUESTIONS_PER_DOC
     counts = df.groupby("doc_id").size()
     chosen_docs = []
-    if SPLIT == "test":
+    if SPLIT == "full":
+        chosen_docs = sorted(df.doc_id.unique())
+        selection = "every question"
+    elif SPLIT == "test":
         rng = random.Random(SEED)
         for doc_type in sorted(df.doc_type.unique()):
             docs = sorted(d for d in df[df.doc_type == doc_type].doc_id.unique() if lo <= counts[d] <= hi)
@@ -222,7 +231,8 @@ def sample_mmlongbench() -> Dict[str, Any]:
                      "all its questions; no document of the test split")
     rows = df[df.doc_id.isin(chosen_docs)].reset_index()
     return {
-        "benchmark": "mmlongbench", "split": SPLIT, "seed": SEED if SPLIT == "test" else DEV_SEED, "source": MM_QUESTIONS,
+        "benchmark": "mmlongbench", "split": SPLIT, "seed": SEED if SPLIT == "test" else DEV_SEED if SPLIT == "dev" else None,
+        "source": MM_QUESTIONS,
         "selection": selection,
         "documents": sorted(chosen_docs),
         "questions": [{"id": f"mm_{int(r['index']):04d}", "doc": r["doc_id"], "type": r["doc_type"]}
@@ -263,6 +273,8 @@ def pdf_path(bench: str, doc: str) -> Path:
 def fetch(args: argparse.Namespace) -> None:
     MANIFESTS.mkdir(parents=True, exist_ok=True)
     for bench, sampler, url in (("financebench", sample_financebench, FB_PDF), ("mmlongbench", sample_mmlongbench, MM_PDF)):
+        if bench not in args.bench.split(","):
+            continue
         path = manifest_path(bench)
         if path.exists() and not args.resample:
             manifest = json.loads(path.read_text())
@@ -367,6 +379,11 @@ def ensure_index(bench: str, manifest: Dict[str, Any], settings: Dict[str, str],
     if keep and not reingest and state_path.exists():
         # --keep-index: the indexing files changed in a way known not to alter what is stored.
         state = json.loads(state_path.read_text())
+        missing = sorted(set(manifest["documents"]) - set(state.get("docs", {})))
+        if missing:
+            log(f"{bench}: keeping the index built by {state.get('commit')} and adding {len(missing)} documents")
+            state.update(pending=True, kept_from=state.get("fingerprint"), fingerprint=fingerprint)
+            return state
         if set(state.get("docs", {})) >= set(manifest["documents"]):
             if state.get("fingerprint") != fingerprint:
                 log(f"{bench}: keeping the index built by {state.get('commit')} ({state.get('fingerprint')}) "
@@ -421,8 +438,12 @@ def ingest(server: Server, bench: str, manifest: Dict[str, Any], state: Dict[str
     import httpx
     if not state.get("pending"):
         return state
-    docs: Dict[str, Any] = {}
-    for doc in manifest["documents"]:
+    # A kept index already holds some documents: only the others are uploaded.
+    docs: Dict[str, Any] = dict(state.get("docs") or {})
+    new = [d for d in manifest["documents"] if d not in docs]
+    if len(new) < len(manifest["documents"]):
+        log(f"{bench}: {len(docs)} documents already indexed; uploading {len(new)}")
+    for doc in new:
         path = pdf_path(bench, doc)
         started = time.perf_counter()
         with open(path, "rb") as f:
@@ -433,9 +454,11 @@ def ingest(server: Server, bench: str, manifest: Dict[str, Any], state: Dict[str
         docs[doc] = {"doc_id": info["doc_id"], "upload_s": round(time.perf_counter() - started, 1),
                      "chunks": info.get("chunk_count"), "tables": info.get("table_count"), "ocr_pages": info.get("ocr_pages")}
         log(f"{bench}: uploaded {doc} in {docs[doc]['upload_s']}s ({docs[doc]['chunks']} chunks)")
+        state["docs"] = docs  # saved as it goes: an interrupted ingestion resumes with the next document
+        (work_dir(bench) / "index.json").write_text(json.dumps(state, indent=1) + "\n")
     # Summaries, contextual re-indexing, field extraction and the graph run in the background.
     started = time.perf_counter()
-    ids = {v["doc_id"]: k for k, v in docs.items()}
+    ids = {docs[d]["doc_id"]: d for d in new}
     finished: Dict[str, float] = {}
     while len(finished) < len(ids):
         time.sleep(15)
@@ -447,8 +470,8 @@ def ingest(server: Server, bench: str, manifest: Dict[str, Any], state: Dict[str
                 docs[ids[d["id"]]]["background_status"] = status or "none"
                 docs[ids[d["id"]]]["has_summary"] = d.get("has_summary")
                 docs[ids[d["id"]]]["pages"] = d.get("pages")
-        if time.perf_counter() - started > 4 * 3600:
-            raise SystemExit("Background processing did not finish within 4 hours")
+        if time.perf_counter() - started > 8 * 3600:
+            raise SystemExit("Background processing did not finish within 8 hours")
     log(f"{bench}: background processing finished in {time.perf_counter() - started:.0f}s")
     state.update(docs=docs, pending=False, background_s=round(time.perf_counter() - started, 1),
                  built=dt.datetime.now().isoformat(timespec="seconds"))
@@ -896,7 +919,8 @@ def main() -> None:
     sub = parser.add_subparsers(dest="command", required=True)
     f = sub.add_parser("fetch", help="download the questions and sampled documents, write the manifests")
     f.add_argument("--resample", action="store_true", help="draw new samples (changes the question sets!)")
-    f.add_argument("--split", choices=("test", "dev"), default="test", help="test (default) or the development split")
+    f.add_argument("--bench", default="financebench,mmlongbench")
+    f.add_argument("--split", choices=("test", "dev", "full"), default="test", help="test (default) or the development split")
     r = sub.add_parser("run", help="ingest, ask, grade and report")
     r.add_argument("--label", required=True, help="name of the run, e.g. baseline or after-table-fix")
     r.add_argument("--bench", default="financebench,mmlongbench")
@@ -913,7 +937,7 @@ def main() -> None:
     ix.add_argument("--bench", default="financebench,mmlongbench")
     ix.add_argument("--reingest", action="store_true")
     for cmd in (r, ix):
-        cmd.add_argument("--split", choices=("test", "dev"), default="test",
+        cmd.add_argument("--split", choices=("test", "dev", "full"), default="test",
                          help="test (default): the measured question sets; dev: other documents for trying changes")
         cmd.add_argument("--port", type=int, default=PORT)
         cmd.add_argument("--work", default="", help="data folder for the indexes (default benchmarks/work)")
