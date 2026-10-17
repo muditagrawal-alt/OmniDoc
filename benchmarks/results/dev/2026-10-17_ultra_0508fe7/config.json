@@ -1,0 +1,23 @@
+{
+ "label": "ultra",
+ "split": "dev",
+ "started": "2026-10-17T23:43:59",
+ "commit": "0508fe7",
+ "uncommitted_changes": false,
+ "benchmarks": [
+  "financebench",
+  "mmlongbench"
+ ],
+ "settings": {
+  "provider": "nvidia",
+  "model": "nvidia:nvidia/nemotron-3-ultra-550b-a55b",
+  "vision": "gemini:gemini-3.5-flash-lite",
+  "embed": "nomic-embed-text",
+  "judge": "nvidia:openai/gpt-oss-20b"
+ },
+ "work": "/Users/muditagrawal/Projects/zee work/OmniDoc/benchmarks/work",
+ "scope": "each question is asked about its own document (document_ids = [doc]); web search off",
+ "pacing": "20s between questions; answers that failed are asked again up to 5 times",
+ "kept_index": "the index was kept although the indexing files changed (--keep-index)",
+ "notes": "Revision D code with NVIDIA Nemotron 3 Ultra (550B, free) as the answer model instead of Nemotron 3 Super (internal fast steps stay on Super); everything else as in the revision-d dev run."
+}
