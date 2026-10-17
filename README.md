@@ -103,7 +103,8 @@ Model and search keys are listed in [`.env.example`](.env.example). Other settin
 | `OMNIDOC_MODEL` | first configured provider, else `qwen2.5:7b-instruct` | Default model spec (`gemini:gemini-3.5-flash-lite`, `groq:openai/gpt-oss-120b`, or an Ollama name); switchable in the app |
 | `OMNIDOC_LLM_PROVIDERS` | `gemini,groq,nvidia,mistral,cerebras,openrouter,github,custom` | Fallback order of hosted providers |
 | `OMNIDOC_LOCAL_FALLBACK` / `OMNIDOC_CLOUD_FALLBACK` | `1` / `0` | Fall back from hosted models to Ollama / from Ollama to hosted models |
-| `OMNIDOC_EMBED_MODEL` | Ollama `nomic-embed-text`, else a hosted embedding model, else `st:intfloat/multilingual-e5-small` on the CPU | Changing it re-indexes the library in the background |
+| `OMNIDOC_EMBED_MODEL` | Ollama `nomic-embed-text`, else a hosted embedding model, else `st:intfloat/multilingual-e5-small` on the CPU | Changing it re-indexes the library in the background. `nvidia:nvidia/nemotron-3-embed-1b` (free with an NVIDIA key) retrieves better (BEIR SciFact) |
+| `OMNIDOC_DENSE_WEIGHT` | `1` | Weight of the vector ranking against keyword search in hybrid retrieval; about `3` suits a stronger embedder such as `nemotron-3-embed-1b` |
 | `OMNIDOC_UNDERSTANDING` | `auto` | `auto`: model call only when it helps; `llm`: always; `rules`: never |
 | `OMNIDOC_MAX_LLM_CALLS` / `OMNIDOC_MAX_SECONDS` | `8` / `180` | Per-question budget for optional steps |
 | `OMNIDOC_WEB_SEARCH` | `auto` | `auto`, `on` or `off` (the interface can override per question) |
