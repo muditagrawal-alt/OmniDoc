@@ -320,6 +320,10 @@ class Server:
             "OMNIDOC_VISION_MODEL": self.settings["vision"],
             "OMNIDOC_WEB_SEARCH": "off",
         })
+        # The answer model may be one the provider does not list by default (e.g. a larger model being tried).
+        provider, _, name = self.settings["model"].partition(":")
+        if name and provider != "ollama":
+            env[f"{provider.upper()}_MODEL"] = name
         return env
 
     def start(self) -> None:
@@ -577,8 +581,8 @@ def run(args: argparse.Namespace) -> None:
         questions = load_questions(bench)
         server = Server(bench, settings, args.port)
         state = ensure_index(bench, manifest, settings, args.reingest, args.wait_index, args.keep_index)
-        server.start()
         try:
+            server.start()  # inside the try: a server that fails to start is stopped too
             state = ingest(server, bench, manifest, state)
             wait_reindex(server, bench)
             todo = [q for q in manifest["questions"] if q["id"] not in done][: args.limit or None]
