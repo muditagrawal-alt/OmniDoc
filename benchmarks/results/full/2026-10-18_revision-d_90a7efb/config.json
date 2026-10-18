@@ -1,0 +1,30 @@
+{
+ "label": "revision-d",
+ "split": "full",
+ "started": "2026-10-18T23:21:12",
+ "commit": "90a7efb",
+ "uncommitted_changes": false,
+ "benchmarks": [
+  "mmlongbench"
+ ],
+ "settings": {
+  "provider": "nvidia",
+  "model": "nvidia:nvidia/nemotron-3-super-120b-a12b",
+  "vision": "gemini:gemini-3.5-flash-lite",
+  "embed": "nomic-embed-text",
+  "judge": "groq:openai/gpt-oss-120b"
+ },
+ "work": "/Users/muditagrawal/Projects/zee work/OmniDoc/benchmarks/work/revC",
+ "scope": "each question is asked about its own document (document_ids = [doc]); web search off",
+ "pacing": "20s between questions; answers that failed are asked again up to 5 times",
+ "kept_index": "the index was kept although the indexing files changed (--keep-index)",
+ "notes": "Revision D on the full MMLongBench-Doc, batch 1 of 10 (every 10th of the 135 documents with its questions; later batches add to this run with --resume). The 7 documents of the test split come from the test index (built at revision C, re-embedded at revision D); the others are ingested by the batches. Code: revision D plus changes that leave MMLongBench answers as they were (query/passage modes for NVIDIA and Jina embeddings, retries of hosted embedding batches, an optional vector weight left at 1, a FinanceBench note on registered securities).",
+ "batches": [
+  {
+   "batch": "1/10",
+   "commit": "90a7efb",
+   "uncommitted_changes": false,
+   "started": "2026-10-18T23:21:12"
+  }
+ ]
+}
