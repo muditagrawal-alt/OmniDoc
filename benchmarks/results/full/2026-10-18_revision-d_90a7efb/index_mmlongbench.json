@@ -1,0 +1,189 @@
+{
+ "fingerprint": "f47f63ca35ee",
+ "commit": "991bbaa",
+ "docs": {
+  "2210.02442v1.pdf": {
+   "doc_id": "doc_d21971c49007",
+   "upload_s": 8.6,
+   "chunks": 52,
+   "tables": 4,
+   "ocr_pages": 0,
+   "background_status": "done",
+   "has_summary": true,
+   "pages": 24
+  },
+  "52b3137455e7ca4df65021a200aef724.pdf": {
+   "doc_id": "doc_b59a69ee9d61",
+   "upload_s": 102.2,
+   "chunks": 134,
+   "tables": 0,
+   "ocr_pages": 108,
+   "background_status": "done",
+   "has_summary": true,
+   "pages": 112
+  },
+  "PWC_opportunity_of_lifetime.pdf": {
+   "doc_id": "doc_ba92752271ea",
+   "upload_s": 4.7,
+   "chunks": 36,
+   "tables": 1,
+   "ocr_pages": 2,
+   "background_status": "done",
+   "has_summary": true,
+   "pages": 18
+  },
+  "e639029d16094ea71d964e2fb953952b.pdf": {
+   "doc_id": "doc_773e1fc44166",
+   "upload_s": 4.1,
+   "chunks": 58,
+   "tables": 0,
+   "ocr_pages": 0,
+   "background_status": "done",
+   "has_summary": true,
+   "pages": 20
+  },
+  "fdac8d1e9ef56519371df7e6532df27d.pdf": {
+   "doc_id": "doc_df65695cae4e",
+   "upload_s": 4.9,
+   "chunks": 53,
+   "tables": 1,
+   "ocr_pages": 1,
+   "background_status": "done",
+   "has_summary": true,
+   "pages": 20
+  },
+  "q1-2023-bilibili-inc-investor-presentation.pdf": {
+   "doc_id": "doc_6371f5760d51",
+   "upload_s": 14.9,
+   "chunks": 34,
+   "tables": 0,
+   "ocr_pages": 16,
+   "background_status": "done",
+   "has_summary": true,
+   "pages": 27
+  },
+  "t480_ug_en.pdf": {
+   "doc_id": "doc_ee0393dadb95",
+   "upload_s": 19.7,
+   "chunks": 327,
+   "tables": 9,
+   "ocr_pages": 2,
+   "background_status": "done",
+   "has_summary": true,
+   "pages": 170
+  },
+  "05-03-18-political-release.pdf": {
+   "doc_id": "doc_a1d9fc716060",
+   "upload_s": 6.8,
+   "chunks": 25,
+   "tables": 6,
+   "ocr_pages": 0,
+   "background_status": "done",
+   "has_summary": true,
+   "pages": 17
+  },
+  "2310.09158v1.pdf": {
+   "doc_id": "doc_45e8a907fb0c",
+   "upload_s": 6.6,
+   "chunks": 89,
+   "tables": 7,
+   "ocr_pages": 0,
+   "background_status": "done",
+   "has_summary": true,
+   "pages": 23
+  },
+  "BESTBUY_2023_10K.pdf": {
+   "doc_id": "doc_7ca465d31a08",
+   "upload_s": 28.9,
+   "chunks": 255,
+   "tables": 73,
+   "ocr_pages": 0,
+   "background_status": "done",
+   "has_summary": true,
+   "pages": 75
+  },
+  "Macbook_air.pdf": {
+   "doc_id": "doc_d99de99131b4",
+   "upload_s": 4.8,
+   "chunks": 113,
+   "tables": 2,
+   "ocr_pages": 0,
+   "background_status": "done",
+   "has_summary": true,
+   "pages": 76
+  },
+  "PH_2016.06.08_Economy-Final.pdf": {
+   "doc_id": "doc_10e57152f44d",
+   "upload_s": 4.1,
+   "chunks": 35,
+   "tables": 3,
+   "ocr_pages": 0,
+   "background_status": "done",
+   "has_summary": true,
+   "pages": 23
+  },
+  "Pew-Research-Center_Hispanic-Identity-Report_12.20.2017.pdf": {
+   "doc_id": "doc_29502cf5dbee",
+   "upload_s": 5.1,
+   "chunks": 53,
+   "tables": 0,
+   "ocr_pages": 0,
+   "background_status": "done",
+   "has_summary": true,
+   "pages": 32
+  },
+  "afe620b9beac86c1027b96d31d396407.pdf": {
+   "doc_id": "doc_a7b0ae685a74",
+   "upload_s": 4.9,
+   "chunks": 84,
+   "tables": 4,
+   "ocr_pages": 0,
+   "background_status": "done",
+   "has_summary": true,
+   "pages": 20
+  },
+  "camry_ebrochure.pdf": {
+   "doc_id": "doc_d3f8049bc0c4",
+   "upload_s": 15.0,
+   "chunks": 115,
+   "tables": 0,
+   "ocr_pages": 1,
+   "background_status": "done",
+   "has_summary": true,
+   "pages": 26
+  },
+  "e79deb02a0c0e87511080836c5d4347b.pdf": {
+   "doc_id": "doc_ca33492fafca",
+   "upload_s": 3.1,
+   "chunks": 31,
+   "tables": 4,
+   "ocr_pages": 0,
+   "background_status": "done",
+   "has_summary": true,
+   "pages": 17
+  },
+  "fd76bbefe469561966e5387aa709c482.pdf": {
+   "doc_id": "doc_3fc1c32fe534",
+   "upload_s": 6.0,
+   "chunks": 50,
+   "tables": 0,
+   "ocr_pages": 1,
+   "background_status": "done",
+   "has_summary": true,
+   "pages": 17
+  },
+  "mi_phone.pdf": {
+   "doc_id": "doc_16ee1cfbd58f",
+   "upload_s": 9.4,
+   "chunks": 31,
+   "tables": 0,
+   "ocr_pages": 3,
+   "background_status": "done",
+   "has_summary": true,
+   "pages": 30
+  }
+ },
+ "background_s": 3621.6,
+ "built": "2026-10-19T00:23:12",
+ "kept_from": "df4a8682af68"
+}
