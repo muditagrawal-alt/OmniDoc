@@ -1,0 +1,120 @@
+{
+ "run": "2026-10-18_revision-d_90a7efb",
+ "label": "revision-d",
+ "commit": "90a7efb",
+ "uncommitted_changes": false,
+ "settings": {
+  "provider": "nvidia",
+  "model": "nvidia:nvidia/nemotron-3-super-120b-a12b",
+  "vision": "gemini:gemini-3.5-flash-lite",
+  "embed": "nomic-embed-text",
+  "judge": "groq:openai/gpt-oss-120b"
+ },
+ "notes": "Revision D on the full MMLongBench-Doc, batch 1 of 10 (every 10th of the 135 documents with its questions; later batches add to this run with --resume). The 7 documents of the test split come from the test index (built at revision C, re-embedded at revision D); the others are ingested by the batches. Code: revision D plus changes that leave MMLongBench answers as they were (query/passage modes for NVIDIA and Jina embeddings, retries of hosted embedding batches, an optional vector weight left at 1, a FinanceBench note on registered securities).",
+ "caveat": "",
+ "graded": 136,
+ "benchmarks": {
+  "mmlongbench": {
+   "n": 136,
+   "accuracy": 0.5588235294117647,
+   "accuracy_ci95": [
+    0.4748952148194363,
+    0.6395199520550845
+   ],
+   "wrong": 0.2867647058823529,
+   "declined": 0.15441176470588236,
+   "answerable_accuracy": 0.5288461538461539,
+   "unanswerable_n": 32,
+   "unanswerable_accuracy": 0.65625,
+   "f1": 0.5555555555555556,
+   "gold_page_retrieved": 0.883495145631068,
+   "gold_page_cited": 0.6407766990291263,
+   "first_word_p50_s": 9.39,
+   "first_word_p90_s": 20.16,
+   "answer_p50_s": 12.38,
+   "answer_p90_s": 26.14,
+   "model_calls_mean": 3.5441176470588234,
+   "tokens_mean": 28694.16176470588,
+   "errors": 0,
+   "retried": 0,
+   "rewritten": 11,
+   "rewritten_correct": 5,
+   "verified_mean": 0.9448897637795276,
+   "by_evidence": {
+    "(unspecified)": {
+     "n": 1,
+     "accuracy": 1.0
+    },
+    "Chart": {
+     "n": 24,
+     "accuracy": 0.5
+    },
+    "Figure": {
+     "n": 26,
+     "accuracy": 0.5
+    },
+    "Generalized-text": {
+     "n": 13,
+     "accuracy": 0.6153846153846154
+    },
+    "Multi-page": {
+     "n": 37,
+     "accuracy": 0.3783783783783784
+    },
+    "Not answerable": {
+     "n": 32,
+     "accuracy": 0.65625
+    },
+    "Pure-text": {
+     "n": 25,
+     "accuracy": 0.52
+    },
+    "Single-page": {
+     "n": 67,
+     "accuracy": 0.6119402985074627
+    },
+    "Table": {
+     "n": 33,
+     "accuracy": 0.3939393939393939
+    }
+   },
+   "by_doc_type": {
+    "Academic paper": {
+     "n": 20,
+     "accuracy": 0.5
+    },
+    "Administration/Industry file": {
+     "n": 18,
+     "accuracy": 0.5555555555555556
+    },
+    "Brochure": {
+     "n": 8,
+     "accuracy": 0.875
+    },
+    "Financial report": {
+     "n": 34,
+     "accuracy": 0.5
+    },
+    "Guidebook": {
+     "n": 25,
+     "accuracy": 0.36
+    },
+    "Research report / Introduction": {
+     "n": 25,
+     "accuracy": 0.72
+    },
+    "Tutorial/Workshop": {
+     "n": 6,
+     "accuracy": 0.8333333333333334
+    }
+   },
+   "ingestion": {
+    "documents": 18,
+    "chunks": 1575,
+    "upload_s": 253.8,
+    "background_s": 3621.6,
+    "index_commit": "991bbaa"
+   }
+  }
+ }
+}
