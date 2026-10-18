@@ -1,0 +1,22 @@
+{
+ "label": "revision-d",
+ "split": "full",
+ "started": "2026-10-17T23:01:56",
+ "commit": "f115f41",
+ "uncommitted_changes": false,
+ "benchmarks": [
+  "financebench"
+ ],
+ "settings": {
+  "provider": "nvidia",
+  "model": "nvidia:nvidia/nemotron-3-super-120b-a12b",
+  "vision": "gemini:gemini-3.5-flash-lite",
+  "embed": "nomic-embed-text",
+  "judge": "groq:openai/gpt-oss-120b"
+ },
+ "work": "/Users/muditagrawal/Projects/zee work/OmniDoc/benchmarks/work/revC",
+ "scope": "each question is asked about its own document (document_ids = [doc]); web search off",
+ "pacing": "20s between questions; answers that failed are asked again up to 5 times",
+ "kept_index": "the index was kept although the indexing files changed (--keep-index)",
+ "notes": "Revision D on all 150 open-source FinanceBench questions (84 filings), each asked about its own filing, web search off. The 24 filings of the test split come from the test index (built at revision C, re-embedded at revision D); the other 60 were ingested in this run."
+}
