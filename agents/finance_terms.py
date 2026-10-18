@@ -43,7 +43,8 @@ SYNONYMS = (
     (r"geograph\w*|regions?|countries", "geographic information revenues by geographic area"),
     (r"restructuring", "restructuring charges"),
     (r"guidance|outlook", "outlook guidance expects"),
-    (r"registered|securities exchange|trading symbol", "securities registered pursuant to section 12(b) title of each class "
+    (r"securities exchange|securities (are |were )?registered|trading symbol|section 12\(b\)",
+     "securities registered pursuant to section 12(b) title of each class "
                                                        "trading symbol name of each exchange on which registered"),
 )
 
@@ -91,7 +92,8 @@ NAMES = (
 AVERAGE = re.compile(r"\baverage\b|turnover|\bROA\b|\bROE\b|return on|days (sales|payables?|inventory)|\bD[SPI]O\b|cash conversion", re.I)
 # FinanceBench-style invitation: "If inventory turnover is not a useful metric for a company like this, then state that..."
 NOT_MEANINGFUL = re.compile(r"not (a )?(useful|meaningful|relevant)", re.I)
-REGISTERED = re.compile(r"registered|securities exchange|trading symbol", re.I)
+# Questions about the classes of securities listed on an exchange (not "registered users" or trademarks).
+REGISTERED = re.compile(r"securities exchange|securities (are |were )?registered|trading symbol|section 12\(b\)", re.I)
 
 
 def notes_for(question: str) -> str:
