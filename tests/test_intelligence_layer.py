@@ -794,3 +794,4 @@ def test_finance_notes_read_the_cover_page_list_of_registered_securities():
     assert "Section 12(b)" in notes_for(q) and "there are none" in notes_for(q)
     assert "section 12(b)" in search_terms(q)
     assert "Section 12(b)" not in notes_for("What was the gross margin in FY2022?")
+    assert notes_for("How many registered users does the app have?") == "" and search_terms("How many registered users?") == ""
