@@ -222,6 +222,15 @@ def page_texts(chunks: List[Any]) -> Dict[int, str]:
     return out
 
 
+def numbered_pages(query: str) -> List[str]:
+    """The pages a question names by their number ("page 9", "page nine"), which may be the number printed on
+    the page; not "the cover page" or "the third page", which name a position."""
+    out: List[str] = []
+    for m in _PAGE_LIST.finditer(query or ""):
+        out += [str(n) for n in [_number(m.group(1))] + [_number(t) for t in re.findall(_NUM, m.group(2) or "", re.I)] if n]
+    return [n for n in dict.fromkeys(out) if n in page_references(query)]
+
+
 def _real(ch: Dict[str, Any]) -> bool:
     return isinstance(ch, dict) and bool(ch.get("chunk_id")) and bool(ch.get("text"))
 
@@ -276,14 +285,14 @@ class DocumentIntelligenceAgent:
                 out.append((kind, num))
         return out[:6]
 
-    def _reference_hits(self, kind: str, num: str, chunks: List[Any]) -> List[Any]:
+    def _reference_hits(self, kind: str, num: str, chunks: List[Any], numbered: bool = False) -> List[Any]:
         if kind == "page":
             last = max((c.page_number for c in chunks), default=0)
             page = last if num == "last" else int(num) if num.isdigit() else 0
             whole = page_passage(chunks, chunks[0].doc_id, page) if chunks and page else None
             out = [whole] if whole else []
             # "page 9" may mean the page numbered 9 in print, three pages on when a cover and contents come first.
-            offset = printed_page_offset(page_texts(chunks)) if chunks and num.isdigit() else 0
+            offset = printed_page_offset(page_texts(chunks)) if chunks and numbered else 0
             printed = page_passage(chunks, chunks[0].doc_id, page + offset) if offset and page + offset <= last else None
             if printed:
                 printed.section_title = f"printed page {page}"
@@ -305,11 +314,13 @@ class DocumentIntelligenceAgent:
         ends = bool(t) and not re.search(r"[.!?:)\]\"”’]\s*(\[\d+\])?$", t)
         return starts, ends
 
-    def _reference_passages(self, refs: List[Tuple[str, str]], docs: List[str], cache: Dict[str, List[Any]]) -> List[Any]:
+    def _reference_passages(self, refs: List[Tuple[str, str]], docs: List[str], cache: Dict[str, List[Any]],
+                            numbered: Optional[List[str]] = None) -> List[Any]:
         hits: List[Any] = []
         for kind, num in refs:
             for doc_id in docs:
-                hits.extend(self._reference_hits(kind, num, self._chunks(doc_id, cache)))
+                hits.extend(self._reference_hits(kind, num, self._chunks(doc_id, cache),
+                                                 numbered=kind == "page" and num in (numbered or [])))
         return hits
 
     @staticmethod
@@ -452,7 +463,7 @@ class DocumentIntelligenceAgent:
         docs = (scope or list(dict.fromkeys(c["doc_id"] for c in retrieved)))[:MAX_DOCS]
         top_score = float(retrieved[0].get("score") or 1.0) if retrieved else 1.0
         refs = self.references(state.get("user_query", ""))
-        for hit in self._reference_passages(refs, docs, cache):
+        for hit in self._reference_passages(refs, docs, cache, numbered_pages(state.get("user_query", ""))):
             add(hit, top_score, "reference")
         referenced = len(added)
         for hit in self._statement_passages(state.get("user_query", ""), docs, cache):
