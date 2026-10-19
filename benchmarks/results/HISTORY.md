@@ -10,7 +10,9 @@ Accuracy is graded by the judge model against the benchmark's reference answers.
 | [2026-10-10_revision-b_c289454](2026-10-10_revision-b_c289454/report.md) | `c289454` | nvidia/nemotron-3-super-120b-a12b | 38.9% | 49.1% | 50.6% | 60.0% | 47.6% | 7.0s | 9.2s | 3.0 |
 | [2026-10-13_revision-c_991bbaa](2026-10-13_revision-c_991bbaa/report.md) | `991bbaa` | nvidia/nemotron-3-super-120b-a12b | 69.4% | 64.2% | 62.8% | 70.0% | 78.6% | 10.1s | 13.3s | 4.0 |
 | [2026-10-14_revision-d_6231730](2026-10-14_revision-d_6231730/report.md) | `6231730` | nvidia/nemotron-3-super-120b-a12b | 77.8% | 71.7% | 69.8% | 80.0% | 78.4% | 11.4s | 15.4s | 3.7 |
+| [2026-10-19_revision-e_8a1ff15](2026-10-19_revision-e_8a1ff15/report.md) | `8a1ff15` | nvidia/nemotron-3-super-120b-a12b | 77.8% | 57.9% | 61.1% | 0.0% | 79.9% | 30.8s | 51.9s | 4.1 |
 
 Caveats:
 
 - **2026-10-10_revision-b_c289454**: Revision B as committed dropped the text of every document it added picture descriptions to (fixed in a3ea0bb and 112af5d): 7 of the 24 FinanceBench filings and all 7 MMLongBench-Doc documents were answered from their picture descriptions alone, so this run measures that bug, not the intended revision.
+- **2026-10-19_revision-e_8a1ff15**: Stopped at the night's time limit (23:00) with mmlongbench: 19 of 53 questions: NVIDIA's free tier rate-limited the answers to about 90 s each after a long batch run. Compare only the questions both runs answered.
