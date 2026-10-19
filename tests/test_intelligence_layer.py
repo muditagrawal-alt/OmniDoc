@@ -938,3 +938,25 @@ def test_a_defined_ratio_is_given_as_a_decimal_unless_a_percentage_is_asked():
     assert "0.0146 is 0.01" in roa
     assert "0.0146" not in notes_for("What is the FY2019 EBITDA % margin? EBITDA is defined as operating income + D&A. Round to "
                                      "one decimal place.")
+
+
+def test_printed_page_numbers_come_from_the_stored_pdf_when_the_passages_lost_them():
+    import fitz
+    from types import SimpleNamespace
+    from agents.document_intelligence_agent import DocumentIntelligenceAgent
+    folder = tempfile.mkdtemp()
+    doc = fitz.open()
+    for p in range(1, 31):
+        page = doc.new_page()
+        page.insert_text((72, 300), "Body text of this page.")
+        if p > 18:
+            page.insert_text((72, 800), f"{p - 18}   T480 User Guide")  # a footer the parser drops
+    doc.save(os.path.join(folder, "doc_t.pdf"))
+    chunks = [RetrievedChunk(chunk_id=f"doc_t_p{p}_c0", doc_id="doc_t", page_number=p, text="Body text of this page.")
+              for p in range(1, 31)]
+    store = SimpleNamespace(get_document_chunks=lambda doc_id: chunks)
+    q = "What is shown on page 4?"
+    without = DocumentIntelligenceAgent(store).run({"user_query": q, "document_ids": ["doc_t"], "chunk_context": []})
+    assert [c["page_number"] for c in without["chunk_context"]] == [4]
+    with_pdf = DocumentIntelligenceAgent(store, files_dir=folder).run({"user_query": q, "document_ids": ["doc_t"], "chunk_context": []})
+    assert [(c["page_number"], c["section_title"]) for c in with_pdf["chunk_context"]][1] == (22, "printed page 4")
