@@ -6,12 +6,16 @@ Layout-aware context, without model calls:
 * follows explicit references in the question ("Table 3", "Figure 2", "section 4.1",
   "page 12", "pages 16 and 18", "page(1)", "page nine", "the last page", "the cover page",
   "clause 7", "slide 5") to the passages that contain them, even when the search did not
-  rank them;
+  rank them; a page named by number is given both at that position and, when the pages are
+  numbered in print from a later page (after a cover and contents), where that number is printed;
 * adds the financial statements a question names ("statement of financial position") or
   needs for the figures it asks about (inventory, COGS, capex...), recognised by their line
   items and amounts: the text search rarely ranks a page of numbers first;
 * gives those statements and the pages a question names as whole pages: a balance sheet
-  split into passages loses the rows the question needs;
+  split into passages loses the rows the question needs (and one split over two pages is
+  given both);
+* adds a survey's table of sample sizes when the question asks how many people gave an
+  answer: the count is the group's percentage of its sample;
 * adds the neighbouring passage when a top passage stops mid-sentence or starts in the
   middle of one, so the writer sees the whole statement;
 * notes the names in the question (proper nouns, acronyms, quoted terms) that appear nowhere
@@ -23,6 +27,7 @@ Added passages carry the relevance of the passage they belong to and are marked
 """
 import re
 import time
+import difflib
 import logging
 from typing import Any, Dict, List, Optional, Tuple
 
@@ -52,26 +57,35 @@ TOP_PASSAGES = 3
 _STATEMENTS = (
     (re.compile(r"balance sheets?|financial (position|condition)|working capital|current (assets|liabilities|ratio)|quick ratio|"
                 r"cash ratio|cash conversion cycle|liquidity|solvency|leverage|debt[- ]to[- ]equity|asset turnover|"
-                r"return on (assets|equity)|\bRO[AE]\b|accrued|accruals?\b|"
+                r"return on (average )?(total |common )?(shareholders'? |stockholders'? )?(assets|equity)|\bRO[AE]\b|accrued|accruals?\b|"
+                r"capital[- ]intensi|\bPPN?E\b|\b(total|net|average( total)?) debt\b|debt (on|in) (the |its )?balance sheet|"
                 r"inventor(y|ies)|receivables?|payables?|total (assets|liabilities|debt)|(shareholders|stockholders)'? equity|"
                 r"PP&E|property,? plant|book value|days (payable|sales|inventory)", re.I),
      re.compile(r"balance sheets?|statements? of (consolidated )?financial (position|condition)", re.I),
      re.compile(r"total current assets|total assets|total current liabilities|total liabilities|(stockholders|shareholders)['’]? equity|"
                 r"retained earnings|accounts payable|inventories|property(, plant)? and equipment|cash and cash equivalents", re.I)),
     (re.compile(r"income statements?|statements? of (consolidated )?(income|operations|earnings)|profit (and|&) loss|\bP&L\b|"
-                r"cash conversion cycle|asset turnover|\bRO[AE]\b|interest coverage|"
+                r"cash conversion cycle|asset turnover|\bRO[AE]\b|interest coverage|capital[- ]intensi|interest (to|paid|cost|burden)|"
                 r"revenues?|net sales|COGS|cost of (goods sold|sales|revenues?)|gross (profit|margin)|operating (income|margin|profit)|"
                 r"net (income|earnings|margin|loss)|EBIT(DA)?|earnings per share|\bEPS\b|interest expense|turnover|return on", re.I),
      re.compile(r"statements? of (consolidated )?(income|operations|earnings|comprehensive income)|income statements?|profit (and|&) loss", re.I),
      re.compile(r"net sales|total (net )?revenues?|cost of (sales|revenues?|goods sold)|gross (profit|margin)|operating (income|profit)|"
                 r"income before income taxes|provision for income taxes|net (income|earnings)|per (common )?share|diluted", re.I)),
     (re.compile(r"cash ?flows?|capex|capital expenditures?|purchases? of property|dividends? paid|share repurchases?|"
-                r"(operating|investing|financing) activities", re.I),
+                r"(operating|investing|financing) activities|capital[- ]intensi", re.I),
      re.compile(r"statements? of (consolidated )?cash flows?|cash flows? statements?", re.I),
      re.compile(r"operating activities|investing activities|financing activities|net cash (provided|used)|"
                 r"depreciation and amortization|capital expenditures|purchases? of property|dividends paid|end of (the )?(year|period)", re.I)),
 )
-MAX_STATEMENT_PAGES = 4   # per question
+MAX_STATEMENT_PAGES = 5   # per question
+# What the first and the last page of each statement hold: a statement split over two pages (assets on
+# one, liabilities and equity on the next) is given whole.
+_STATEMENT_ENDS = (
+    (re.compile(r"total (current )?assets", re.I),
+     re.compile(r"total (current )?liabilities|total (stockholders|shareholders)['’]? equity", re.I)),
+    (re.compile(r"net sales|revenues?", re.I), re.compile(r"net (income|earnings|loss)", re.I)),
+    (re.compile(r"operating activities", re.I), re.compile(r"financing activities|end of (the )?(year|period)", re.I)),
+)
 # The primary statements sit next to each other (balance sheet, income, cash flows): the pages
 # are chosen from the window of this many pages where the three score best together, which
 # passes over the summaries elsewhere that repeat their line items.
@@ -82,6 +96,26 @@ _YEAR = re.compile(r"\b(?:19|20)\d\d\b")
 FULL_PAGE_CHARS = 7000
 STATEMENT_MIN_AMOUNTS = 6  # a statement is full of amounts (44,538 / 3.46); a contents page has page numbers
 _AMOUNT = re.compile(r"\d{1,3}(?:,\d{3})+(?:\.\d+)?|\d+\.\d+")
+# "How many Democrats said ...": a survey's counts are its percentages of the groups' sample sizes, which its
+# methodology section tabulates ("Unweighted sample size ... Plus or minus ...").
+PEOPLE_COUNT = re.compile(r"\bhow many\b(?:(?!\?).){0,60}?\b(people|persons|adults|respondents|voters|americans|participants|"
+                          r"democrats?|republicans?|independents|men|women|parents|users|residents|citizens|latinos?|"
+                          r"hispanics?|immigrants?)\b", re.I)
+_ASKS_SHARE = re.compile(r"percent|%|proportion|share of|ratio", re.I)
+SAMPLE_SIZE = re.compile(r"sample size|number of (respondents|interviews)", re.I)
+_SAMPLING_ERROR = re.compile(r"margin of (sampling )?error|plus or minus", re.I)
+
+
+def asks_people_count(query: str) -> bool:
+    """A question asking how many people gave an answer (a count, not a percentage)."""
+    return bool(PEOPLE_COUNT.search(query or "")) and not _ASKS_SHARE.search(query or "")
+
+
+def survey_sample_table(text: str) -> bool:
+    """Text holding a survey's sample sizes and sampling error."""
+    return bool(SAMPLE_SIZE.search(text or "")) and bool(_SAMPLING_ERROR.search(text or ""))
+
+
 _QUOTED = re.compile(r'["“]([^"”]{2,60})["”]')
 _CAPITALISED = re.compile(r"\b[A-Z][\w&.\-]*[A-Za-z0-9](?:\s+(?:of\s+|the\s+|and\s+|&\s+)?[A-Z][\w&.\-]*[A-Za-z0-9])*")
 # Capitalised words that are not names: question words, sentence starters, financial shorthand.
@@ -89,7 +123,7 @@ _NOT_NAMES = set("""what how which who whom whose when where why is are was were
 has have had the a an in on of for to from by with and or if according based compared give return round please answer
 calculate using use considering assuming directly list name describe explain provide find tell among between as at this
 that these those it its there fy usd us gaap non-gaap ar ap cogs pp&e ebit ebitda eps fcf sg&a r&d d&a roa roe dpo dso
-dio cagr yoy ttm ceo cfo inc corp ltd plc llc co january february march april may june july august september october
+dio cagr yoy ttm ceo cfo ppe ppne capex opex inc corp ltd plc llc co january february march april may june july august september october
 november december monday tuesday wednesday thursday friday saturday sunday i yes no""".split())
 
 
@@ -112,6 +146,30 @@ def question_names(query: str) -> List[str]:
     return list(dict.fromkeys(n for n in names if _squash(n)))[:8]
 
 
+def name_variants(name: str, text: str, limit: int = 2) -> List[str]:
+    """
+    Names in the text that differ from a name of several words in one of them ("MQA Executive Leadership"
+    for "HAQ Executive Leadership"): another thing than the one asked about. A misspelt long word
+    ("Sytems") is not another name; a short one that differs (HAQ / MQA, III / II) is.
+    """
+    words = (name or "").split()
+    out: List[str] = []
+    if len(words) < 2:
+        return out
+    for i, word in enumerate(words):
+        pattern = r"(?<![\w&.\-])" + r"\s+".join(r"([\w&.\-]+)" if j == i else re.escape(w) for j, w in enumerate(words)) + r"(?![\w&\-])"
+        for m in re.finditer(pattern, text or "", re.I):
+            other, asked = m.group(1).lower(), word.lower()
+            if other == asked or (min(len(other), len(asked)) > 4 and difflib.SequenceMatcher(None, other, asked).ratio() >= 0.75):
+                continue
+            variant = re.sub(r"\s+", " ", m.group(0))
+            if variant.lower() not in (v.lower() for v in out):
+                out.append(variant)
+            if len(out) >= limit:
+                return out
+    return out
+
+
 def _number(token: str) -> Optional[int]:
     token = token.lower()
     return int(token) if token.isdigit() else _NUMBER_WORDS.get(token)
@@ -130,6 +188,37 @@ def page_references(query: str) -> List[str]:
         word = m.group(1).lower()
         out.append("last" if word in ("last", "final") else "1" if word in ("cover", "front", "title") else str(_ORDINALS[word]))
     return list(dict.fromkeys(out))[:6]
+
+
+# A page number printed in a page's header or footer: a number of one to three digits standing alone
+# (not part of a year, a decimal, a date or a range).
+_PRINTED_NUMBER = re.compile(r"(?<![\d.,/:\-])(\d{1,3})(?![\d]|[.,:/\-]\d)")
+
+
+def printed_page_offset(texts: Dict[int, str]) -> int:
+    """
+    How far the pages' positions run ahead of the numbers printed on them (a cover and contents
+    pages before page 1): the offset most pages agree on, read from the small numbers at the start
+    and end of their text; 0 when the pages are not numbered or the numbers are their positions.
+    """
+    votes: Dict[int, int] = {}
+    for page, text in texts.items():
+        t = (text or "").strip()
+        ends = t[:40] + " | " + t[-40:]
+        for offset in {page - int(n) for n in _PRINTED_NUMBER.findall(ends) if 0 < int(n) <= page}:
+            votes[offset] = votes.get(offset, 0) + 1
+    if not votes:
+        return 0
+    best = max(votes, key=lambda o: (votes[o], -o))
+    return best if best > 0 and votes[best] >= max(3, 0.5 * len(texts)) else 0
+
+
+def page_texts(chunks: List[Any]) -> Dict[int, str]:
+    """The text of every page, its passages joined in reading order."""
+    out: Dict[int, str] = {}
+    for c in chunks:
+        out[c.page_number] = (out[c.page_number] + " " + c.text) if c.page_number in out else c.text
+    return out
 
 
 def _real(ch: Dict[str, Any]) -> bool:
@@ -191,7 +280,14 @@ class DocumentIntelligenceAgent:
             last = max((c.page_number for c in chunks), default=0)
             page = last if num == "last" else int(num) if num.isdigit() else 0
             whole = page_passage(chunks, chunks[0].doc_id, page) if chunks and page else None
-            return [whole] if whole else []
+            out = [whole] if whole else []
+            # "page 9" may mean the page numbered 9 in print, three pages on when a cover and contents come first.
+            offset = printed_page_offset(page_texts(chunks)) if chunks and num.isdigit() else 0
+            printed = page_passage(chunks, chunks[0].doc_id, page + offset) if offset and page + offset <= last else None
+            if printed:
+                printed.section_title = f"printed page {page}"
+                out.append(printed)
+            return out
         word = _KIND_PATTERN.get(kind, re.escape(kind))
         pattern = re.compile(rf"\b{word}\s*{re.escape(num)}\b", re.I)
         # A caption ("Table 3: ...", "Figure 2. ...") beats a passing mention.
@@ -237,6 +333,22 @@ class DocumentIntelligenceAgent:
             out.append(pages)
         return out
 
+    def _statement_span(self, k: int, page: int, chunks: List[Any]) -> List[int]:
+        """The statement's page, with the page before or after it when the statement starts or ends there."""
+        def text(p: int) -> str:
+            return " ".join(c.text for c in chunks if c.page_number == p)
+        first, last = _STATEMENT_ENDS[k]
+        here = text(page)
+        if not first.search(here):
+            before = text(page - 1)
+            if first.search(before) and self._amounts(before) >= STATEMENT_MIN_AMOUNTS:
+                return [page - 1, page]
+        elif not last.search(here):
+            after = text(page + 1)
+            if last.search(after) and self._amounts(after) >= STATEMENT_MIN_AMOUNTS:
+                return [page, page + 1]
+        return [page]
+
     def _statement_passages(self, query: str, docs: List[str], cache: Dict[str, List[Any]]) -> List[Any]:
         """
         The pages of the financial statements the question needs, whole: each from the window
@@ -264,10 +376,26 @@ class DocumentIntelligenceAgent:
                 best = max(per, key=per.get)
                 inside = [p for p in per if start <= p < start + STATEMENT_WINDOW]
                 page = max(inside, key=per.get) if inside and per[max(inside, key=per.get)] >= 0.4 * per[best] else best
-                if (doc_id, page) not in pages:
-                    pages.append((doc_id, page))
+                for p in self._statement_span(k, page, self._chunks(doc_id, cache)):
+                    if (doc_id, p) not in pages:
+                        pages.append((doc_id, p))
         out = [page_passage(self._chunks(doc_id, cache), doc_id, page) for doc_id, page in pages[:MAX_STATEMENT_PAGES]]
         return [p for p in out if p]
+
+    def _sample_size_passages(self, query: str, docs: List[str], cache: Dict[str, List[Any]]) -> List[Any]:
+        """For "how many <people> said ..." (a count, not a percentage): the page of a survey's sample sizes, whole."""
+        if not asks_people_count(query):
+            return []
+        out = []
+        for doc_id in docs:
+            chunks = self._chunks(doc_id, cache)
+            tables = [c for c in chunks if survey_sample_table(c.text)]
+            if tables:
+                best = max(tables, key=lambda c: len(SAMPLE_SIZE.findall(c.text)) + len(_SAMPLING_ERROR.findall(c.text)))
+                whole = page_passage(chunks, doc_id, best.page_number)
+                if whole:
+                    out.append(whole)
+        return out
 
     def _absent_names(self, query: str, docs: List[str], cache: Dict[str, List[Any]]) -> List[str]:
         """
@@ -329,6 +457,9 @@ class DocumentIntelligenceAgent:
         for hit in self._statement_passages(state.get("user_query", ""), docs, cache):
             add(hit, top_score * 0.9, "reference")
         statements = len(added) - referenced
+        for hit in self._sample_size_passages(state.get("user_query", ""), docs, cache):
+            add(hit, top_score * 0.9, "reference")
+        samples = len(added) - referenced - statements
         found = len(added)
         for ch in retrieved[:TOP_PASSAGES]:
             for neighbour in self._neighbours(ch, cache):
@@ -340,6 +471,8 @@ class DocumentIntelligenceAgent:
             parts.append(f"{referenced} passage(s) for " + ", ".join(f"{k} {n}" for k, n in refs))
         if statements:
             parts.append(f"{statements} page(s) of the financial statements")
+        if samples:
+            parts.append("the survey's sample sizes")
         if len(added) > found:
             parts.append(f"{len(added) - found} neighbouring passage(s)")
         if absent:
