@@ -109,6 +109,11 @@ NOT_MEANINGFUL = re.compile(r"not (a )?(useful|meaningful|relevant)", re.I)
 # Questions about the classes of securities listed on an exchange (not "registered users" or trademarks).
 REGISTERED = re.compile(r"securities exchange|securities (are |were )?registered|trading symbol|section 12\(b\)", re.I)
 
+# A ratio the question defines and asks to round ("ROA is defined as ... Round your answer to two decimal places"):
+# the result is the decimal the formula gives, not a percentage, unless the question asks for one.
+DEFINED_RATIO = re.compile(r"\bdefined as\b", re.I)
+ROUNDED = re.compile(r"\bround", re.I)
+PERCENTAGE = re.compile(r"percent|%|margin", re.I)
 # A fiscal year that ends in January or February ("52 weeks ended January 28, 2023"), and a question naming a fiscal year.
 EARLY_YEAR_END = re.compile(r"\b(?:years?|weeks|periods?) ended:?\s+(?:january|february)\s+\d{1,2},?\s+20\d\d", re.I)
 FISCAL_YEAR = re.compile(r"\bFY\s?'?\d{2,4}\b|\bfiscal (?:year )?20\d\d\b", re.I)
@@ -137,6 +142,9 @@ def notes_for(question: str) -> str:
         lines.append("A filing's cover page lists every class of securities registered on a national securities exchange "
                      "(Section 12(b) of the Act): a kind of security missing from that list (debt securities when only "
                      "common shares are listed) is not registered, so the answer is that there are none.")
+    if DEFINED_RATIO.search(q) and ROUNDED.search(q) and not PERCENTAGE.search(q):
+        lines.append("Give the result as the formula yields it, rounded as asked: a ratio as a decimal (0.0146 is 0.01 to two "
+                     "decimal places), not as a percentage; the percentage may follow in parentheses.")
     if not lines:
         return ""
     lines.insert(0, "When the question defines the metric or names the statements to use, follow that exactly; "
