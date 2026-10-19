@@ -131,7 +131,8 @@ has have had the a an in on of for to from by with and or if according based com
 calculate using use considering assuming directly list name describe explain provide find tell among between as at this
 that these those it its there fy usd us gaap non-gaap ar ap cogs pp&e ebit ebitda eps fcf sg&a r&d d&a roa roe dpo dso
 dio cagr yoy ttm ceo cfo ppe ppne capex opex inc corp ltd plc llc co january february march april may june july august september october
-november december monday tuesday wednesday thursday friday saturday sunday i yes no""".split())
+november december monday tuesday wednesday thursday friday saturday sunday i yes no format express write represent
+output show state specify enumerate rank sort include exclude ignore note""".split())
 
 
 def _squash(text: str) -> str:
@@ -149,6 +150,8 @@ def question_names(query: str) -> List[str]:
             continue
         if re.fullmatch(r"(FY|Q[1-4]|H[12])\d*|\d[\d\-]*s?", words[0]):
             continue  # a period ("Q2 of FY2023", "FY2022"), not a name
+        if re.fullmatch(r"[YMDHS]{1,4}([-/.:][YMDHS]{1,4})+", words[0], re.I):
+            continue  # a format the answer should take ("YYYY-MM-DD"), not a name
         names.append(" ".join(words))
     return list(dict.fromkeys(n for n in names if _squash(n)))[:8]
 
