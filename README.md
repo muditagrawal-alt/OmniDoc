@@ -33,7 +33,9 @@ question
   → plan                  steps chosen from the needs; a per-question budget of model calls and time
   → hybrid search         vectors + BM25 with document context, reranked; a second search for parts
                           of the question the passages do not cover
-  → document intelligence follows "Table 3", "Figure 2", "page 12" and adds the rest of cut-off passages
+  → document intelligence follows "Table 3", "Figure 2", "page 12" (at that position and where it is
+                          printed); adds whole financial statements, a survey's sample sizes and the rest
+                          of cut-off passages
   → knowledge graph, figures, SQL over tables and library records, document summaries, web search
   → temporal reasoning    dates the evidence, applies the question's time range, orders events
   → evidence selection    one numbered evidence list shared by every later step
