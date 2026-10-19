@@ -850,9 +850,13 @@ def report(args: argparse.Namespace) -> None:
                                    "graded": sum(1 for r in rows if r["j"].get("correct") is not None), "benchmarks": {}}
         for bench in config["benchmarks"]:
             br = [r for r in rows if r["benchmark"] == bench and r.get("doc") not in BROKEN_DOCUMENTS]
+            ungraded = [r for r in br if r["j"].get("correct") is None]  # the judge's quota ran out: grade later
+            br = [r for r in br if r["j"].get("correct") is not None]
             if not br:
                 continue
             s = summarize(br)
+            if ungraded:
+                s["ungraded"] = len(ungraded)
             left_out = sorted({r["doc"] for r in rows if r["benchmark"] == bench and r.get("doc") in BROKEN_DOCUMENTS})
             if left_out:
                 s["left_out"] = {"documents": left_out, "questions": sum(1 for r in rows if r.get("doc") in left_out)}
@@ -909,6 +913,8 @@ def render_report(summary: Dict[str, Any], rows: List[Dict[str, Any]]) -> str:
                 f"| Answers with errors | {s['errors']} |",
                 f"| Answers that needed a retry (rate limit or model error) | {s.get('retried', 0)} |",
                 f"| Answers rewritten after the sentence check (graded correct) | {s.get('rewritten', 0)} ({s.get('rewritten_correct', 0)}) |"]
+        if s.get("ungraded"):
+            out.append(f"| Not graded yet | {s['ungraded']} answers (not counted above; `bench.py judge` grades them) |")
         if s.get("left_out"):
             lo_ = s["left_out"]
             out.append(f"| Left out | {lo_['questions']} questions on {', '.join(lo_['documents'])}: the downloaded file is "
