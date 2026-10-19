@@ -55,9 +55,8 @@ SYNONYMS = (
 
 # Standard definitions, given to the writers only for the metrics a question names.
 DEFINITIONS = (
-    (r"gross (margin|profit)", "gross margin = gross profit / revenue; gross profit = revenue - cost of revenue (when the income "
-                              "statement shows no gross profit line, subtract the costs of the products and services sold, "
-                              "listed under revenues, from revenue)"),
+    (r"gross margin", "gross margin = gross profit / revenue; gross profit = revenue - cost of revenue (an income statement "
+                      "with no gross profit line but a cost of products and a cost of services sold: revenue minus those costs)"),
     (r"operating margin", "operating margin = operating income / revenue"),
     (r"net (profit |income )?margin|profit margin", "net margin = net income / revenue"),
     (r"\bEBITDA\b", "EBITDA = operating income + depreciation and amortization (D&A, from the cash flow statement)"),
