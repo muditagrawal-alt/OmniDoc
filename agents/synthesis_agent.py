@@ -11,7 +11,8 @@ from typing import Dict, Any, List
 from core.state import AgentWorkflowState
 from core import streaming
 from agents.llm_utils import chat, chat_stream, trace
-from agents.finance_terms import notes_for
+from agents.finance_terms import notes_for, fiscal_year_note
+from agents.document_intelligence_agent import asks_people_count, survey_sample_table, name_variants
 from agents.citations import (
     sources_from_state,
     public_sources,
@@ -108,16 +109,34 @@ class SynthesisAgent:
             previous = (state.get("draft_response") or "").strip()[:4000] or "(empty)"
             parts += ["", REFLECTION_SECTION.format(feedback=str(feedback).strip()[:1500], previous=previous)]
 
+        evidence_text = " ".join(str(s.get("_text") or s.get("snippet") or "") for s in sources)
         absent = [t for t in (state.get("absent_terms") or []) if isinstance(t, str)]
         if absent:
-            parts += ["", "NAMES NOT IN THE DOCUMENT: the question mentions " + ", ".join(f'"{t}"' for t in absent)
+            named = []
+            for t in absent:
+                variants = name_variants(t, evidence_text)
+                named.append(f'"{t}"' + (" (the evidence has " + " and ".join(f'"{v}"' for v in variants) + ", another name)"
+                                         if variants else ""))
+            parts += ["", "NAMES NOT IN THE DOCUMENT: the question mentions " + ", ".join(named)
                       + ", which the document's text never mentions. Unless such a name is only another way of referring to "
                         "something the document covers (an abbreviation, nickname or ticker of the same company or thing), or a "
                         "figure analysis shows it in a picture, the document does not contain the answer: say so instead of "
-                        "answering about something similar."]
+                        "answering about something similar. A name that differs from one in the evidence by a word, letters or "
+                        "a number is a different thing, not the same one written differently."]
+        if any(str(s.get("section") or "").startswith("printed page ") for s in sources):
+            parts += ["", "PAGE NUMBERS: this document is numbered in print from a later page (after a cover and contents), so "
+                          "the question's page number may mean the page at that position or the page printed with that number "
+                          "(marked \"printed page\"); use the one that holds what the question describes."]
         notes = notes_for(query)
         if notes:
             parts += ["", notes]
+        fiscal = fiscal_year_note(query, evidence_text)
+        if fiscal:
+            parts += ["", fiscal]
+        if asks_people_count(query) and survey_sample_table(evidence_text):
+            parts += ["", "SURVEY COUNTS: the number of respondents who gave an answer = the group's percentage x the group's "
+                          "unweighted sample size (from the survey's methodology table); show the calculation and round to a "
+                          "whole number."]
         parts += ["", f"Answer now, citing evidence as [n] with n between 1 and {len(sources)}."]
         return "\n".join(parts)
 
