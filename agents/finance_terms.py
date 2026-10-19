@@ -156,7 +156,8 @@ def notes_for(question: str) -> str:
         lines.append("Some metrics do not apply to some businesses: banks, card issuers and insurers report no COGS and no "
                      "operating income line, so gross margin, operating margin and inventory turnover mean little for them "
                      "(their performance is measured by net interest income, provisions for credit losses and pretax income). "
-                     "If the evidence shows the metric does not apply, say so and explain why; otherwise compute it.")
+                     "For such a company, or when the evidence shows the metric does not apply, answer that the metric is not "
+                     "a useful one for it and explain why, rather than computing a version of it; otherwise compute it.")
     return "FINANCIAL DEFINITIONS (the figures still come only from the evidence):\n- " + "\n- ".join(lines)
 
 
