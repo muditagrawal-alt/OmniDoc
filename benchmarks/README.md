@@ -86,6 +86,12 @@ questions, the index grows batch by batch, and `--resume` keeps the answers in o
 .venv/bin/python -I benchmarks/bench.py run --label revision-d --bench mmlongbench --split full --batch 2/10 --resume benchmarks/results/full/<run>
 ```
 
+Two of the 135 PDFs cannot be used: for `mi_phone.pdf` HuggingFace serves the bytes of `NYU_graduate.pdf` (NYU's guide
+to first-year living, not a phone manual), and for `dr-vorapptchapter1emissionsources-…pdf` those of
+`digitalmeasurementframework…pdf`, although the dataset lists other sizes and hashes for them (checked 2026-10-19, also
+from the commit that re-uploaded `mi_phone.pdf`). Runs skip their 19 questions and reports leave them out
+(`BROKEN_DOCUMENTS` in `bench.py`), so the full benchmark is 1,072 questions over 133 PDFs.
+
 The full MMLongBench-Doc needs about 3,300 vision calls (2,100 figure descriptions while indexing,
 the rest reading pages while answering): with Gemini Flash-Lite's ~500 free requests a day that
 is 8 to 10 batches of about 14 documents, each about 3 hours on a laptop.
