@@ -134,7 +134,7 @@ class AgenticGraphRAGPipeline:
                                         embed=lambda texts: self.embed_service.embed_texts(texts, kind="query"))
         self.understanding_agent = QueryUnderstandingAgent(model_name=model_name)
         self.multilingual_agent = MultilingualAgent()
-        self.document_intelligence_agent = DocumentIntelligenceAgent(self.lance_store)
+        self.document_intelligence_agent = DocumentIntelligenceAgent(self.lance_store, files_dir=self.vision_agent.files_dir)
         self.temporal_agent = TemporalReasoningAgent(model_name=model_name)
         self.structured_data_agent = StructuredDataAgent(self.table_agent)
         self.web_search_agent = WebSearchAgent(self.reranker, cache_dir=os.path.join(data_dir, "web_cache"))
