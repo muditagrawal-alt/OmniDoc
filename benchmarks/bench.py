@@ -556,7 +556,8 @@ def run(args: argparse.Namespace) -> None:
     settings = {k: getattr(args, k) or v for k, v in DEFAULTS.items()}
     benches = [b.strip() for b in args.bench.split(",") if b.strip()]
     commit = git("rev-parse", "--short", "HEAD")
-    dirty = bool(git("status", "--porcelain", "--untracked-files=no"))
+    # Changes to code, not to the results a running batch is writing.
+    dirty = bool(git("status", "--porcelain", "--untracked-files=no", "--", ".", ":(exclude)benchmarks/results"))
     # Smoke tests (--limit) and development runs stay out of the results history.
     base = WORK / "smoke" if args.limit else RESULTS if SPLIT == "test" else RESULTS / SPLIT
     run_dir = Path(args.resume) if args.resume else base / f"{dt.date.today():%Y-%m-%d}_{args.label}_{commit}"
@@ -566,7 +567,9 @@ def run(args: argparse.Namespace) -> None:
         config_path.write_text(json.dumps({
             "label": args.label, "split": SPLIT, "started": dt.datetime.now().isoformat(timespec="seconds"),
             "commit": commit, "uncommitted_changes": dirty, "benchmarks": benches, "settings": settings,
-            "work": str(WORK), **({"code": str(CODE)} if CODE != ROOT else {}),
+            "work": str(WORK), **({"code": str(CODE), "code_commit": subprocess.run(
+                ["git", "-C", str(CODE), "rev-parse", "--short", "HEAD"], capture_output=True, text=True).stdout.strip()}
+                                  if CODE != ROOT else {}),
             "scope": "each question is asked about its own document (document_ids = [doc]); web search off",
             "pacing": f"{args.pause}s between questions; answers that failed are asked again up to {ATTEMPTS} times",
             **({"kept_index": "the index was kept although the indexing files changed (--keep-index)"} if args.keep_index else {}),
