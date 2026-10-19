@@ -361,6 +361,7 @@ def test_pdf_table_header_rows_are_not_headings():
 def test_page_references_in_questions():
     from agents.document_intelligence_agent import DocumentIntelligenceAgent as D
     refs = lambda q: [n for k, n in D.references(q) if k == "page"]
+    from agents.document_intelligence_agent import numbered_pages as D_numbered
     assert refs("What date is mentioned at the beginning of page(1)?") == ["1"]
     assert refs("How many times does a phone appear on pages 16 and 18?") == ["16", "18"]
     assert refs("What animals appear on page nine?") == ["9"]
@@ -368,6 +369,7 @@ def test_page_references_in_questions():
     assert refs("How many websites are on the cover page?") == ["1"]
     assert refs("Summarise pages 3-5") == ["3", "4", "5"]
     assert refs("What page has a snowflake image?") == []
+    assert D_numbered("How many websites are on the cover page?") == [] and D_numbered("the third page and page nine") == ["9"]
     assert D.references("What is in Table 3 on page 12?") == [("page", "12"), ("table", "3")]
 
 
@@ -898,8 +900,9 @@ def test_a_page_named_by_number_is_also_read_where_that_number_is_printed():
     assert printed_page_offset(page_texts(chunks)) == 3
     assert printed_page_offset({p: f"Page {p} of the report, {p * 7} words" for p in range(1, 12)}) == 0  # numbered by position
     agent = DocumentIntelligenceAgent(SimpleNamespace(get_document_chunks=lambda doc_id: chunks))
-    hits = agent._reference_hits("page", "9", chunks)
+    hits = agent._reference_hits("page", "9", chunks, numbered=True)
     assert [(h.page_number, h.section_title or "") for h in hits] == [(9, ""), (12, "printed page 9")]
+    assert [h.page_number for h in agent._reference_hits("page", "1", chunks)] == [1]  # "the cover page": a position
     q = "What is the title of the diagram on page 9?"
     added = agent.run({"user_query": q, "document_ids": ["d"], "chunk_context": []})["chunk_context"]
     reranker = SimpleNamespace(score_pairs=lambda q, texts: [0.5 for _ in texts])
