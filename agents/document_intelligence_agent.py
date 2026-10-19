@@ -25,6 +25,7 @@ Layout-aware context, without model calls:
 Added passages carry the relevance of the passage they belong to and are marked
 ``layout_context`` or ``reference``; whole pages are also marked ``full_page``.
 """
+import os
 import re
 import time
 import difflib
@@ -203,15 +204,36 @@ def printed_page_offset(texts: Dict[int, str]) -> int:
     and end of their text; 0 when the pages are not numbered or the numbers are their positions.
     """
     votes: Dict[int, int] = {}
+    numbered = 0  # pages with a number at either end (front matter often has none, or roman numerals)
     for page, text in texts.items():
         t = (text or "").strip()
         ends = t[:40] + " | " + t[-40:]
-        for offset in {page - int(n) for n in _PRINTED_NUMBER.findall(ends) if 0 < int(n) <= page}:
+        offsets = {page - int(n) for n in _PRINTED_NUMBER.findall(ends) if 0 < int(n) <= page}
+        numbered += bool(offsets)
+        for offset in offsets:
             votes[offset] = votes.get(offset, 0) + 1
     if not votes:
         return 0
     best = max(votes, key=lambda o: (votes[o], -o))
-    return best if best > 0 and votes[best] >= max(3, 0.5 * len(texts)) else 0
+    return best if best > 0 and votes[best] >= max(3, 0.5 * numbered) else 0
+
+
+_OFFSETS: Dict[Tuple[str, float], int] = {}
+
+
+def pdf_page_offset(path: str, max_pages: int = 120) -> int:
+    """The printed-page offset of a PDF, from the text of its pages with their headers and footers (0 if unknown)."""
+    try:
+        key = (path, os.path.getmtime(path))
+        if key not in _OFFSETS:
+            import fitz
+            with fitz.open(path) as doc:
+                texts = {i + 1: doc[i].get_text("text", sort=True) for i in range(min(len(doc), max_pages))}
+            _OFFSETS[key] = printed_page_offset(texts)
+        return _OFFSETS[key]
+    except Exception as e:
+        logger.debug(f"Could not read the page numbers of {path}: {e}")
+        return 0
 
 
 def page_texts(chunks: List[Any]) -> Dict[int, str]:
@@ -261,8 +283,18 @@ def page_passage(chunks: List[Any], doc_id: str, page: int) -> Optional[Retrieve
 class DocumentIntelligenceAgent:
     """Follows document references and adds neighbouring passages around the best hits."""
 
-    def __init__(self, lance_store: Any = None):
+    def __init__(self, lance_store: Any = None, files_dir: Optional[str] = None):
         self.lance_store = lance_store
+        self.files_dir = files_dir  # the stored uploads, for the page numbers printed in headers and footers
+
+    def _printed_offset(self, chunks: List[Any]) -> int:
+        """From the stored PDF when there is one (the passages may have lost its headers and footers), else the passages."""
+        doc_id = str(chunks[0].doc_id or "")
+        if self.files_dir and re.fullmatch(r"[A-Za-z0-9_\-.]+", doc_id):
+            path = os.path.join(self.files_dir, doc_id + ".pdf")
+            if os.path.isfile(path):
+                return pdf_page_offset(path)
+        return printed_page_offset(page_texts(chunks))
 
     def _chunks(self, doc_id: str, cache: Dict[str, List[Any]]) -> List[Any]:
         if doc_id not in cache:
@@ -292,7 +324,7 @@ class DocumentIntelligenceAgent:
             whole = page_passage(chunks, chunks[0].doc_id, page) if chunks and page else None
             out = [whole] if whole else []
             # "page 9" may mean the page numbered 9 in print, three pages on when a cover and contents come first.
-            offset = printed_page_offset(page_texts(chunks)) if chunks and numbered else 0
+            offset = self._printed_offset(chunks) if chunks and numbered else 0
             printed = page_passage(chunks, chunks[0].doc_id, page + offset) if offset and page + offset <= last else None
             if printed:
                 printed.section_title = f"printed page {page}"
