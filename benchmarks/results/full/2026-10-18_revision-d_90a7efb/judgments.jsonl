@@ -134,3 +134,11 @@
 {"id": "mm_1084", "judge": "groq:openai/gpt-oss-120b", "answer_key": "5367344031b4", "declined": true, "correct": false, "reason": "The assistant did not provide the numeric answer 51.286, instead claimed the information was unavailable."}
 {"id": "mm_1085", "judge": "groq:openai/gpt-oss-120b", "answer_key": "f6b71b44fd86", "declined": false, "correct": false, "reason": "Provided answer 11.5% does not match reference 20.7%"}
 {"id": "mm_1086", "judge": "groq:openai/gpt-oss-120b", "answer_key": "c100afc9d04c", "declined": true, "correct": false, "reason": "Response declines to provide the numeric answer, which does not match the reference value of 13929."}
+{"id": "mm_0020", "judge": "groq:openai/gpt-oss-120b", "answer_key": "fa1e48810199", "declined": false, "correct": true, "reason": "The response correctly states the map shows the centres of the Indian Space Programme."}
+{"id": "mm_0021", "judge": "groq:openai/gpt-oss-120b", "answer_key": "5fa3bcf7dfb3", "declined": false, "correct": true, "reason": "Provides the year 2015‑2016 matching the reference"}
+{"id": "mm_0022", "judge": "groq:openai/gpt-oss-120b", "answer_key": "870a530b2619", "declined": false, "correct": true, "reason": "The response provides a matching list of uses, covering all items from the reference answer."}
+{"id": "mm_0023", "judge": "groq:openai/gpt-oss-120b", "answer_key": "8f429586232a", "declined": false, "correct": true, "reason": "Provides the exact reference answer"}
+{"id": "mm_0024", "judge": "groq:openai/gpt-oss-120b", "answer_key": "40a719359e7c", "declined": false, "correct": false, "reason": "Response gives a different answer than the reference mission"}
+{"id": "mm_0025", "judge": "groq:openai/gpt-oss-120b", "answer_key": "a0bfa9223a7a", "declined": false, "correct": false, "reason": "The response answers 15, which does not match the reference answer of 19"}
+{"id": "mm_0026", "judge": "groq:openai/gpt-oss-120b", "answer_key": "764c7bc3676e", "declined": false, "correct": false, "reason": "Provided answer 8 does not match reference answer 10"}
+{"id": "mm_0033", "judge": "groq:openai/gpt-oss-120b", "answer_key": "683a0c0a660b", "declined": false, "correct": true, "reason": "Provides the exact figure 63 matching the reference answer"}
