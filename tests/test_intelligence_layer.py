@@ -795,3 +795,131 @@ def test_finance_notes_read_the_cover_page_list_of_registered_securities():
     assert "section 12(b)" in search_terms(q)
     assert "Section 12(b)" not in notes_for("What was the gross margin in FY2022?")
     assert notes_for("How many registered users does the app have?") == "" and search_terms("How many registered users?") == ""
+
+
+def test_finance_notes_for_capital_intensity_ppne_and_debt():
+    from agents.finance_terms import notes_for, search_terms
+    from agents.document_intelligence_agent import question_names
+    intensity = notes_for("Is Verizon a capital intensive business based on FY 2022 data?")
+    assert "capex with revenue" in intensity and "need not use the phrase" in intensity
+    assert "capital expenditures" in search_terms("Is 3M a capital-intensive business based on FY2022 data?")
+    assert "PPNE" in notes_for("Did Pfizer grow its PPNE between FY20 and FY21?")
+    assert "property plant and equipment" in search_terms("Did Pfizer grow its PPNE between FY20 and FY21?")
+    assert question_names("Did Pfizer grow its PPNE between FY20 and FY21?") == ["Pfizer"]
+    assert "long-term debt" in search_terms("Has Verizon increased its debt on balance sheet between 2022 and 2021?")
+    assert "average total debt" not in notes_for("Which debt securities are registered to trade under 3M's name?")
+    assert "long-term debt" not in search_terms("Which debt securities are registered to trade under 3M's name?")
+    assert "average shareholders' equity" in notes_for("What is After-tax Return on Average Equity for fiscal 2022?")
+    assert "no gross profit line" in notes_for("Does Boeing have an improving gross margin profile as of FY2022?")
+
+
+def test_fiscal_years_ending_in_january_are_named_by_the_year_they_end():
+    from agents.finance_terms import fiscal_year_note
+    note = fiscal_year_note("What percent of Ulta Beauty's FY2023 stock repurchases occurred in Q4 of FY2023?",
+                            "Fiscal 2022 (52 weeks ended January 28, 2023) share repurchases of $900.0 million")
+    assert "fiscal 2022" in note
+    assert fiscal_year_note("What was revenue in FY2022?", "Year ended December 31, 2022: revenue 9,100") == ""
+    assert fiscal_year_note("What is ROE for the fiscal year ending January 28, 2023?", "52 weeks ended January 28, 2023") == ""
+
+
+def test_a_balance_sheet_split_over_two_pages_is_given_whole():
+    from types import SimpleNamespace
+    from agents.document_intelligence_agent import DocumentIntelligenceAgent
+
+    def chunk(page, text):
+        return RetrievedChunk(chunk_id=f"d_p{page}_c0", doc_id="d", text=text, page_number=page, section_title="")
+    chunks = [chunk(80, "Item 8. Financial Statements and Supplementary Data. Report of Independent Registered Public Accounting Firm."),
+              chunk(81, "Consolidated Balance Sheets (In millions) December 31, 2022 2021 ASSETS Property, plant and equipment "
+                        "29,736 27,413 Cash and cash equivalents 85 116 Accounts receivable 334 271 Total current assets 1,250 1,554 "
+                        "Goodwill 1,143 1,139 Total assets 25,075 26,075"),
+              chunk(82, "Consolidated Balance Sheets (In millions) CAPITALIZATION AND LIABILITIES Common stockholders' equity 7,976 "
+                        "7,231 Retained earnings 1,029 868 Long-term debt 10,926 10,341 Accounts payable 236 227 Total current "
+                        "liabilities 2,811 4,554 Total capitalization and liabilities 25,075 26,075 Accrued taxes 49 176 Other 1,129 "
+                        "Short-term debt 1,175 584 Current portion of long-term debt 281 57 Accrued interest 88 86"),
+              chunk(83, "Consolidated Statements of Operations (In millions) For the years ended December 31, 2022 2021 2020 "
+                        "Operating revenues 3,792 3,930 3,777 Operation and maintenance 1,589 1,777 1,622 Operating income 1,410 "
+                        "1,421 1,323 Net income attributable to common shareholders 820 1,263 709")]
+    agent = DocumentIntelligenceAgent(SimpleNamespace(get_document_chunks=lambda doc_id: chunks))
+    picked = agent._statement_passages("Does American Water Works have positive working capital based on FY2022 data?", ["d"], {})
+    assert [p.page_number for p in picked] == [81, 82]
+    assert [p.page_number for p in agent._statement_passages("What was the FY2022 net income?", ["d"], {})] == [83]
+
+
+def test_survey_counts_get_the_table_of_sample_sizes():
+    from types import SimpleNamespace
+    from agents.document_intelligence_agent import DocumentIntelligenceAgent, asks_people_count
+    from agents.synthesis_agent import SynthesisAgent
+    q = "How many Democratic people in the survey said neither party has 'high ethical standards'?"
+    assert asks_people_count(q) and not asks_people_count("What percent of Democrats said neither party has high ethical standards?")
+    chunks = [RetrievedChunk(chunk_id="s_p12_c0", doc_id="s", page_number=12, text="Neither party has high ethical standards: "
+                             "Democrats 18%, Republicans 13%, Independents 34%."),
+              RetrievedChunk(chunk_id="s_p17_c0", doc_id="s", page_number=17, text="Methodology. Group Unweighted sample size "
+                             "Plus or minus Total sample 1,503 2.9 percentage points Rep/Lean Rep 625 4.5 Dem/Lean Dem 710 4.2 "
+                             "Sample sizes and sampling errors for other subgroups are available upon request.")]
+    agent = DocumentIntelligenceAgent(SimpleNamespace(get_document_chunks=lambda doc_id: chunks))
+    out = agent.run({"user_query": q, "document_ids": ["s"], "chunk_context": [{**chunks[0].model_dump(), "score": 0.9}]})
+    assert [c["chunk_id"] for c in out["chunk_context"] if c["retrieval_method"] == "reference"] == ["s_p17_page"]
+    sources = [{"n": n, "kind": "chunk", "doc_id": "s", "page": c.page_number, "_text": c.text, "snippet": c.text}
+               for n, c in enumerate(chunks, 1)]
+    prompt = SynthesisAgent()._build_user_prompt({}, q, sources)
+    assert "SURVEY COUNTS" in prompt
+    assert "SURVEY COUNTS" not in SynthesisAgent()._build_user_prompt({}, "What percent of Democrats said so?", sources)
+
+
+def test_a_name_one_word_away_from_the_evidence_is_called_another_name():
+    from agents.document_intelligence_agent import name_variants
+    from agents.synthesis_agent import SynthesisAgent
+    text = "MQA Executive Leadership: Lucy C. Gee, Lola Pouncey. Rotary and Mission Systems sales grew. Wave II results."
+    assert name_variants("HAQ Executive Leadership", text) == ["MQA Executive Leadership"]
+    assert name_variants("Wave III", text) == ["Wave II"]
+    assert name_variants("Rotary and Mission Sytems", text) == []  # a misspelling, not another name
+    assert name_variants("MMDU", text) == []
+    sources = [{"n": 1, "kind": "chunk", "doc_id": "d", "page": 3, "_text": text, "snippet": text}]
+    prompt = SynthesisAgent()._build_user_prompt({"absent_terms": ["HAQ Executive Leadership"]},
+                                                 "How many people are there in the HAQ Executive Leadership?", sources)
+    assert '"HAQ Executive Leadership" (the evidence has "MQA Executive Leadership", another name)' in prompt
+
+
+def test_a_page_named_by_number_is_also_read_where_that_number_is_printed():
+    from types import SimpleNamespace
+    from agents.document_intelligence_agent import DocumentIntelligenceAgent, printed_page_offset, page_texts
+    from agents.evidence_selection_agent import EvidenceSelectionAgent
+    from agents.citations import build_sources
+    from agents.synthesis_agent import SynthesisAgent
+    from agents.vision_agent import printed_pages_hint
+    body = {1: "Strategic Plan 2016-2018 cover", 2: "Executive Summary ........ 1 Planning Summary ........ 8"}
+    body.update({p: f"Version 1.3 {p - 3} " + ("Monitoring Summary: the diagram Leadership, Workforce and Infrastructure"
+                                               if p == 12 else f"Section text of page {p} with 2.5 percent growth in 2016.")
+                 for p in range(4, 18)})
+    body[3] = "Table of contents"
+    chunks = [RetrievedChunk(chunk_id=f"d_p{p}_c0", doc_id="d", page_number=p, text=t) for p, t in sorted(body.items())]
+    assert printed_page_offset(page_texts(chunks)) == 3
+    assert printed_page_offset({p: f"Page {p} of the report, {p * 7} words" for p in range(1, 12)}) == 0  # numbered by position
+    agent = DocumentIntelligenceAgent(SimpleNamespace(get_document_chunks=lambda doc_id: chunks))
+    hits = agent._reference_hits("page", "9", chunks)
+    assert [(h.page_number, h.section_title or "") for h in hits] == [(9, ""), (12, "printed page 9")]
+    q = "What is the title of the diagram on page 9?"
+    added = agent.run({"user_query": q, "document_ids": ["d"], "chunk_context": []})["chunk_context"]
+    reranker = SimpleNamespace(score_pairs=lambda q, texts: [0.5 for _ in texts])
+    package = EvidenceSelectionAgent(reranker=reranker).run({"user_query": q, "session_id": "s", "chunk_context": added})["evidence_package"]
+    sources = build_sources(evidence_package=package)
+    assert any(s.get("section") == "printed page 9" and s.get("page") == 12 for s in sources)
+    assert "PAGE NUMBERS" in SynthesisAgent()._build_user_prompt({}, q, sources)
+    assert "the page printed 9 is page 12" in printed_pages_hint(q, 3) and printed_pages_hint(q, 0) == ""
+
+
+def test_the_vision_agent_reads_a_named_page_and_where_its_number_is_printed(monkeypatch):
+    import fitz
+    import agents.vision_agent as V
+    folder = tempfile.mkdtemp()
+    os.makedirs(os.path.join(folder, "uploads"))
+    doc = fitz.open()
+    for p in range(1, 15):
+        page = doc.new_page()
+        page.insert_text((72, 40), f"Version 1.3 {p - 3}" if p > 3 else "Cover")
+        page.insert_text((72, 300), f"Body text of this page about the plan's goals and measures, item {p * 11}.")
+    doc.save(os.path.join(folder, "uploads", "doc_n.pdf"))
+    assert V.pdf_page_offset(os.path.join(folder, "uploads", "doc_n.pdf")) == 3
+    agent = V.VisionAgent(images_dir=os.path.join(folder, "figures"))
+    state = {"document_ids": ["doc_n"], "user_query": "What is the title of the diagram on page 9?", "chunk_context": []}
+    assert [f["page"] for f in agent._page_candidates(state, strict=False, limit=6)][:2] == [9, 12]
