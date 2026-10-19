@@ -39,7 +39,7 @@ from typing import Any, Dict, List, Optional, Set, Tuple
 from core.state import AgentWorkflowState
 from agents.llm_utils import get_client, parse_llm_json, trace, vision_chat, vision_chat_pages
 from agents import llm_providers
-from agents.document_intelligence_agent import DocumentIntelligenceAgent, asks_people_count, numbered_pages, printed_page_offset
+from agents.document_intelligence_agent import DocumentIntelligenceAgent, asks_people_count, numbered_pages, pdf_page_offset
 
 logger = logging.getLogger("OmniDoc.VisionAgent")
 
@@ -147,24 +147,6 @@ Describe each chart (type, axes, every series with its values), table (columns a
 each row), map (what places or areas it marks and what the colours mean), diagram and photo (what
 it shows, how many of each thing). Do not add anything that is not visible on the page.
 Plain text, at most 220 words."""
-
-
-_OFFSETS: Dict[Tuple[str, float], int] = {}
-
-
-def pdf_page_offset(path: str, max_pages: int = 120) -> int:
-    """How far a PDF's page positions run ahead of the numbers printed on its pages (0 if they agree)."""
-    try:
-        key = (path, os.path.getmtime(path))
-        if key not in _OFFSETS:
-            import fitz
-            with fitz.open(path) as doc:
-                texts = {i + 1: doc[i].get_text("text", sort=True) for i in range(min(len(doc), max_pages))}
-            _OFFSETS[key] = printed_page_offset(texts)
-        return _OFFSETS[key]
-    except Exception as e:
-        logger.debug(f"Could not read the page numbers of {path}: {e}")
-        return 0
 
 
 def printed_pages_hint(query: str, offset: int) -> str:
