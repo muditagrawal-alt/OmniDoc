@@ -39,7 +39,7 @@ from typing import Any, Dict, List, Optional, Set, Tuple
 from core.state import AgentWorkflowState
 from agents.llm_utils import get_client, parse_llm_json, trace, vision_chat, vision_chat_pages
 from agents import llm_providers
-from agents.document_intelligence_agent import DocumentIntelligenceAgent, printed_page_offset
+from agents.document_intelligence_agent import DocumentIntelligenceAgent, asks_people_count, printed_page_offset
 
 logger = logging.getLogger("OmniDoc.VisionAgent")
 
@@ -82,6 +82,9 @@ _DOC_SCOPE = re.compile(r"\b(this|the) (paper|report|document|slides?|slide deck
                         r"booklet|book|file|handbook|tutorial|article)\b|\bin (the )?slides?\b|\bin (total|all)\b|\bacross\b", re.I)
 _VISUAL_ITEMS = re.compile(r"\b(photos?|photographs?|images?|pictures?|figures?|charts?|plots?|graphs?|diagrams?|maps?|"
                            r"logos?|icons?|screenshots?|illustrations?|tables?|people|persons?|faces?)\b", re.I)
+# "How many Democrats said ...": a count of a survey's respondents, worked out from its tables, not seen on the pages.
+_SURVEY = re.compile(r"\b(survey\w*|poll\w*|respondents?|said|say|think|believe|rated|favou?r|oppose|approve|"
+                     r"disapprove|agree|disagree)\b|research center", re.I)
 _DOC_ID_RE = re.compile(r"^[A-Za-z0-9_\-.]+$")
 
 PROMPT = """You are reading a figure from a document to help answer a question.
@@ -110,7 +113,8 @@ READ_PROMPT = """You are reading pages {pages} of a document, rendered as images
 
 Question: {query}
 
-Look at everything on these pages: text, tables, charts, maps, diagrams, photos, logos, screenshots, their colours and positions. Transcribe numbers, names and labels exactly; count carefully when the question asks how many; do not guess what you cannot read.
+Look at everything on these pages: text, tables, charts, maps, diagrams, photos, logos, screenshots, their colours and positions. Transcribe numbers, names and labels exactly; do not guess what you cannot read.
+When the question asks how many, list every instance in the finding of its page, one by one with where it is ("1. top left: ..."), then give the total of that list as the answer.
 Return JSON only:
 {{"pages": [{{"page": <page number>, "finding": "<what this page shows that bears on the question>"}}], "answer": "<the answer from these pages, or NOT FOUND>", "answer_pages": [<the pages the answer comes from>]}}
 Leave out pages with nothing relevant."""
@@ -129,6 +133,8 @@ def scan_kind(query: str) -> Optional[str]:
         return None
     if _LOCATE_Q.search(query or ""):
         return "locate"
+    if asks_people_count(query) and _SURVEY.search(query or ""):
+        return None
     if _COUNT_Q.search(query or "") and (_DOC_SCOPE.search(query) or _VISUAL_ITEMS.search(query)):
         return "count"
     return None
