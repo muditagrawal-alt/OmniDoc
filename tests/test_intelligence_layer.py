@@ -815,6 +815,7 @@ def test_finance_notes_for_capital_intensity_ppne_and_debt():
     assert "long-term debt" not in search_terms("Which debt securities are registered to trade under 3M's name?")
     assert "average shareholders' equity" in notes_for("What is After-tax Return on Average Equity for fiscal 2022?")
     assert "no gross profit line" in notes_for("Does Boeing have an improving gross margin profile as of FY2022?")
+    assert notes_for("By what percentage has gross profit increased in Q1 of 2023 compared to Q1 of 2022?") == ""
 
 
 def test_fiscal_years_ending_in_january_are_named_by_the_year_they_end():
