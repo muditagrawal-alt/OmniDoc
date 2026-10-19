@@ -6,7 +6,8 @@ case nothing leaves the machine.
 
 For PDFs and images the agent looks at whole pages, rendered from the stored upload when the
 question is asked: the best-matching pages that carry pictures or charts, and pages the question
-names, so a figure is read together with its labels, legend and caption, as a person sees it.
+names (at that position, and where that number is printed when a cover and contents come
+first), so a figure is read together with its labels, legend and caption, as a person sees it.
 A hosted model reads them together in one request and answers from them, citing the pages; a
 local model reads them one at a time. It also runs without being asked when the best passages
 sit on pages that are mostly pictures or charts (slides, brochures, infographics), whose
@@ -38,7 +39,7 @@ from typing import Any, Dict, List, Optional, Set, Tuple
 from core.state import AgentWorkflowState
 from agents.llm_utils import get_client, parse_llm_json, trace, vision_chat, vision_chat_pages
 from agents import llm_providers
-from agents.document_intelligence_agent import DocumentIntelligenceAgent
+from agents.document_intelligence_agent import DocumentIntelligenceAgent, printed_page_offset
 
 logger = logging.getLogger("OmniDoc.VisionAgent")
 
@@ -140,6 +141,34 @@ Describe each chart (type, axes, every series with its values), table (columns a
 each row), map (what places or areas it marks and what the colours mean), diagram and photo (what
 it shows, how many of each thing). Do not add anything that is not visible on the page.
 Plain text, at most 220 words."""
+
+
+_OFFSETS: Dict[Tuple[str, float], int] = {}
+
+
+def pdf_page_offset(path: str, max_pages: int = 120) -> int:
+    """How far a PDF's page positions run ahead of the numbers printed on its pages (0 if they agree)."""
+    try:
+        key = (path, os.path.getmtime(path))
+        if key not in _OFFSETS:
+            import fitz
+            with fitz.open(path) as doc:
+                texts = {i + 1: doc[i].get_text("text", sort=True) for i in range(min(len(doc), max_pages))}
+            _OFFSETS[key] = printed_page_offset(texts)
+        return _OFFSETS[key]
+    except Exception as e:
+        logger.debug(f"Could not read the page numbers of {path}: {e}")
+        return 0
+
+
+def printed_pages_hint(query: str, offset: int) -> str:
+    """For a question naming pages by number, in a PDF numbered in print from a later page: where each number is printed."""
+    named = [int(n) for k, n in DocumentIntelligenceAgent.references(query or "") if k == "page" and n.isdigit()]
+    if not offset or not named:
+        return ""
+    where = "; ".join(f"the page printed {n} is page {n + offset}" for n in named[:4])
+    return (f"\n(The numbers printed on this document's pages run {offset} behind their positions: {where}. "
+            "The question's page numbers may mean either; use the page that shows what the question describes.)")
 
 
 def _field(obj: Any, key: str) -> Any:
@@ -290,8 +319,10 @@ class VisionAgent:
         try:
             for doc_id in scope:
                 doc = open_pdf(doc_id)
-                for name in named:
-                    page_no = len(doc) if doc is not None and name == "last" else int(name) if name.isdigit() else 0
+                offset = pdf_page_offset(self._upload(doc_id) or "") if doc is not None and any(n.isdigit() for n in named) else 0
+                pages = [len(doc) if doc is not None and name == "last" else int(name) if name.isdigit() else 0 for name in named]
+                pages += [int(name) + offset for name in named if offset and name.isdigit()]  # where that number is printed
+                for page_no in dict.fromkeys(pages):
                     if doc is None or not 1 <= page_no <= len(doc):
                         continue
                     share, chart, _ = self._visual(doc[page_no - 1])
@@ -453,7 +484,8 @@ class VisionAgent:
             try:
                 images = [(f["page"], self._render(f["render"], f["page"], px=px)) for f in pages]
                 self._pace(model, len(images))
-                prompt = READ_PROMPT.format(pages=", ".join(str(n) for n, _ in images), query=query[:800])
+                prompt = READ_PROMPT.format(pages=", ".join(str(n) for n, _ in images), query=query[:800] + printed_pages_hint(
+                    query, pdf_page_offset(pages[0]["render"]) if str(pages[0].get("render") or "").lower().endswith(".pdf") else 0))
                 data = parse_llm_json(vision_chat_pages(model, prompt, images, num_predict=1500))
             except Exception as e:
                 logger.warning(f"Reading pages {[f['page'] for f in pages]} of {doc_id} failed: {e}")
