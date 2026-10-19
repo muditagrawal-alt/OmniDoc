@@ -66,6 +66,7 @@ _STATEMENTS = (
                 r"retained earnings|accounts payable|inventories|property(, plant)? and equipment|cash and cash equivalents", re.I)),
     (re.compile(r"income statements?|statements? of (consolidated )?(income|operations|earnings)|profit (and|&) loss|\bP&L\b|"
                 r"cash conversion cycle|asset turnover|\bRO[AE]\b|interest coverage|capital[- ]intensi|interest (to|paid|cost|burden)|"
+                r"effective tax|tax rate|income tax(es)?|provision for (income )?taxes|"
                 r"revenues?|net sales|COGS|cost of (goods sold|sales|revenues?)|gross (profit|margin)|operating (income|margin|profit)|"
                 r"net (income|earnings|margin|loss)|EBIT(DA)?|earnings per share|\bEPS\b|interest expense|turnover|return on", re.I),
      re.compile(r"statements? of (consolidated )?(income|operations|earnings|comprehensive income)|income statements?|profit (and|&) loss", re.I),
