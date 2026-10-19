@@ -107,10 +107,22 @@ def _sentence_spans(text: str) -> List[Tuple[int, int]]:
     return spans
 
 
+# LaTeX markup inside numbers and around them: "2{,}912{,}853", "3\,527", "4.5\%", "\$1.2".
+_LATEX_MARKUP = ((re.compile(r"\{,\}"), ","), (re.compile(r"\{\.\}"), "."), (re.compile(r"\\[,;:!]"), ""),
+                 (re.compile(r"\\ "), " "), (re.compile(r"\\%"), "%"), (re.compile(r"\\\$"), "$"))
+
+
+def plain_numbers(text: str) -> str:
+    """The text with LaTeX number markup written out plainly, so "2{,}912{,}853" reads as 2,912,853."""
+    for pattern, plain in _LATEX_MARKUP:
+        text = pattern.sub(plain, text)
+    return text
+
+
 def numbers_in(text: str) -> List[Tuple[str, List[float], int]]:
     """Figures in a sentence: (token, candidate values, decimals). Citations and small counts are skipped."""
     out = []
-    clean = CITE_RE.sub(" ", text)
+    clean = CITE_RE.sub(" ", plain_numbers(text))
     for m in _NUM_RE.finditer(clean):
         whole, frac, scale = m.group(1), m.group(2) or "", m.group(3)
         value = float(whole.replace(",", "") + frac)
