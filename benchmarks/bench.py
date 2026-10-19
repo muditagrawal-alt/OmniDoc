@@ -566,7 +566,12 @@ def run(args: argparse.Namespace) -> None:
         }, indent=1) + "\n")
     if args.batch:
         config = json.loads(config_path.read_text())
-        config.setdefault("batches", []).append({"batch": args.batch, "commit": commit, "uncommitted_changes": dirty,
+        code = {}
+        if CODE != ROOT:  # the server ran another copy of the app: record which
+            code_commit = subprocess.run(["git", "-C", str(CODE), "rev-parse", "--short", "HEAD"],
+                                         capture_output=True, text=True).stdout.strip()
+            code = {"code": str(CODE), "code_commit": code_commit}
+        config.setdefault("batches", []).append({"batch": args.batch, "commit": commit, "uncommitted_changes": dirty, **code,
                                                   "started": dt.datetime.now().isoformat(timespec="seconds")})
         config_path.write_text(json.dumps(config, indent=1) + "\n")
     results_path = run_dir / "results.jsonl"
