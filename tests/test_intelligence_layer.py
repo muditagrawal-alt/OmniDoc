@@ -482,6 +482,8 @@ def test_questions_about_the_whole_document_scan_every_page(monkeypatch):
     assert V.scan_kind("What page has an eight-pointed snowflake image? Give me an integer.") == "locate"
     assert V.scan_kind("How many times does mobile phone appear on pages 16 and 18?") is None  # those pages are read directly
     assert V.scan_kind("How many employees does PwC Assurance have?") is None
+    assert V.scan_kind("How many Democratic people in the survey said neither party has high ethical standards?") is None
+    assert V.scan_kind("How many people are there in the images on the cover?") == "count"
     folder = tempfile.mkdtemp()
     os.makedirs(os.path.join(folder, "uploads"))
     doc = fitz.open()
