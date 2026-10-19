@@ -960,3 +960,17 @@ def test_printed_page_numbers_come_from_the_stored_pdf_when_the_passages_lost_th
     assert [c["page_number"] for c in without["chunk_context"]] == [4]
     with_pdf = DocumentIntelligenceAgent(store, files_dir=folder).run({"user_query": q, "document_ids": ["doc_t"], "chunk_context": []})
     assert [(c["page_number"], c["section_title"]) for c in with_pdf["chunk_context"]][1] == (22, "printed page 4")
+
+
+def test_a_question_about_registered_securities_gets_the_cover_page():
+    from types import SimpleNamespace
+    from agents.document_intelligence_agent import DocumentIntelligenceAgent
+    chunks = [RetrievedChunk(chunk_id="m_p1_c0", doc_id="m", page_number=1, text="FORM 10-Q 3M COMPANY Securities registered "
+                             "pursuant to Section 12(b) of the Act: Title of each class Trading Symbol(s) Name of each exchange "
+                             "Common Stock MMM New York Stock Exchange 1.500% Notes due 2026 MMM26 New York Stock Exchange"),
+              RetrievedChunk(chunk_id="m_p40_c0", doc_id="m", page_number=40, text="Medium-term notes program, Series F.")]
+    agent = DocumentIntelligenceAgent(SimpleNamespace(get_document_chunks=lambda doc_id: chunks))
+    q = "Which debt securities are registered to trade on a national securities exchange under 3M's name as of Q2 of 2023?"
+    out = agent.run({"user_query": q, "document_ids": ["m"], "chunk_context": [{**chunks[1].model_dump(), "score": 0.9}]})
+    assert [c["chunk_id"] for c in out["chunk_context"] if c["retrieval_method"] == "reference"] == ["m_p1_page"]
+    assert agent.run({"user_query": "How many registered users?", "document_ids": ["m"], "chunk_context": []})["chunk_context"] == []
