@@ -39,7 +39,7 @@ from typing import Any, Dict, List, Optional, Set, Tuple
 from core.state import AgentWorkflowState
 from agents.llm_utils import get_client, parse_llm_json, trace, vision_chat, vision_chat_pages
 from agents import llm_providers
-from agents.document_intelligence_agent import DocumentIntelligenceAgent, asks_people_count, printed_page_offset
+from agents.document_intelligence_agent import DocumentIntelligenceAgent, asks_people_count, numbered_pages, printed_page_offset
 
 logger = logging.getLogger("OmniDoc.VisionAgent")
 
@@ -169,7 +169,7 @@ def pdf_page_offset(path: str, max_pages: int = 120) -> int:
 
 def printed_pages_hint(query: str, offset: int) -> str:
     """For a question naming pages by number, in a PDF numbered in print from a later page: where each number is printed."""
-    named = [int(n) for k, n in DocumentIntelligenceAgent.references(query or "") if k == "page" and n.isdigit()]
+    named = [int(n) for n in numbered_pages(query)]
     if not offset or not named:
         return ""
     where = "; ".join(f"the page printed {n} is page {n + offset}" for n in named[:4])
@@ -325,9 +325,10 @@ class VisionAgent:
         try:
             for doc_id in scope:
                 doc = open_pdf(doc_id)
-                offset = pdf_page_offset(self._upload(doc_id) or "") if doc is not None and any(n.isdigit() for n in named) else 0
+                numbered = numbered_pages(state.get("user_query", ""))
+                offset = pdf_page_offset(self._upload(doc_id) or "") if doc is not None and numbered else 0
                 pages = [len(doc) if doc is not None and name == "last" else int(name) if name.isdigit() else 0 for name in named]
-                pages += [int(name) + offset for name in named if offset and name.isdigit()]  # where that number is printed
+                pages += [int(n) + offset for n in numbered if offset]  # where that number is printed
                 for page_no in dict.fromkeys(pages):
                     if doc is None or not 1 <= page_no <= len(doc):
                         continue
