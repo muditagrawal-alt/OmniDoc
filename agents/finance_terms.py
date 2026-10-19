@@ -10,13 +10,16 @@ small model).
 import re
 from typing import List
 
+# Questions about the amount of debt ("increased its debt", "average total debt"), not "debt securities".
+DEBT = (r"\b(total|net|average( total)?) debt\b|debt (on|in) (the |its )?balance sheet|debt (levels?|load|balances?)\b|"
+        r"\b(increased|decreased|reduced|raised|grown|grew) (its |their |the )?(total )?debt\b")
 # (what a question says, the words a filing uses for it): searched together with the question.
 SYNONYMS = (
     (r"\bAR\b|accounts? receivables?|\breceivables?", "accounts receivable trade receivables net"),
     (r"\bAP\b|accounts? payables?|\bpayables?", "accounts payable trade payables"),
     (r"\bCOGS\b|cost of goods sold", "cost of sales cost of revenue cost of products sold"),
     (r"\bcapex\b|capital expenditures?", "capital expenditures purchases of property plant and equipment"),
-    (r"\bPP&E\b|fixed assets?", "property plant and equipment net"),
+    (r"\bPP&E\b|\bPPN?E\b|fixed assets?", "property plant and equipment net"),
     (r"\bD&A\b|depreciation", "depreciation and amortization"),
     (r"\bEBITDA\b", "operating income depreciation and amortization"),
     (r"\bEBIT\b|operating (income|profit)", "operating income income from operations"),
@@ -34,6 +37,8 @@ SYNONYMS = (
     (r"gross (margin|profit)", "gross profit gross margin cost of sales cost of products sold"),
     (r"operating margin", "operating income operating margin"),
     (r"share repurchases?|buybacks?", "repurchases of common stock"),
+    (r"capital[- ]intensi", "capital expenditures purchases of property plant and equipment total assets total revenues"),
+    (DEBT, "short-term borrowings current portion of long-term debt long-term debt"),
     # The sections of a filing that hold what a question asks about in everyday words.
     (r"legal|lawsuits?|litigation|court", "legal proceedings litigation contingencies"),
     (r"\brisks?\b", "risk factors"),
@@ -50,7 +55,9 @@ SYNONYMS = (
 
 # Standard definitions, given to the writers only for the metrics a question names.
 DEFINITIONS = (
-    (r"gross margin", "gross margin = gross profit / revenue"),
+    (r"gross (margin|profit)", "gross margin = gross profit / revenue; gross profit = revenue - cost of revenue (when the income "
+                              "statement shows no gross profit line, subtract the costs of the products and services sold, "
+                              "listed under revenues, from revenue)"),
     (r"operating margin", "operating margin = operating income / revenue"),
     (r"net (profit |income )?margin|profit margin", "net margin = net income / revenue"),
     (r"\bEBITDA\b", "EBITDA = operating income + depreciation and amortization (D&A, from the cash flow statement)"),
@@ -69,10 +76,16 @@ DEFINITIONS = (
     (r"cash conversion cycle", "cash conversion cycle = DIO + DSO - DPO (days inventory, sales and payables outstanding)"),
     (r"fixed asset turnover", "fixed asset turnover = revenue / average net PP&E"),
     (r"(?<!fixed )asset turnover", "asset turnover = revenue / average total assets"),
-    (r"\bROA\b|return on (total )?assets", "ROA = net income / average total assets"),
-    (r"\bROE\b|return on (shareholders'? |stockholders'? )?equity", "ROE = net income / average shareholders' equity"),
+    (r"\bROA\b|return on (average )?(total )?assets", "ROA = net income / average total assets"),
+    (r"\bROE\b|return on (average )?(common )?(shareholders'? |stockholders'? )?equity",
+     "ROE = net income / average shareholders' equity"),
     (r"interest coverage", "interest coverage = EBIT / interest expense"),
     (r"debt[- ]to[- ]equity", "debt-to-equity = total debt / total shareholders' equity"),
+    (DEBT, "total debt = short-term borrowings + current portion of long-term debt + long-term debt"),
+    (r"capital[- ]intensi", "capital intensity: compare capex with revenue, net PP&E with total assets and total assets with "
+                           "revenue; a business that spends a large share of its revenue on capex (roughly 10% or more) or "
+                           "needs well over $1 of assets for each $1 of revenue is capital intensive. Compute these ratios and "
+                           "answer yes or no from them: the documents need not use the phrase"),
     (r"effective tax rate", "effective tax rate = income tax expense / income before income taxes"),
     (r"payout ratio", "dividend payout ratio = dividends / net income"),
     (r"capex|capital expenditures?", "capex = purchases of property, plant and equipment (cash flow statement, investing activities); "
@@ -84,7 +97,8 @@ NAMES = (
     (r"\bAP\b|accounts? payables?|\bpayables?", "accounts payable (AP) = trade payables"),
     (r"\bCOGS\b|cost of goods|inventory turnover|payables? turnover|days (of )?inventory|days payables?",
      "COGS = cost of sales = cost of revenue(s) = cost of products sold"),
-    (r"\bPP&E\b|fixed assets?|property,? plant", "PP&E = property, plant and equipment, net"),
+    (r"\bPP&E\b|\bPPN?E\b|fixed assets?|property,? plant|capital[- ]intensi",
+     "PP&E (PPE, PPNE) = property, plant and equipment, net"),
     (r"\bD&A\b|depreciation|EBITDA", "D&A = depreciation and amortization, from the cash flow statement"),
     (r"operating (income|profit)|\bEBIT", "operating income = operating profit = income from operations"),
     (r"unadjusted", "unadjusted = as reported (GAAP)"),
@@ -94,6 +108,24 @@ AVERAGE = re.compile(r"\baverage\b|turnover|\bROA\b|\bROE\b|return on|days (sale
 NOT_MEANINGFUL = re.compile(r"not (a )?(useful|meaningful|relevant)", re.I)
 # Questions about the classes of securities listed on an exchange (not "registered users" or trademarks).
 REGISTERED = re.compile(r"securities exchange|securities (are |were )?registered|trading symbol|section 12\(b\)", re.I)
+
+# A fiscal year that ends in January or February ("52 weeks ended January 28, 2023"), and a question naming a fiscal year.
+EARLY_YEAR_END = re.compile(r"\b(?:years?|weeks|periods?) ended:?\s+(?:january|february)\s+\d{1,2},?\s+20\d\d", re.I)
+FISCAL_YEAR = re.compile(r"\bFY\s?'?\d{2,4}\b|\bfiscal (?:year )?20\d\d\b", re.I)
+
+
+def fiscal_year_note(question: str, evidence: str) -> str:
+    """
+    How a question names a fiscal year that ends in January or February: by the year it ends (FY2023 =
+    the year ended January 28, 2023), while some companies (retailers) name it by the year it began
+    ("fiscal 2022"). "" unless the question names a fiscal year and the evidence shows such a year-end.
+    """
+    if not (FISCAL_YEAR.search(question or "") and EARLY_YEAR_END.search(evidence or "")):
+        return ""
+    return ("FISCAL YEARS: this company's fiscal year ends in January or February. A question's FY2023 means the fiscal year "
+            "that ended in early 2023. Some companies name that year by the year it began (\"fiscal 2022, ended January 28, "
+            "2023\"): then the question's FY2023 is the company's fiscal 2022. Use the year that ended in the year asked about, "
+            "and say what the company calls it.")
 
 
 def notes_for(question: str) -> str:
