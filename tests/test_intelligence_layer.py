@@ -975,3 +975,12 @@ def test_a_question_about_registered_securities_gets_the_cover_page():
     out = agent.run({"user_query": q, "document_ids": ["m"], "chunk_context": [{**chunks[1].model_dump(), "score": 0.9}]})
     assert [c["chunk_id"] for c in out["chunk_context"] if c["retrieval_method"] == "reference"] == ["m_p1_page"]
     assert agent.run({"user_query": "How many registered users?", "document_ids": ["m"], "chunk_context": []})["chunk_context"] == []
+
+
+def test_figures_written_in_latex_are_read_as_figures():
+    from guardrails.citation_checker import check_sentences
+    sources = [{"n": 1, "kind": "chunk", "doc_id": "d", "page": 57, "_text": "Net cash provided by operating activities "
+                "2,912,853 Total current liabilities 3,527,457", "snippet": ""}]
+    answer = r"The operating cash flow ratio is $\frac{2{,}912{,}853}{3{,}527{,}457} \approx 0.83$ [1]."
+    checks, _ = check_sentences(answer, "What is the operating cash flow ratio?", sources)
+    assert checks[0]["verdict"] != "unsupported", checks[0]["reason"]
