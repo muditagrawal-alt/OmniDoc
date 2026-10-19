@@ -15,7 +15,8 @@ Layout-aware context, without model calls:
   split into passages loses the rows the question needs (and one split over two pages is
   given both);
 * adds a survey's table of sample sizes when the question asks how many people gave an
-  answer: the count is the group's percentage of its sample;
+  answer (the count is the group's percentage of its sample), and a filing's cover page when
+  it asks which securities are registered on an exchange;
 * adds the neighbouring passage when a top passage stops mid-sentence or starts in the
   middle of one, so the writer sees the whole statement;
 * notes the names in the question (proper nouns, acronyms, quoted terms) that appear nowhere
@@ -118,6 +119,10 @@ def survey_sample_table(text: str) -> bool:
     return bool(SAMPLE_SIZE.search(text or "")) and bool(_SAMPLING_ERROR.search(text or ""))
 
 
+# A filing's cover page lists the securities registered on an exchange ("Securities registered pursuant to Section
+# 12(b) of the Act: Title of each class, Trading symbol, Name of each exchange").
+_REGISTERED_LIST = re.compile(r"section 12\(b\)|title of each class", re.I)
+COVER_PAGES = 5  # the cover page is among the first pages
 _QUOTED = re.compile(r'["“]([^"”]{2,60})["”]')
 _CAPITALISED = re.compile(r"\b[A-Z][\w&.\-]*[A-Za-z0-9](?:\s+(?:of\s+|the\s+|and\s+|&\s+)?[A-Z][\w&.\-]*[A-Za-z0-9])*")
 # Capitalised words that are not names: question words, sentence starters, financial shorthand.
@@ -426,6 +431,20 @@ class DocumentIntelligenceAgent:
         out = [page_passage(self._chunks(doc_id, cache), doc_id, page) for doc_id, page in pages[:MAX_STATEMENT_PAGES]]
         return [p for p in out if p]
 
+    def _cover_passages(self, query: str, docs: List[str], cache: Dict[str, List[Any]]) -> List[Any]:
+        """For a question about the securities listed on an exchange: the filing's cover page, whole."""
+        from agents.finance_terms import REGISTERED
+        if not REGISTERED.search(query or ""):
+            return []
+        out = []
+        for doc_id in docs:
+            chunks = self._chunks(doc_id, cache)
+            pages = sorted({c.page_number for c in chunks if c.page_number <= COVER_PAGES and _REGISTERED_LIST.search(c.text)})
+            whole = page_passage(chunks, doc_id, pages[0]) if pages else None
+            if whole:
+                out.append(whole)
+        return out
+
     def _sample_size_passages(self, query: str, docs: List[str], cache: Dict[str, List[Any]]) -> List[Any]:
         """For "how many <people> said ..." (a count, not a percentage): the page of a survey's sample sizes, whole."""
         if not asks_people_count(query):
@@ -501,6 +520,8 @@ class DocumentIntelligenceAgent:
         for hit in self._statement_passages(state.get("user_query", ""), docs, cache):
             add(hit, top_score * 0.9, "reference")
         statements = len(added) - referenced
+        for hit in self._cover_passages(state.get("user_query", ""), docs, cache):
+            add(hit, top_score * 0.9, "reference")
         for hit in self._sample_size_passages(state.get("user_query", ""), docs, cache):
             add(hit, top_score * 0.9, "reference")
         samples = len(added) - referenced - statements
