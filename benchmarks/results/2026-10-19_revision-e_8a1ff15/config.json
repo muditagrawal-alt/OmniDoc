@@ -1,0 +1,26 @@
+{
+ "label": "revision-e",
+ "split": "test",
+ "started": "2026-10-19T21:07:44",
+ "commit": "8a1ff15",
+ "uncommitted_changes": false,
+ "benchmarks": [
+  "financebench",
+  "mmlongbench"
+ ],
+ "settings": {
+  "provider": "nvidia",
+  "model": "nvidia:nvidia/nemotron-3-super-120b-a12b",
+  "vision": "gemini:gemini-3.5-flash-lite",
+  "embed": "nomic-embed-text",
+  "judge": "groq:openai/gpt-oss-120b"
+ },
+ "work": "/Users/muditagrawal/Projects/zee work/OmniDoc/benchmarks/work/revC",
+ "code": "/Users/muditagrawal/Projects/zee work/OmniDoc/benchmarks/work/code/revE",
+ "code_commit": "30f55c0",
+ "scope": "each question is asked about its own document (document_ids = [doc]); web search off",
+ "pacing": "20s between questions; answers that failed are asked again up to 5 times",
+ "kept_index": "the index was kept although the indexing files changed (--keep-index)",
+ "notes": "Revision E: a financial statement split over two pages (assets on one, liabilities on the next) is given whole; capital intensity, total debt, PPNE, return on average equity and gross profit without a gross profit line are defined, and capital-intensity, debt, interest and tax-rate questions get the statements they need; a ratio the question defines is given as the decimal its formula yields; fiscal years ending in January or February are named by the year they end; questions about registered securities get the filing's cover page; a page named by number is also read where that number is printed when a cover and contents come first (from the stored PDF's headers and footers); survey counts (\"how many Democrats said ...\") get the survey's sample sizes and are not scanned as pictures; the writer is told the look-alike name the evidence has when the question's name is not in the document; page reads list each instance before counting; instruction words and answer formats are no longer taken for names. Revision C's test indexes (benchmarks/work/revC) kept. Some of these fixes come from misses on the full FinanceBench and MMLongBench-Doc batch 1, which share questions with this test split.",
+ "caveat": "Stopped at the night's time limit (23:00) with mmlongbench: 19 of 53 questions: NVIDIA's free tier rate-limited the answers to about 90 s each after a long batch run. Compare only the questions both runs answered."
+}
