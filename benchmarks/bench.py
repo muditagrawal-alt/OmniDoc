@@ -74,6 +74,15 @@ FB_PAGE_OFFSET = 1
 MM_QUESTIONS = "https://huggingface.co/datasets/yubo2333/MMLongBench-Doc/resolve/main/data/train-00000-of-00001.parquet"
 MM_PDF = "https://huggingface.co/datasets/yubo2333/MMLongBench-Doc/resolve/main/documents/{doc}"
 MM_QUESTIONS_PER_DOC = (5, 12)  # documents with a typical number of questions
+# Documents whose download is another document (checked 2026-10-19): HuggingFace serves the bytes of the second file
+# for the first, although the dataset lists another size and hash for it (mi_phone.pdf is a Xiaomi phone guide; what
+# is served is NYU's guide to first-year living). Their questions cannot be answered from the file, so runs skip them
+# and reports leave them out.
+BROKEN_DOCUMENTS = {
+    "mi_phone.pdf": "NYU_graduate.pdf",
+    "dr-vorapptchapter1emissionsources-121120210508-phpapp02_95.pdf":
+        "digitalmeasurementframework22feb2011v6novideo-110221233835-phpapp01_95.pdf",
+}
 MM_DEV_DOCS = 4                 # document types (one document each) in the development split
 SPLIT = "test"                  # --split: "test" (the measured question sets) or "dev"
 
@@ -586,6 +595,11 @@ def run(args: argparse.Namespace) -> None:
             manifest = {**manifest, "documents": docs,
                         "questions": [q for q in manifest["questions"] if q["doc"] in set(docs)]}
             log(f"{bench}: batch {k}/{n}: {len(docs)} documents, {len(manifest['questions'])} questions")
+        broken = [d for d in manifest["documents"] if d in BROKEN_DOCUMENTS]
+        if broken:  # after the batch slice, so the batches keep their documents
+            manifest = {**manifest, "documents": [d for d in manifest["documents"] if d not in BROKEN_DOCUMENTS],
+                        "questions": [q for q in manifest["questions"] if q["doc"] not in BROKEN_DOCUMENTS]}
+            log(f"{bench}: skipping {', '.join(broken)}: the download is another document")
         questions = load_questions(bench)
         server = Server(bench, settings, args.port)
         server.extra_env = dict(kv.split("=", 1) for kv in args.server_env.split(",") if "=" in kv)
@@ -832,10 +846,13 @@ def report(args: argparse.Namespace) -> None:
                                    "notes": config.get("notes") or "", "caveat": config.get("caveat") or "",
                                    "graded": sum(1 for r in rows if r["j"].get("correct") is not None), "benchmarks": {}}
         for bench in config["benchmarks"]:
-            br = [r for r in rows if r["benchmark"] == bench]
+            br = [r for r in rows if r["benchmark"] == bench and r.get("doc") not in BROKEN_DOCUMENTS]
             if not br:
                 continue
             s = summarize(br)
+            left_out = sorted({r["doc"] for r in rows if r["benchmark"] == bench and r.get("doc") in BROKEN_DOCUMENTS})
+            if left_out:
+                s["left_out"] = {"documents": left_out, "questions": sum(1 for r in rows if r.get("doc") in left_out)}
             if bench == "financebench":
                 s["by_type"] = breakdown(br, lambda r: [r["type"]])
                 s["by_reasoning"] = breakdown(br, lambda r: [r.get("reasoning") or "-"])
@@ -889,6 +906,10 @@ def render_report(summary: Dict[str, Any], rows: List[Dict[str, Any]]) -> str:
                 f"| Answers with errors | {s['errors']} |",
                 f"| Answers that needed a retry (rate limit or model error) | {s.get('retried', 0)} |",
                 f"| Answers rewritten after the sentence check (graded correct) | {s.get('rewritten', 0)} ({s.get('rewritten_correct', 0)}) |"]
+        if s.get("left_out"):
+            lo_ = s["left_out"]
+            out.append(f"| Left out | {lo_['questions']} questions on {', '.join(lo_['documents'])}: the downloaded file is "
+                       f"another document ({', '.join(BROKEN_DOCUMENTS[d] for d in lo_['documents'])}) |")
         if s.get("ingestion"):
             ing = s["ingestion"]
             out.append(f"| Ingestion | {ing['documents']} documents, {ing['chunks']} chunks; upload {ing['upload_s']}s, "
@@ -898,7 +919,7 @@ def render_report(summary: Dict[str, Any], rows: List[Dict[str, Any]]) -> str:
             if s.get(key):
                 out += ["", f"**{title}**", "", "| Group | Questions | Accuracy |", "|---|---|---|"]
                 out += [f"| {k} | {v['n']} | {pct(v['accuracy'])} |" for k, v in s[key].items()]
-        misses = [r for r in rows if r["benchmark"] == bench and r["j"].get("correct") is False]
+        misses = [r for r in rows if r["benchmark"] == bench and r["j"].get("correct") is False and r.get("doc") not in BROKEN_DOCUMENTS]
         if misses:
             out += ["", "**Missed questions**", "", "| Id | Question | Reference | Grader's reason |", "|---|---|---|---|"]
             for r in misses:
