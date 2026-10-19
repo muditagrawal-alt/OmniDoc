@@ -923,3 +923,12 @@ def test_the_vision_agent_reads_a_named_page_and_where_its_number_is_printed(mon
     agent = V.VisionAgent(images_dir=os.path.join(folder, "figures"))
     state = {"document_ids": ["doc_n"], "user_query": "What is the title of the diagram on page 9?", "chunk_context": []}
     assert [f["page"] for f in agent._page_candidates(state, strict=False, limit=6)][:2] == [9, 12]
+
+
+def test_a_defined_ratio_is_given_as_a_decimal_unless_a_percentage_is_asked():
+    from agents.finance_terms import notes_for
+    roa = notes_for("What is the FY2017 return on assets (ROA) for Coca Cola? ROA is defined as: FY2017 net income / (average "
+                    "total assets between FY2016 and FY2017). Round your answer to two decimal places.")
+    assert "0.0146 is 0.01" in roa
+    assert "0.0146" not in notes_for("What is the FY2019 EBITDA % margin? EBITDA is defined as operating income + D&A. Round to "
+                                     "one decimal place.")
