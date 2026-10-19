@@ -470,6 +470,7 @@ def test_names_the_document_never_mentions_are_noted():
     from agents.document_intelligence_agent import DocumentIntelligenceAgent, question_names
     assert question_names("Compared to MMDU, how many more QA pairs does SnapNtell have?") == ["MMDU", "SnapNtell"]
     assert question_names("Did JnJ's net earnings rise in Q2 of FY2023 compared to Q2 of FY2022?") == ["JnJ"]
+    assert question_names("What date is mentioned on page(1)? Format the date as YYYY-MM-DD") == []
     text = [RetrievedChunk(chunk_id="p_p5_c0", doc_id="p", page_number=5, text="SnapNTell has 75,680 QA pairs; ViQuAE has 3,700.")]
     agent = DocumentIntelligenceAgent(SimpleNamespace(get_document_chunks=lambda doc_id: text))
     out = agent.run({"user_query": "Compared to MMDU, how many more QA pairs does SnapNtell have?", "document_ids": ["p"],
