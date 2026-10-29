@@ -52,6 +52,34 @@ memory, about a fifth of 12 GB; check with `free -h` if the VM sees little use.
 Logs: `docker compose logs -f omnidoc`. Backups: the library is the `omnidoc_omnidoc-data` Docker
 volume (`docker run --rm -v omnidoc_omnidoc-data:/data -v $PWD:/b alpine tar czf /b/omnidoc-data.tgz /data`).
 
+## Accounts: sign-in for everyone you share it with
+
+With `OMNIDOC_ACCOUNTS=1` every visitor signs in, and each account has its own private library,
+conversations, knowledge graph and record tables. Nothing about a user is stored except the e-mail
+address, a name and their own documents and chats, all on your server: no third-party account service
+is needed. Sign-in uses one-time codes and Google or GitHub, so OmniDoc stores no passwords; sessions
+last 30 days and only their hashes are kept. Turn on at least one method:
+
+| Method | Free service | Setup |
+|---|---|---|
+| E-mailed six-digit code | Gmail (500 e-mails/day): turn on 2-Step Verification, create an [app password](https://myaccount.google.com/apppasswords), and set `OMNIDOC_SMTP_HOST=smtp.gmail.com`, `OMNIDOC_SMTP_USER`, `OMNIDOC_SMTP_PASSWORD` (the app password). Or [Brevo](https://www.brevo.com) (300/day) with its SMTP key. | `.env` |
+| GitHub | [New OAuth App](https://github.com/settings/developers): homepage `https://<your domain>`, callback `https://<your domain>/api/auth/oauth/github/callback` | `OMNIDOC_GITHUB_CLIENT_ID` / `_SECRET` |
+| Google | [Google Cloud console](https://console.cloud.google.com/apis/credentials) → OAuth client ID (Web application), redirect URI `https://<your domain>/api/auth/oauth/google/callback`; the consent screen needs only the `email` and `profile` scopes (no billing) | `OMNIDOC_GOOGLE_CLIENT_ID` / `_SECRET` |
+
+Also set `OMNIDOC_PUBLIC_URL=https://<your domain>` and `OMNIDOC_ADMIN_EMAILS=<your address>`.
+Every account gets daily limits (40 questions, 20 uploads) and a 200 MB library by default
+(`OMNIDOC_DAILY_QUESTIONS`, `OMNIDOC_DAILY_UPLOADS`, `OMNIDOC_STORAGE_MB`) so that free model quotas
+and the disk are shared fairly; administrators have none. `OMNIDOC_ALLOWED_EMAILS` restricts sign-in
+to listed addresses or `@domains`. Users can see their usage and delete their account, with all their
+data, from *Settings → Account and usage*.
+
+With 200 GB of disk and 200 MB per account, the server holds the libraries of about 900 users;
+conversations are stored compressed and take a few kilobytes per answer.
+
+**Backups.** `oracle-setup.sh` schedules `deploy/backup.sh` every night at 03:30: a snapshot of the
+library in `~/omnidoc-backups`, the last seven kept. For copies off the server, add a backup policy to
+the boot volume in the Oracle console (five volume backups are free).
+
 ## Instant sharing from your own computer: Cloudflare Tunnel
 
 No server and no account needed; your computer stays the server (it must be on).
