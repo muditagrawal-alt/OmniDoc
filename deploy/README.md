@@ -57,14 +57,15 @@ volume (`docker run --rm -v omnidoc_omnidoc-data:/data -v $PWD:/b alpine tar czf
 With `OMNIDOC_ACCOUNTS=1` every visitor signs in, and each account has its own private library,
 conversations, knowledge graph and record tables. Nothing about a user is stored except the e-mail
 address, a name and their own documents and chats, all on your server: no third-party account service
-is needed. Sign-in uses one-time codes and Google or GitHub, so OmniDoc stores no passwords; sessions
-last 30 days and only their hashes are kept. Turn on at least one method:
+is needed. Sign-in uses GitHub, Google or one-time codes, so OmniDoc stores no passwords; sessions
+last 30 days and only their hashes are kept. Turn on at least one method. GitHub alone is enough and
+needs no e-mail service; it also accepts the free `<ip>.sslip.io` address, which Google may refuse:
 
 | Method | Free service | Setup |
 |---|---|---|
-| E-mailed six-digit code | Gmail (500 e-mails/day): turn on 2-Step Verification, create an [app password](https://myaccount.google.com/apppasswords), and set `OMNIDOC_SMTP_HOST=smtp.gmail.com`, `OMNIDOC_SMTP_USER`, `OMNIDOC_SMTP_PASSWORD` (the app password). Or [Brevo](https://www.brevo.com) (300/day) with its SMTP key. | `.env` |
 | GitHub | [New OAuth App](https://github.com/settings/developers): homepage `https://<your domain>`, callback `https://<your domain>/api/auth/oauth/github/callback` | `OMNIDOC_GITHUB_CLIENT_ID` / `_SECRET` |
 | Google | [Google Cloud console](https://console.cloud.google.com/apis/credentials) → OAuth client ID (Web application), redirect URI `https://<your domain>/api/auth/oauth/google/callback`; the consent screen needs only the `email` and `profile` scopes (no billing) | `OMNIDOC_GOOGLE_CLIENT_ID` / `_SECRET` |
+| E-mailed six-digit code (optional; off unless SMTP is set) | Gmail (500 e-mails/day): turn on 2-Step Verification, create an [app password](https://myaccount.google.com/apppasswords), and set `OMNIDOC_SMTP_HOST=smtp.gmail.com`, `OMNIDOC_SMTP_USER`, `OMNIDOC_SMTP_PASSWORD` (the app password). Or [Brevo](https://www.brevo.com) (300/day) with its SMTP key. | `.env` |
 
 Also set `OMNIDOC_PUBLIC_URL=https://<your domain>` and `OMNIDOC_ADMIN_EMAILS=<your address>`.
 Every account gets daily limits (40 questions, 20 uploads) and a 200 MB library by default
