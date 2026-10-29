@@ -420,7 +420,8 @@ def as_str_list(value: Any, max_items: int = 50, max_len: int = 300) -> List[str
 # Numbers: parsing and "does this figure appear in the evidence?"
 # ----------------------------------------------------------------------------
 
-_NUM_TOKEN_RE = re.compile(r"(?<![\w.])(-)?(\d{1,3}(?:,\d{3})+|\d+)(\.\d+)?(?![\d])")
+# Grouped as 1,212,503 or, in the Indian system, as 3,62,968 (lakh) and 1,25,00,000 (crore).
+_NUM_TOKEN_RE = re.compile(r"(?<![\w.])(-)?(\d{1,3}(?:,\d{2})+,\d{3}|\d{1,3}(?:,\d{3})+|\d+)(\.\d+)?(?![\d])")
 
 
 def to_number(value: Any) -> Optional[float]:
@@ -471,7 +472,7 @@ def _close(a: float, b: float) -> bool:
 
 
 _SCALES = {"thousand": 1e3, "million": 1e6, "mn": 1e6, "billion": 1e9, "bn": 1e9, "trillion": 1e12}
-_SCALED_RE = re.compile(r"(\d{1,3}(?:,\d{3})+|\d+)(\.\d+)?\s*(thousand|million|billion|trillion|bn|mn)\b", re.IGNORECASE)
+_SCALED_RE = re.compile(r"(\d{1,3}(?:,\d{2})+,\d{3}|\d{1,3}(?:,\d{3})+|\d+)(\.\d+)?\s*(thousand|million|billion|trillion|bn|mn)\b", re.IGNORECASE)
 
 
 def _scaled_numbers(text: str) -> List[float]:
