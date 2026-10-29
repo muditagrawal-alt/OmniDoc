@@ -98,7 +98,7 @@ _YEAR = re.compile(r"\b(?:19|20)\d\d\b")
 # A whole page given to the writer is cut after this many characters (a 10-K balance sheet is 3-6,000).
 FULL_PAGE_CHARS = 7000
 STATEMENT_MIN_AMOUNTS = 6  # a statement is full of amounts (44,538 / 3.46); a contents page has page numbers
-_AMOUNT = re.compile(r"\d{1,3}(?:,\d{3})+(?:\.\d+)?|\d+\.\d+")
+_AMOUNT = re.compile(r"(?:\d{1,3}(?:,\d{2})+,\d{3}|\d{1,3}(?:,\d{3})+)(?:\.\d+)?|\d+\.\d+")
 # "How many Democrats said ...": a survey's counts are its percentages of the groups' sample sizes, which its
 # methodology section tabulates ("Unweighted sample size ... Plus or minus ...").
 PEOPLE_COUNT = re.compile(r"\bhow many\b(?:(?!\?).){0,60}?\b(people|persons|adults|respondents|voters|americans|participants|"
