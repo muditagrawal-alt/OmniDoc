@@ -477,9 +477,11 @@ class OmniDocWorkflow:
         conversation_history: Optional[list] = None,
         run_id: Optional[str] = None,
         web_mode: str = "auto",
+        owner_id: Optional[str] = None,
     ) -> AgentWorkflowState:
         return {
             "session_id": session_id,
+            "owner_id": owner_id,
             "run_id": run_id or f"run_{uuid.uuid4().hex[:12]}",
             "user_query": user_query,
             "document_ids": document_ids or [],
@@ -543,6 +545,7 @@ class OmniDocWorkflow:
         session_id: str = "default_session",
         conversation_history: list = None,
         web_mode: str = "auto",
+        owner_id: Optional[str] = None,
     ) -> Iterator[Tuple[str, Dict[str, Any]]]:
         """
         Runs the workflow in a worker thread and yields events as they happen:
@@ -550,7 +553,8 @@ class OmniDocWorkflow:
         before the answer is written, ("delta", text) while it is written, ("reset", [...]) when a
         draft is replaced, and finally ("result", final_state) with "usage" (model calls, tokens).
         """
-        initial_state = self._initial_state(user_query, document_ids, session_id, conversation_history, web_mode=web_mode)
+        initial_state = self._initial_state(user_query, document_ids, session_id, conversation_history, web_mode=web_mode,
+                                            owner_id=owner_id)
         run_id = initial_state["run_id"]
         events: "queue.Queue[Tuple[str, Any]]" = queue.Queue()
         streaming.open_channel(run_id, lambda event, data: events.put((event, data)))
