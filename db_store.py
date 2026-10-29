@@ -1,5 +1,9 @@
 import os
 import json
+import time
+import zlib
+import base64
+import hashlib
 import secrets
 import sqlite3
 import threading
@@ -13,6 +17,19 @@ DB_PATH.parent.mkdir(exist_ok=True, parents=True)
 
 # Chats created without a signed-in profile belong to this local user.
 LOCAL_USER_ID = "usr_local_default"
+
+
+def _pack(text: str) -> str:
+    """Stores long JSON compressed (an answer's sources and checks shrink about four times); short text as is."""
+    if len(text) < 2048:
+        return text
+    return "z1:" + base64.b64encode(zlib.compress(text.encode("utf-8"), 9)).decode("ascii")
+
+
+def _unpack(text: str) -> str:
+    if isinstance(text, str) and text.startswith("z1:"):
+        return zlib.decompress(base64.b64decode(text[3:])).decode("utf-8")
+    return text
 
 
 class OmniDocDB:
@@ -102,11 +119,44 @@ class OmniDocDB:
             "ALTER TABLE messages ADD COLUMN metadata TEXT",
             "ALTER TABLE chats ADD COLUMN user_id TEXT DEFAULT 'usr_local_default'",
             "ALTER TABLE documents ADD COLUMN chunk_count INTEGER",
+            # Rolling memory: a summary of the turns older than the recent window, and how many messages it covers.
+            "ALTER TABLE chats ADD COLUMN memory TEXT",
+            "ALTER TABLE chats ADD COLUMN memory_upto INTEGER DEFAULT 0",
+            "ALTER TABLE sessions ADD COLUMN expires_at REAL",
+            "ALTER TABLE users ADD COLUMN last_login_at TIMESTAMP",
         ):
             try:
                 cursor.execute(statement)
             except sqlite3.OperationalError:
                 pass
+        self._migrate_document_owners(cursor)
+        cursor.execute("""
+            CREATE TABLE IF NOT EXISTS otp_codes (
+                email TEXT PRIMARY KEY,
+                code_hash TEXT NOT NULL,
+                expires_at REAL NOT NULL,
+                attempts INTEGER DEFAULT 0,
+                sends INTEGER DEFAULT 0,
+                window_start REAL DEFAULT 0,
+                last_sent REAL DEFAULT 0
+            )
+        """)
+        cursor.execute("""
+            CREATE TABLE IF NOT EXISTS oauth_states (
+                state_hash TEXT PRIMARY KEY,
+                provider TEXT NOT NULL,
+                created_at REAL NOT NULL
+            )
+        """)
+        cursor.execute("""
+            CREATE TABLE IF NOT EXISTS usage (
+                user_id TEXT NOT NULL,
+                day TEXT NOT NULL,
+                questions INTEGER DEFAULT 0,
+                uploads INTEGER DEFAULT 0,
+                PRIMARY KEY (user_id, day)
+            )
+        """)
         # Older builds stored anonymous chats under 'usr_default'
         cursor.execute(
             "UPDATE chats SET user_id = ? WHERE user_id IS NULL OR user_id = 'usr_default'",
@@ -127,6 +177,39 @@ class OmniDocDB:
         """)
 
         self.conn.commit()
+
+    @staticmethod
+    def _migrate_document_owners(cursor) -> None:
+        """
+        Documents belong to a user. Older databases allowed one copy of a file in the whole library
+        (file_hash UNIQUE); with accounts each user keeps their own copy, so the table is rebuilt
+        once with an owner column and a (owner, file) uniqueness instead.
+        """
+        row = cursor.execute("SELECT sql FROM sqlite_master WHERE type='table' AND name='documents'").fetchone()
+        sql = (row[0] if row else "") or ""
+        if "owner_id" not in sql:
+            cursor.execute("""
+                CREATE TABLE documents_new (
+                    id TEXT PRIMARY KEY,
+                    filename TEXT NOT NULL,
+                    file_hash TEXT,
+                    upload_date TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                    size_bytes INTEGER,
+                    file_type TEXT,
+                    is_processed BOOLEAN DEFAULT 0,
+                    chunk_count INTEGER,
+                    owner_id TEXT DEFAULT 'usr_local_default'
+                )
+            """)
+            cursor.execute("""
+                INSERT INTO documents_new (id, filename, file_hash, upload_date, size_bytes, file_type, is_processed, chunk_count, owner_id)
+                SELECT id, filename, file_hash, upload_date, size_bytes, file_type, is_processed, chunk_count, 'usr_local_default'
+                FROM documents
+            """)
+            cursor.execute("DROP TABLE documents")
+            cursor.execute("ALTER TABLE documents_new RENAME TO documents")
+        cursor.execute("CREATE UNIQUE INDEX IF NOT EXISTS idx_documents_owner_hash ON documents(owner_id, file_hash)")
+        cursor.execute("CREATE INDEX IF NOT EXISTS idx_documents_owner ON documents(owner_id, upload_date)")
 
     # ------------------------------------------------------------------ users
     def upsert_user(self, user_id: str, email: str, name: str, provider: str = "local", avatar_url: str = "") -> Dict[str, Any]:
@@ -157,21 +240,93 @@ class OmniDocDB:
         return dict(row) if row else None
 
     # --------------------------------------------------------------- sessions
-    def create_session(self, user_id: str) -> str:
-        """Issue an opaque random session token for a user."""
+    @staticmethod
+    def _token_key(token: str) -> str:
+        # Only a hash of each session token is stored: a copy of the database cannot be used to sign in.
+        return "sha256:" + hashlib.sha256(token.encode("utf-8")).hexdigest()
+
+    def create_session(self, user_id: str, ttl_days: Optional[float] = None) -> str:
+        """Issue an opaque random session token for a user (expiring after ttl_days when given)."""
         token = "sess_" + secrets.token_urlsafe(32)
-        self.conn.execute("INSERT INTO sessions (token, user_id) VALUES (?, ?)", (token, user_id))
+        expires = time.time() + ttl_days * 86400 if ttl_days else None
+        self.conn.execute("INSERT INTO sessions (token, user_id, expires_at) VALUES (?, ?, ?)",
+                          (self._token_key(token), user_id, expires))
+        if ttl_days:
+            self.conn.execute("UPDATE users SET last_login_at = CURRENT_TIMESTAMP WHERE id = ?", (user_id,))
         self.conn.commit()
         return token
 
     def get_session_user_id(self, token: str) -> Optional[str]:
         cursor = self.conn.cursor()
-        cursor.execute("SELECT user_id FROM sessions WHERE token = ?", (token,))
+        # Sessions issued before tokens were hashed are still found by their plain value.
+        cursor.execute("SELECT user_id, expires_at FROM sessions WHERE token IN (?, ?)", (self._token_key(token), token))
         row = cursor.fetchone()
-        return row["user_id"] if row else None
+        if not row:
+            return None
+        if row["expires_at"] and row["expires_at"] < time.time():
+            self.delete_session(token)
+            return None
+        return row["user_id"]
 
     def delete_session(self, token: str):
-        self.conn.execute("DELETE FROM sessions WHERE token = ?", (token,))
+        self.conn.execute("DELETE FROM sessions WHERE token IN (?, ?)", (self._token_key(token), token))
+        self.conn.commit()
+
+    def delete_user_sessions(self, user_id: str):
+        self.conn.execute("DELETE FROM sessions WHERE user_id = ?", (user_id,))
+        self.conn.commit()
+
+    # ------------------------------------------------------------- sign-in codes
+    def put_otp(self, email: str, code_hash: str, expires_at: float, sends: int, window_start: float) -> None:
+        self.conn.execute("""
+            INSERT INTO otp_codes (email, code_hash, expires_at, attempts, sends, window_start, last_sent)
+            VALUES (?, ?, ?, 0, ?, ?, ?)
+            ON CONFLICT(email) DO UPDATE SET code_hash = excluded.code_hash, expires_at = excluded.expires_at,
+                attempts = 0, sends = excluded.sends, window_start = excluded.window_start, last_sent = excluded.last_sent
+        """, (email, code_hash, expires_at, sends, window_start, time.time()))
+        self.conn.commit()
+
+    def get_otp(self, email: str) -> Optional[Dict[str, Any]]:
+        row = self.conn.execute("SELECT * FROM otp_codes WHERE email = ?", (email,)).fetchone()
+        return dict(row) if row else None
+
+    def otp_attempt(self, email: str) -> None:
+        self.conn.execute("UPDATE otp_codes SET attempts = attempts + 1 WHERE email = ?", (email,))
+        self.conn.commit()
+
+    def otp_used(self, email: str) -> None:
+        # The code is spent; the send counters stay so the hourly limit still applies.
+        self.conn.execute("UPDATE otp_codes SET code_hash = '', expires_at = 0 WHERE email = ?", (email,))
+        self.conn.commit()
+
+    # ------------------------------------------------------------- OAuth states
+    def put_oauth_state(self, state_hash: str, provider: str) -> None:
+        now = time.time()
+        self.conn.execute("DELETE FROM oauth_states WHERE created_at < ?", (now - 900,))
+        self.conn.execute("INSERT INTO oauth_states (state_hash, provider, created_at) VALUES (?, ?, ?)", (state_hash, provider, now))
+        self.conn.commit()
+
+    def take_oauth_state(self, state_hash: str, provider: str, max_age: float = 600) -> bool:
+        """Consumes a state issued for this provider in the last max_age seconds (each state works once)."""
+        row = self.conn.execute("SELECT provider, created_at FROM oauth_states WHERE state_hash = ?", (state_hash,)).fetchone()
+        self.conn.execute("DELETE FROM oauth_states WHERE state_hash = ?", (state_hash,))
+        self.conn.commit()
+        return bool(row) and row["provider"] == provider and time.time() - row["created_at"] <= max_age
+
+    # -------------------------------------------------------------------- usage
+    def usage_today(self, user_id: str) -> Dict[str, int]:
+        day = time.strftime("%Y-%m-%d", time.gmtime())
+        row = self.conn.execute("SELECT questions, uploads FROM usage WHERE user_id = ? AND day = ?", (user_id, day)).fetchone()
+        return {"questions": row["questions"], "uploads": row["uploads"]} if row else {"questions": 0, "uploads": 0}
+
+    def count_usage(self, user_id: str, kind: str) -> None:
+        if kind not in ("questions", "uploads"):
+            return
+        day = time.strftime("%Y-%m-%d", time.gmtime())
+        self.conn.execute(f"""
+            INSERT INTO usage (user_id, day, {kind}) VALUES (?, ?, 1)
+            ON CONFLICT(user_id, day) DO UPDATE SET {kind} = {kind} + 1
+        """, (user_id, day))
         self.conn.commit()
 
     # ------------------------------------------------------------------ chats
@@ -234,6 +389,10 @@ class OmniDocDB:
         )
         self.conn.commit()
 
+    def set_chat_memory(self, chat_id: str, memory: str, upto: int):
+        self.conn.execute("UPDATE chats SET memory = ?, memory_upto = ? WHERE id = ?", (memory, upto, chat_id))
+        self.conn.commit()
+
     def delete_chat(self, chat_id: str):
         """Delete a chat and all its messages."""
         cursor = self.conn.cursor()
@@ -253,7 +412,7 @@ class OmniDocDB:
         """Add a message with optional rich metadata (sources, math, charts, graph, steps)."""
         cursor = self.conn.cursor()
         images_json = json.dumps(images, default=str) if images else None
-        metadata_json = json.dumps(metadata, default=str) if metadata else None
+        metadata_json = _pack(json.dumps(metadata, default=str)) if metadata else None
         cursor.execute("""
             INSERT INTO messages (chat_id, role, content, images, metadata)
             VALUES (?, ?, ?, ?, ?)
@@ -272,7 +431,7 @@ class OmniDocDB:
             for key in ("images", "metadata"):
                 if msg.get(key):
                     try:
-                        msg[key] = json.loads(msg[key])
+                        msg[key] = json.loads(_unpack(msg[key]))
                     except (TypeError, ValueError):
                         pass
             messages.append(msg)
@@ -287,12 +446,13 @@ class OmniDocDB:
         self.conn.commit()
 
     # -------------------------------------------------------------- documents
-    def add_document(self, doc_id: str, filename: str, file_hash: str, size_bytes: int, file_type: str, chunk_count: Optional[int] = None):
-        """Register a document (no-op if the same file was registered before)."""
+    def add_document(self, doc_id: str, filename: str, file_hash: str, size_bytes: int, file_type: str,
+                     chunk_count: Optional[int] = None, owner_id: str = LOCAL_USER_ID):
+        """Register a document (no-op if its owner registered the same file before)."""
         self.conn.execute("""
-            INSERT OR IGNORE INTO documents (id, filename, file_hash, size_bytes, file_type, is_processed, chunk_count)
-            VALUES (?, ?, ?, ?, ?, 1, ?)
-        """, (doc_id, filename, file_hash, size_bytes, file_type, chunk_count))
+            INSERT OR IGNORE INTO documents (id, filename, file_hash, size_bytes, file_type, is_processed, chunk_count, owner_id)
+            VALUES (?, ?, ?, ?, ?, 1, ?, ?)
+        """, (doc_id, filename, file_hash, size_bytes, file_type, chunk_count, owner_id))
         self.conn.commit()
 
     def get_document(self, doc_id: str) -> Optional[Dict[str, Any]]:
@@ -301,16 +461,41 @@ class OmniDocDB:
         row = cursor.fetchone()
         return dict(row) if row else None
 
-    def get_document_by_hash(self, file_hash: str) -> Optional[Dict[str, Any]]:
+    def get_document_by_hash(self, file_hash: str, owner_id: str = LOCAL_USER_ID) -> Optional[Dict[str, Any]]:
         cursor = self.conn.cursor()
-        cursor.execute("SELECT * FROM documents WHERE file_hash = ?", (file_hash,))
+        cursor.execute("SELECT * FROM documents WHERE file_hash = ? AND owner_id = ?", (file_hash, owner_id))
         row = cursor.fetchone()
         return dict(row) if row else None
 
-    def get_all_documents(self) -> List[Dict[str, Any]]:
+    def get_all_documents(self, owner_id: Optional[str] = None) -> List[Dict[str, Any]]:
+        """Every document, or one owner's."""
         cursor = self.conn.cursor()
-        cursor.execute("SELECT * FROM documents ORDER BY upload_date DESC")
+        if owner_id is None:
+            cursor.execute("SELECT * FROM documents ORDER BY upload_date DESC")
+        else:
+            cursor.execute("SELECT * FROM documents WHERE owner_id = ? ORDER BY upload_date DESC", (owner_id,))
         return [dict(row) for row in cursor.fetchall()]
+
+    def document_ids(self, owner_id: str) -> List[str]:
+        return [r[0] for r in self.conn.execute("SELECT id FROM documents WHERE owner_id = ?", (owner_id,))]
+
+    def storage_used(self, owner_id: str) -> int:
+        row = self.conn.execute("SELECT COALESCE(SUM(size_bytes), 0) FROM documents WHERE owner_id = ?", (owner_id,)).fetchone()
+        return int(row[0] or 0)
+
+    def delete_user(self, user_id: str) -> None:
+        """Removes a user with their chats, messages, sessions, codes and usage (documents are removed by the caller)."""
+        user = self.get_user(user_id)
+        cur = self.conn.cursor()
+        cur.execute("DELETE FROM messages WHERE chat_id IN (SELECT id FROM chats WHERE user_id = ?)", (user_id,))
+        cur.execute("DELETE FROM chats WHERE user_id = ?", (user_id,))
+        cur.execute("DELETE FROM sessions WHERE user_id = ?", (user_id,))
+        cur.execute("DELETE FROM usage WHERE user_id = ?", (user_id,))
+        if user and user.get("email"):
+            cur.execute("DELETE FROM otp_codes WHERE email = ?", (user["email"],))
+        cur.execute("DELETE FROM documents WHERE owner_id = ?", (user_id,))
+        cur.execute("DELETE FROM users WHERE id = ?", (user_id,))
+        self.conn.commit()
 
     def delete_document(self, doc_id: str):
         self.conn.execute("DELETE FROM documents WHERE id = ?", (doc_id,))
