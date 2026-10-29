@@ -65,6 +65,20 @@ def sql_identifier(name: str, used: set) -> str:
 
 # Catalog owner of the library-record tables (one row per document, one table per document type).
 LIBRARY_DOC_ID = "_library"
+LOCAL_OWNER = "usr_local_default"
+
+
+def library_id(owner: Optional[str] = None) -> str:
+    """Catalog id of a library's record tables: the local library's, or one account's (hosted OmniDoc)."""
+    if not owner or owner == LOCAL_OWNER:
+        return LIBRARY_DOC_ID
+    return f"{LIBRARY_DOC_ID}_{re.sub(r'[^0-9A-Za-z]', '_', owner)}"
+
+
+def library_table(base: str, owner: Optional[str] = None) -> str:
+    """t_library / t_records_<type>, with the account's suffix for an account's library."""
+    lib = library_id(owner)
+    return f"t_{base}" if lib == LIBRARY_DOC_ID else f"t_{base}__{lib[len(LIBRARY_DOC_ID) + 1:]}"
 
 
 class TableStore:
@@ -149,6 +163,13 @@ class TableStore:
             conn.execute("DELETE FROM table_catalog WHERE doc_id = ?", (doc_id,))
 
     # ------------------------------------------------------------------ read
+    def library_ids(self) -> List[str]:
+        """Catalog ids of every library's record tables (the local one and one per account)."""
+        with self._connect() as conn:
+            rows = conn.execute("SELECT DISTINCT doc_id FROM table_catalog WHERE substr(doc_id, 1, ?) = ?",
+                                (len(LIBRARY_DOC_ID), LIBRARY_DOC_ID)).fetchall()
+        return [r[0] for r in rows]
+
     def tables_for(self, doc_ids: Optional[Iterable[str]] = None) -> List[Dict[str, Any]]:
         """Catalog entries (with columns) for the given documents, or all documents (library records excluded)."""
         with self._connect() as conn:
@@ -161,8 +182,8 @@ class TableStore:
                     ids,
                 ).fetchall()
             else:
-                rows = conn.execute("SELECT * FROM table_catalog WHERE doc_id != ? ORDER BY doc_id, page, table_name",
-                                    (LIBRARY_DOC_ID,)).fetchall()
+                rows = conn.execute("SELECT * FROM table_catalog WHERE substr(doc_id, 1, ?) != ? ORDER BY doc_id, page, table_name",
+                                    (len(LIBRARY_DOC_ID), LIBRARY_DOC_ID)).fetchall()
         out = []
         for name, table_id, doc_id, page, title, columns_json, n_rows, bbox_json, source in rows:
             out.append({
