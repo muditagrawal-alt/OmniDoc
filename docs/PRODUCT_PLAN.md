@@ -7,10 +7,8 @@ part uses, and the decisions still open. Update it as items ship.
 **Constraints:** no paid services and no billing, no domain (the free `<ip>.sslip.io` address), and
 no e-mail sending of any kind (decided 2026-10-29). Sign-in, second factors and notifications therefore
 use methods that need neither: GitHub (and Google if it accepts the address), passkeys, authenticator
-apps, in-app notices and browser push.
-
-**Earlier constraint, still in force:** no paid services and no billing. Every item below names its free resource and the
-limit that matters. Where a free tier runs out, the plan says what happens (a lower limit, a queue,
+apps, in-app notices and browser push. Every item below names its free resource and the limit that
+matters. Where a free tier runs out, the plan says what happens (a lower limit, a queue,
 or bring-your-own-key), never "upgrade".
 
 ## Status at a glance
@@ -82,7 +80,7 @@ For users:
   for stored API keys (see Phase 2).
 
 For the operator:
-- Cloudflare Turnstile on sign-in and code requests; a disposable-address blocklist.
+- Turnstile on sign-up and sign-in (or a proof-of-work challenge if it refuses the sslip.io name).
 - Rate limits per IP as well as per address (uvicorn behind Caddy with forwarded headers trusted
   only from Caddy).
 - ClamAV scan of every upload; parsers in a sandboxed worker with memory and time limits.
@@ -153,7 +151,7 @@ A privacy panel states plainly, for the current settings, what leaves the device
 ## Phase 6: enterprise features
 
 - Organizations and teams: shared workspaces, roles (owner, admin, member, viewer), invitations by
-  e-mail, per-organization limits.
+  single-use, expiring links (no e-mail), per-organization limits.
 - Single sign-on for organizations: OpenID Connect (any provider) first, then SAML (`python3-saml`).
 - API keys per user, scoped and revocable; public REST API documentation and webhooks.
 - Usage reporting per organization; data retention settings (delete chats after N days).
