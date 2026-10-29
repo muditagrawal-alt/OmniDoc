@@ -1,8 +1,10 @@
 # OmniDoc product plan
 
-The plan for turning OmniDoc into an enterprise-grade SaaS product that runs entirely on free
-resources. It records what is done, what comes next and in which order, which free service each
-part uses, and the decisions still open. Update it as items ship.
+The plan for running OmniDoc as a complete, public, enterprise-grade product on free resources.
+Its purpose is to show one person building a full system end to end: the document intelligence, the
+web app, accounts and security, deployment, operations and evaluation. It is free for everyone and
+is not a business. The plan records what is done, what comes next and in which order, which free
+service each part uses, and the decisions still open. Update it as items ship.
 
 **Constraints:** no paid services and no billing, no domain (the free `<ip>.sslip.io` address), and
 no e-mail sending of any kind (decided 2026-10-29). Sign-in, second factors and notifications therefore
@@ -59,9 +61,29 @@ or bring-your-own-key), never "upgrade".
 3. UptimeRobot on `/api/health`; status page.
 4. Off-site encrypted backup (restic to R2 or B2) next to the nightly local snapshot; one restore drill.
 5. CI: tests, lint and build on every push; Docker image to GHCR; deploy to the VM over SSH on `main`.
+6. A guest demo: "Try it without signing in" opens a read-only library of public sample documents
+   (an annual report, a research paper, a scanned invoice) with a few questions per visitor, so
+   anyone reviewing the project sees cited answers within a minute.
 
-Done when: the public address works, sign-in works three ways, a broken commit cannot deploy, and a
-backup has been restored once.
+Done when: the public address and the guest demo work, GitHub sign-in works, a broken commit cannot
+deploy, and a backup has been restored once.
+
+## Throughout: make the engineering visible
+
+The project exists to be looked at, so each phase also leaves evidence a reviewer can check:
+
+- `docs/ARCHITECTURE.md`: a system diagram, the path of a question and of an upload, each data
+  store and why it exists, multi-tenancy, and what runs where.
+- Decision records (`docs/decisions/`), one page per choice with a real trade-off: hybrid retrieval
+  over a single vector search, LanceDB and SQLite over a database server, self-hosted accounts, no
+  e-mail, Oracle over the other free hosts.
+- CI status, test count and coverage as README badges; CodeQL and dependency scanning.
+- An evaluation in CI: a fixed 20-question set from FinanceBench and MMLongBench-Doc, run on demand
+  and weekly, with the score history in the repository, so regressions show.
+- A load test (k6 or Locust) against the Oracle VM: answers per minute, p50 and p95 latency, and
+  what gives out first (model rate limits, CPU or memory), published in the deployment guide.
+- A case study: how FinanceBench accuracy went from 30.6% to 77.8%, what did not work, and how the
+  whole system runs on free resources; linked from the README and the landing page.
 
 ## Phase 1: security for users and for the operator
 
@@ -90,6 +112,9 @@ For the operator:
 - Fail2ban or CrowdSec on the VM's SSH; SSH by key only; automatic security updates.
 
 ## Phase 2: free trial, then bring your own key
+
+The server's free keys cover only a few users, and some free tiers are meant for evaluation rather
+than public use (see Risks), so users' own free keys carry the load.
 
 - Each new account gets a small number of answers on the server's keys (the plan: 5–7; set by
   `OMNIDOC_TRIAL_ANSWERS`). The account dialog shows what is left.
@@ -131,8 +156,8 @@ A privacy panel states plainly, for the current settings, what leaves the device
   - benchmark numbers with their methodology.
 - Budgets: Lighthouse performance 90+ on mobile, `prefers-reduced-motion` respected, no layout shift,
   3D loaded only when visible and replaced by a still image on weak devices.
-- Pages: home, features, security and privacy, benchmarks, changelog, docs, status, pricing (free
-  plus BYOK), terms, privacy policy, contact.
+- Pages: home, features, architecture, security and privacy, benchmarks, case study, changelog,
+  docs, status, terms, privacy policy, contact.
 - **Support assistant** on the site: OmniDoc answering from its own documentation (README, deploy
   guide, FAQ, changelog) with citations, rate-limited per visitor and protected by Turnstile.
 
@@ -158,7 +183,7 @@ A privacy panel states plainly, for the current settings, what leaves the device
 - Legal: terms of service, privacy policy, data processing terms, subprocessor list (the model
   providers), cookie notice if analytics ever set cookies (Umami does not).
 
-## Phase 7: quality and growth
+## Phase 7: quality
 
 - Onboarding: a sample library and a short guided tour on first sign-in.
 - Feedback: thumbs up or down on answers with an optional comment; collected into an evaluation set.
@@ -179,6 +204,10 @@ A privacy panel states plainly, for the current settings, what leaves the device
 
 - Free model tiers change without notice: NVIDIA retired Nemotron 3 Super in October 2026. Keep
   several providers configured and BYOK available.
+- Free-tier terms: NVIDIA's free endpoints are meant for prototyping (production needs a paid
+  licence), and Gemini's free tier may use submitted content to improve Google's products. Keep the
+  server's keys for the demo and the trial, say so in the privacy panel, and steer sensitive
+  documents to the user's own key, the browser model or fully local mode.
 - Without e-mail there is no automatic account recovery: users must keep their recovery codes or
   link a second sign-in method. The sign-up flow insists on one of the two.
 - Google may refuse an sslip.io redirect address; GitHub sign-in and passkeys then cover everyone.
