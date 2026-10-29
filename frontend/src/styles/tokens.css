@@ -1,11 +1,10 @@
 /*
  * OmniDoc design tokens.
  *
- * Direction: an editorial research instrument. Warm paper neutrals and a serif
- * reading face for answers (Anthropic), monochrome ink for primary actions
- * (OpenAI), a true charcoal dark mode (xAI), soft rounded geometry and calm
- * motion (Google). A single marigold "highlighter" accent is reserved for
- * evidence: citations, selection, focus.
+ * Direction: an enterprise research tool. IBM Plex Sans for interface and answers alike,
+ * IBM Plex Mono for figures and code; one family of cool, slightly blue-tinted greys; a
+ * single blue for primary actions, links, selection and evidence; restrained radii and
+ * shadows tinted with the background. No gradients, no second accent.
  *
  * Themes are applied by setting data-theme="light" | "dark" on <html>
  * (resolved from the user's preference by an inline script in index.html).
@@ -13,9 +12,9 @@
 
 :root {
   /* Type families */
-  --font-ui: 'Instrument Sans Variable', 'Instrument Sans', ui-sans-serif, system-ui, -apple-system,
+  --font-ui: 'IBM Plex Sans Variable', 'IBM Plex Sans', ui-sans-serif, system-ui, -apple-system,
     'Segoe UI', 'Noto Sans', sans-serif;
-  --font-read: 'Source Serif 4 Variable', 'Source Serif 4', ui-serif, Georgia, 'Noto Serif', serif;
+  --font-read: var(--font-ui);
   --font-mono: 'IBM Plex Mono', ui-monospace, 'SF Mono', Menlo, Consolas, monospace;
 
   /* Type scale (UI is set at 14px, reading text at 17px) */
@@ -24,7 +23,7 @@
   --text-sm: 0.8125rem; /* 13 */
   --text-base: 0.875rem; /* 14 */
   --text-md: 1rem; /* 16 */
-  --text-read: 1.0625rem; /* 17 */
+  --text-read: 1rem; /* 16 */
   --text-lg: 1.25rem; /* 20 */
   --text-xl: 1.625rem; /* 26 */
   --text-2xl: 2.125rem; /* 34 */
@@ -33,7 +32,7 @@
   --leading-tight: 1.18;
   --leading-snug: 1.35;
   --leading-ui: 1.45;
-  --leading-read: 1.68;
+  --leading-read: 1.66;
 
   --tracking-tight: -0.022em;
   --tracking-snug: -0.011em;
@@ -54,12 +53,12 @@
   --space-20: 80px;
 
   /* Radii: tighter inside, softer outside */
-  --radius-xs: 4px;
-  --radius-sm: 6px;
-  --radius-md: 10px;
-  --radius-lg: 14px;
-  --radius-xl: 20px;
-  --radius-2xl: 26px;
+  --radius-xs: 3px;
+  --radius-sm: 5px;
+  --radius-md: 7px;
+  --radius-lg: 10px;
+  --radius-xl: 14px;
+  --radius-2xl: 18px;
   --radius-pill: 999px;
 
   /* Motion */
@@ -92,114 +91,114 @@
 :root[data-theme='light'] {
   color-scheme: light;
 
-  --bg: #f6f5f1;
-  --bg-sunken: #eeece6;
+  --bg: #f4f5f8;
+  --bg-sunken: #eceef3;
   --surface: #ffffff;
-  --surface-2: #f2f0eb;
-  --surface-3: #e8e5de;
+  --surface-2: #f0f2f6;
+  --surface-3: #e5e8ee;
 
-  --border: #e3e0d8;
-  --border-strong: #cdc9bd;
+  --border: #e0e3ea;
+  --border-strong: #c5cad4;
 
-  --text: #1c1b19;
-  --text-2: #57544d;
-  --text-3: #87837b;
-  --text-inverse: #faf9f6;
+  --text: #121620;
+  --text-2: #4a5263;
+  --text-3: #778091;
+  --text-inverse: #f7f8fa;
 
-  /* Primary actions are ink, not colour */
-  --ink: #1c1b19;
-  --ink-hover: #36342f;
-  --on-ink: #faf9f6;
+  /* Primary actions carry the brand blue */
+  --ink: #0f62fe;
+  --ink-hover: #0353e9;
+  --on-ink: #ffffff;
 
-  /* The one accent: marigold highlighter */
-  --accent: #c87a10;
-  --accent-ink: #94560a; /* accent used as text: 4.9:1 on --bg */
-  --accent-soft: rgba(222, 150, 40, 0.16);
-  --accent-softer: rgba(222, 150, 40, 0.09);
-  --accent-line: rgba(200, 122, 16, 0.5);
+  /* The one accent: links, selection, focus and evidence */
+  --accent: #0f62fe;
+  --accent-ink: #0043ce; /* accent used as text: 7.2:1 on --bg */
+  --accent-soft: rgba(15, 98, 254, 0.12);
+  --accent-softer: rgba(15, 98, 254, 0.06);
+  --accent-line: rgba(15, 98, 254, 0.45);
   --focus-ring: 0 0 0 2px var(--bg), 0 0 0 4px var(--accent);
 
   /* Status (always paired with an icon + label) */
-  --good: #2e7d4f;
-  --good-soft: rgba(46, 125, 79, 0.1);
-  --warn: #a8650a;
-  --warn-soft: rgba(200, 122, 16, 0.12);
-  --bad: #b3402e;
-  --bad-soft: rgba(179, 64, 46, 0.09);
+  --good: #198038;
+  --good-soft: rgba(25, 128, 56, 0.1);
+  --warn: #8e6a00;
+  --warn-soft: rgba(241, 194, 27, 0.18);
+  --bad: #da1e28;
+  --bad-soft: rgba(218, 30, 40, 0.08);
 
-  --shadow-1: 0 1px 2px rgba(40, 33, 20, 0.06);
-  --shadow-2: 0 1px 2px rgba(40, 33, 20, 0.05), 0 6px 18px -6px rgba(40, 33, 20, 0.12);
-  --shadow-3: 0 2px 6px rgba(40, 33, 20, 0.06), 0 24px 56px -16px rgba(40, 33, 20, 0.24);
-  --scrim: rgba(28, 24, 18, 0.28);
+  --shadow-1: 0 1px 2px rgba(18, 26, 44, 0.06);
+  --shadow-2: 0 1px 2px rgba(18, 26, 44, 0.05), 0 6px 18px -6px rgba(18, 26, 44, 0.12);
+  --shadow-3: 0 2px 6px rgba(18, 26, 44, 0.06), 0 24px 56px -16px rgba(18, 26, 44, 0.22);
+  --scrim: rgba(12, 16, 26, 0.32);
 
   /* Charts and the knowledge globe */
-  --chart-grid: rgba(28, 27, 25, 0.08);
-  --chart-axis: rgba(28, 27, 25, 0.28);
-  --globe-dot: rgba(28, 27, 25, 0.2);
-  --globe-edge: rgba(28, 27, 25, 0.22);
-  --globe-rim: rgba(200, 122, 16, 0.1);
-  --cat-1: #2a78d6;
+  --chart-grid: rgba(18, 22, 32, 0.08);
+  --chart-axis: rgba(18, 22, 32, 0.28);
+  --globe-dot: rgba(18, 22, 32, 0.2);
+  --globe-edge: rgba(18, 22, 32, 0.22);
+  --globe-rim: rgba(15, 98, 254, 0.1);
+  --cat-1: #0f62fe;
   --cat-2: #eb6834;
   --cat-3: #1baf7a;
   --cat-4: #eda100;
   --cat-5: #e87ba4;
   --cat-6: #008300;
   --cat-7: #4a3aa7;
-  --cat-other: #8c887f;
+  --cat-other: #8a91a0;
 }
 
 /* ----------------------------------------------------------------- Dark */
 :root[data-theme='dark'] {
   color-scheme: dark;
 
-  --bg: #151514;
-  --bg-sunken: #10100f;
-  --surface: #1e1e1c;
-  --surface-2: #262624;
-  --surface-3: #31302d;
+  --bg: #0f1115;
+  --bg-sunken: #0a0c0f;
+  --surface: #161920;
+  --surface-2: #1c2028;
+  --surface-3: #262b35;
 
-  --border: #2c2b28;
-  --border-strong: #3d3c38;
+  --border: #242933;
+  --border-strong: #353c48;
 
-  --text: #ecebe6;
-  --text-2: #aaa69d;
-  --text-3: #77746c;
-  --text-inverse: #151514;
+  --text: #e7eaf0;
+  --text-2: #a3aab7;
+  --text-3: #727a88;
+  --text-inverse: #0f1115;
 
-  --ink: #ecebe6;
-  --ink-hover: #ffffff;
-  --on-ink: #151514;
+  --ink: #0f62fe;
+  --ink-hover: #2f76ff;
+  --on-ink: #ffffff;
 
-  --accent: #e9a23b;
-  --accent-ink: #f0b65c;
-  --accent-soft: rgba(233, 162, 59, 0.16);
-  --accent-softer: rgba(233, 162, 59, 0.08);
-  --accent-line: rgba(233, 162, 59, 0.5);
+  --accent: #4589ff;
+  --accent-ink: #78a9ff;
+  --accent-soft: rgba(69, 137, 255, 0.16);
+  --accent-softer: rgba(69, 137, 255, 0.08);
+  --accent-line: rgba(69, 137, 255, 0.5);
   --focus-ring: 0 0 0 2px var(--bg), 0 0 0 4px var(--accent);
 
-  --good: #5cb67f;
-  --good-soft: rgba(92, 182, 127, 0.12);
-  --warn: #e9a23b;
-  --warn-soft: rgba(233, 162, 59, 0.12);
-  --bad: #e7765f;
-  --bad-soft: rgba(231, 118, 95, 0.12);
+  --good: #42be65;
+  --good-soft: rgba(66, 190, 101, 0.12);
+  --warn: #f1c21b;
+  --warn-soft: rgba(241, 194, 27, 0.12);
+  --bad: #ff8389;
+  --bad-soft: rgba(255, 131, 137, 0.12);
 
   --shadow-1: 0 1px 2px rgba(0, 0, 0, 0.4);
-  --shadow-2: 0 1px 2px rgba(0, 0, 0, 0.35), 0 8px 24px -8px rgba(0, 0, 0, 0.55);
-  --shadow-3: 0 2px 8px rgba(0, 0, 0, 0.4), 0 28px 64px -16px rgba(0, 0, 0, 0.7);
+  --shadow-2: 0 1px 2px rgba(0, 0, 0, 0.35), 0 8px 24px -8px rgba(0, 4, 12, 0.6);
+  --shadow-3: 0 2px 8px rgba(0, 0, 0, 0.4), 0 28px 64px -16px rgba(0, 4, 12, 0.72);
   --scrim: rgba(0, 0, 0, 0.55);
 
-  --chart-grid: rgba(236, 235, 230, 0.07);
-  --chart-axis: rgba(236, 235, 230, 0.26);
-  --globe-dot: rgba(236, 235, 230, 0.16);
-  --globe-edge: rgba(236, 235, 230, 0.2);
-  --globe-rim: rgba(233, 162, 59, 0.12);
-  --cat-1: #3987e5;
+  --chart-grid: rgba(231, 234, 240, 0.07);
+  --chart-axis: rgba(231, 234, 240, 0.26);
+  --globe-dot: rgba(231, 234, 240, 0.16);
+  --globe-edge: rgba(231, 234, 240, 0.2);
+  --globe-rim: rgba(69, 137, 255, 0.12);
+  --cat-1: #4589ff;
   --cat-2: #d95926;
   --cat-3: #199e70;
   --cat-4: #c98500;
   --cat-5: #d55181;
-  --cat-6: #008300;
+  --cat-6: #24a148;
   --cat-7: #9085e9;
-  --cat-other: #77746c;
+  --cat-other: #727a88;
 }
