@@ -70,7 +70,7 @@ def _quoted_with_unit(value: float, units: Optional[str], text: str) -> Optional
     unit = (units or "").strip()
     if not unit or not re.match(r"^[A-Za-z%][\w%/^.-]{0,15}$", unit):
         return None
-    pattern = re.compile(r"(\d{1,3}(?:,\d{3})+|\d+)(\.\d+)?\s*" + re.escape(unit) + r"(?![A-Za-z])")
+    pattern = re.compile(r"(\d{1,3}(?:,\d{2})+,\d{3}|\d{1,3}(?:,\d{3})+|\d+)(\.\d+)?\s*" + re.escape(unit) + r"(?![A-Za-z])")
     for m in pattern.finditer(text):
         quoted = float(m.group(1).replace(",", "") + (m.group(2) or ""))
         for k in (1, 2, 3, 4):
