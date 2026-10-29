@@ -235,11 +235,11 @@ class KuzuGraphStore:
             logger.error(f"Error in multi-hop traversal: {e}")
         return paths
 
-    def get_all_graph(self, limit: int = 2000) -> Dict[str, Any]:
+    def get_all_graph(self, limit: int = 2000, doc_ids: Optional[List[str]] = None) -> Dict[str, Any]:
         """
-        Returns entities, relations and source documents for the knowledge globe.
-        `limit` caps the number of entities; relations are returned only between
-        returned entities.
+        Returns entities, relations and source documents for the knowledge globe (of the given
+        documents only, when doc_ids is given: one account's library on a hosted server).
+        `limit` caps the number of entities; relations are returned only between returned entities.
         """
         results: Dict[str, Any] = {"nodes": [], "edges": [], "documents": []}
         if not self.conn:
@@ -247,10 +247,15 @@ class KuzuGraphStore:
         limit = max(1, min(int(limit), 20000))
         try:
             node_ids = set()
-            cursor = self._exec(
-                f"MATCH (e:Entity) RETURN e.id, e.name, e.category, e.description, e.doc_id "
-                f"ORDER BY e.name LIMIT {limit}"
-            )
+            if doc_ids is not None:
+                cursor = self._exec(
+                    f"MATCH (e:Entity) WHERE list_contains($ids, e.doc_id) RETURN e.id, e.name, e.category, e.description, e.doc_id "
+                    f"ORDER BY e.name LIMIT {limit}", {"ids": list(doc_ids)})
+            else:
+                cursor = self._exec(
+                    f"MATCH (e:Entity) RETURN e.id, e.name, e.category, e.description, e.doc_id "
+                    f"ORDER BY e.name LIMIT {limit}"
+                )
             while cursor.has_next():
                 e_id, e_name, e_cat, e_desc, e_doc = cursor.get_next()
                 if not e_id or e_id in node_ids:
@@ -289,7 +294,8 @@ class KuzuGraphStore:
             cursor = self._exec("MATCH (d:Document) RETURN d.id, d.title ORDER BY d.title")
             while cursor.has_next():
                 d_id, d_title = cursor.get_next()
-                results["documents"].append({"id": d_id, "title": d_title or d_id})
+                if doc_ids is None or d_id in doc_ids:
+                    results["documents"].append({"id": d_id, "title": d_title or d_id})
         except Exception as e:
             logger.error(f"Error fetching all graph: {e}")
         return results
