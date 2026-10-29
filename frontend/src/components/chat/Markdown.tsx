@@ -223,8 +223,10 @@ function renderTex(tex: string, display: boolean): string | null {
   }
 }
 
+// Inline maths is $...$, but a dollar amount ("$3.2 billion", "$1,212 and $980") is text: a $ followed
+// by a number and a unit, space or comma never opens a formula, and none closes before a digit.
 const INLINE_RE =
-  /(\[\d{1,3}\](?:\[\d{1,3}\])*)|(`[^`]+`)|(\$(?!\s)[^$\n]+?(?<!\s)\$)|(\\\((.+?)\\\))|(\*\*[^*]+\*\*|__[^_]+__)|((?<![\w*])\*(?!\s)[^*\n]+?(?<!\s)\*(?![\w*])|(?<![\w_])_(?!\s)[^_\n]+?(?<!\s)_(?![\w_]))|(\[([^\]]+)\]\((https?:\/\/[^\s)]+)\))|(~~[^~]+~~)/g;
+  /(\[\d{1,3}\](?:\[\d{1,3}\])*)|(`[^`]+`)|(\$(?!\s)(?!\d[\d,.]*\s*(?:million|billion|thousand|trillion|bn|mn|[MBKk]\b|\)|,|\s))[^$\n]+?(?<!\s)\$(?!\d))|(\\\((.+?)\\\))|(\*\*[^*]+\*\*|__[^_]+__)|((?<![\w*])\*(?!\s)[^*\n]+?(?<!\s)\*(?![\w*])|(?<![\w_])_(?!\s)[^_\n]+?(?<!\s)_(?![\w_]))|(\[([^\]]+)\]\((https?:\/\/[^\s)]+)\))|(~~[^~]+~~)/g;
 
 function renderInline(text: string, ctx: InlineCtx, keyBase = 'i'): ReactNode[] {
   const out: ReactNode[] = [];
@@ -338,8 +340,11 @@ function CodeBlock({ lang, code }: { lang: string; code: string }) {
   );
 }
 
+// Some models cite as 【3】 or 【15†L1-L4】 while streaming; the server rewrites them to [3] in the final answer.
+const FULLWIDTH_CITE_RE = /[【［]\s*(\d{1,3})(?:\s*†[^】］]*)?\s*[】］]/g;
+
 export function Markdown({ text, sources, onCite, flags }: MarkdownProps) {
-  const blocks = useMemo(() => parseBlocks(text || ''), [text]);
+  const blocks = useMemo(() => parseBlocks((text || '').replace(FULLWIDTH_CITE_RE, '[$1]')), [text]);
   const ctx: InlineCtx = { sources, onCite, flags };
 
   const renderBlock = (b: Block, i: number | string): ReactNode => {
