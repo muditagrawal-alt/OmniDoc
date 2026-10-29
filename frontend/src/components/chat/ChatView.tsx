@@ -27,11 +27,10 @@ interface ChatViewProps extends Omit<ComposerProps, 'variant' | 'autoFocus' | 'd
   user: User | null;
 }
 
-function greeting(user: User | null): string {
-  const h = new Date().getHours();
-  const part = h < 5 ? 'Working late' : h < 12 ? 'Good morning' : h < 17 ? 'Good afternoon' : 'Good evening';
+function heading(user: User | null, documents: number): string {
   const first = user?.name?.split(/\s+/)[0];
-  return first ? `${part}, ${first}` : part;
+  if (!documents) return 'Start with a document';
+  return first ? `What do you need, ${first}?` : 'Ask your library';
 }
 
 const shorten = (s: string, max = 28) => (s.length > max ? `${s.slice(0, max - 1).trimEnd()}…` : s);
@@ -145,11 +144,16 @@ export function ChatView(props: ChatViewProps) {
         {empty ? (
           <div className={styles.hero}>
             <div className={styles.heroInner}>
-              <h2 className={styles.heroTitle}>{greeting(user)}</h2>
+              <p className={styles.heroEyebrow}>
+                {composer.documents.length
+                  ? `${composer.documents.length} ${composer.documents.length === 1 ? 'document' : 'documents'} in your library`
+                  : 'Your library is empty'}
+              </p>
+              <h2 className={styles.heroTitle}>{heading(user, composer.documents.length)}</h2>
               <p className={styles.heroSub}>
                 {composer.documents.length
-                  ? `Ask across ${composer.documents.length === 1 ? 'your document' : `your ${composer.documents.length} documents`}. Answers cite their sources.`
-                  : 'Add a document, then ask anything about it. Answers cite their sources.'}
+                  ? 'Every answer cites the page it came from, and each sentence is checked against its source.'
+                  : 'Add PDFs, scans, slides, spreadsheets, e-mails or recordings, then ask about them in plain language.'}
               </p>
               <Composer {...composer} variant="hero" autoFocus draft={draft} />
               <div className={styles.suggestions}>
