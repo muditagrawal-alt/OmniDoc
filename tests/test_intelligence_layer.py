@@ -55,7 +55,7 @@ def test_falls_back_on_rate_limits_and_retries_without_optional_fields(providers
     formats = [r["body"].get("response_format", {}).get("type") for r in good.requests]
     assert formats == ["json_schema", "json_object"]  # schema rejected -> plain JSON mode
     stats = P.run_stats("t1", pop=True)
-    assert stats["calls"] == 1 and stats["models"] == {"nvidia:nvidia/nemotron-3-super-120b-a12b": 1}
+    assert stats["calls"] == 1 and stats["models"] == {"nvidia:nvidia/nemotron-3-ultra-550b-a55b": 1}
     P.set_current_run(None)
 
 
