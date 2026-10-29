@@ -17,7 +17,7 @@ import logging
 import threading
 from typing import Any, Dict, List, Optional
 
-from retrieval.table_store import TableStore, LIBRARY_DOC_ID
+from retrieval.table_store import TableStore, library_id, library_table
 
 logger = logging.getLogger("OmniDoc.Records")
 
@@ -72,60 +72,75 @@ class LibraryRecords:
     def refresh(self, documents: List[Dict[str, Any]]) -> int:
         """
         Rebuilds the record tables from the document list (dicts with id, title, file_type,
-        upload_date, size_bytes, pages, ocr_pages, tables, doc_type, has_summary). Returns the
-        number of tables written.
+        upload_date, size_bytes, pages, ocr_pages, tables, doc_type, has_summary, owner_id). Each
+        owner (the local library, or one account on a hosted server) gets its own tables, so a
+        question only ever reads its own library. Returns the number of tables written.
         """
         with self._lock:
             records = self.all()
-            library_rows = []
-            by_type: Dict[str, List[Dict[str, Any]]] = {}
+            by_owner: Dict[Optional[str], List[Dict[str, Any]]] = {}
             for d in documents:
-                rec = records.get(d["id"]) or {}
-                doc_type = rec.get("doc_type") or d.get("doc_type") or "other"
-                checks = rec.get("validation") or []
-                failed = [c for c in checks if c.get("status") == "fail"]
-                library_rows.append([
-                    d.get("title") or d["id"], doc_type.replace("_", " "), d.get("pages") or None, d.get("ocr_pages") or 0,
-                    d.get("tables") or 0, str(d.get("upload_date") or "")[:10] or None,
-                    round((d.get("size_bytes") or 0) / 1024, 1), "yes" if d.get("has_summary") else "no",
-                    "yes" if rec.get("fields") else "no", f"{len(failed)} failed" if failed else ("ok" if checks else None),
-                ])
-                if rec.get("fields"):
-                    by_type.setdefault(doc_type, []).append({"title": d.get("title") or d["id"], "record": rec})
+                by_owner.setdefault(d.get("owner_id"), []).append(d)
+            by_owner.setdefault(None, by_owner.pop(None, []))  # the local library always exists
             written = 0
-            if self.table_store.put_table("t_library", LIBRARY_DOC_ID, {
-                "title": "Library: all documents", "source": "library",
-                "columns": ["Document", "Type", "Pages", "Scanned pages", "Tables", "Uploaded", "Size KB", "Has summary",
-                            "Has extracted fields", "Checks"],
-                "rows": library_rows,
-            }):
-                written += 1
-            existing = {t["table"] for t in self.table_store.tables_for([LIBRARY_DOC_ID]) if t["table"].startswith("t_records_")}
-            current = set()
-            for doc_type, items in by_type.items():
-                name = "t_records_" + re.sub(r"[^0-9a-z]+", "_", doc_type.lower()).strip("_")
-                current.add(name)
-                labels = []
-                for it in items:
-                    for f in it["record"]["fields"]:
-                        if f["label"] not in labels:
-                            labels.append(f["label"])
-                rows = []
-                for it in items:
-                    values = {f["label"]: _cell(f) for f in it["record"]["fields"]}
-                    checks = it["record"].get("validation") or []
-                    failed = [c["rule"] for c in checks if c.get("status") == "fail"]
-                    rows.append([it["title"]] + [values.get(label) for label in labels] +
-                                ["; ".join(failed) if failed else ("ok" if checks else None)])
-                if self.table_store.put_table(name, LIBRARY_DOC_ID, {
-                    "title": f"Library records: {PLURALS.get(doc_type, doc_type.replace('_', ' ') + 's')}", "source": "records",
-                    "columns": ["Document"] + labels + ["Failed checks"], "rows": rows,
-                }):
-                    written += 1
-            for stale in existing - current:
-                self.table_store.put_table(stale, LIBRARY_DOC_ID, {"rows": []})
+            current_libraries = set()
+            for owner, docs in by_owner.items():
+                current_libraries.add(library_id(owner))
+                written += self._refresh_library(owner, docs, records)
+            for stale in set(self.table_store.library_ids()) - current_libraries:
+                self.table_store.delete_document(stale)
             return written
 
+    def _refresh_library(self, owner: Optional[str], documents: List[Dict[str, Any]], records: Dict[str, Dict[str, Any]]) -> int:
+        lib = library_id(owner)
+        library_rows = []
+        by_type: Dict[str, List[Dict[str, Any]]] = {}
+        for d in documents:
+            rec = records.get(d["id"]) or {}
+            doc_type = rec.get("doc_type") or d.get("doc_type") or "other"
+            checks = rec.get("validation") or []
+            failed = [c for c in checks if c.get("status") == "fail"]
+            library_rows.append([
+                d.get("title") or d["id"], doc_type.replace("_", " "), d.get("pages") or None, d.get("ocr_pages") or 0,
+                d.get("tables") or 0, str(d.get("upload_date") or "")[:10] or None,
+                round((d.get("size_bytes") or 0) / 1024, 1), "yes" if d.get("has_summary") else "no",
+                "yes" if rec.get("fields") else "no", f"{len(failed)} failed" if failed else ("ok" if checks else None),
+            ])
+            if rec.get("fields"):
+                by_type.setdefault(doc_type, []).append({"title": d.get("title") or d["id"], "record": rec})
+        written = 0
+        if self.table_store.put_table(library_table("library", owner), lib, {
+            "title": "Library: all documents", "source": "library",
+            "columns": ["Document", "Type", "Pages", "Scanned pages", "Tables", "Uploaded", "Size KB", "Has summary",
+                        "Has extracted fields", "Checks"],
+            "rows": library_rows,
+        }):
+            written += 1
+        existing = {t["table"] for t in self.table_store.tables_for([lib]) if t["table"].startswith("t_records_")}
+        current = set()
+        for doc_type, items in by_type.items():
+            name = library_table("records_" + re.sub(r"[^0-9a-z]+", "_", doc_type.lower()).strip("_"), owner)
+            current.add(name)
+            labels = []
+            for it in items:
+                for f in it["record"]["fields"]:
+                    if f["label"] not in labels:
+                        labels.append(f["label"])
+            rows = []
+            for it in items:
+                values = {f["label"]: _cell(f) for f in it["record"]["fields"]}
+                checks = it["record"].get("validation") or []
+                failed = [c["rule"] for c in checks if c.get("status") == "fail"]
+                rows.append([it["title"]] + [values.get(label) for label in labels] +
+                            ["; ".join(failed) if failed else ("ok" if checks else None)])
+            if self.table_store.put_table(name, lib, {
+                "title": f"Library records: {PLURALS.get(doc_type, doc_type.replace('_', ' ') + 's')}", "source": "records",
+                "columns": ["Document"] + labels + ["Failed checks"], "rows": rows,
+            }):
+                written += 1
+        for stale in existing - current:
+            self.table_store.put_table(stale, lib, {"rows": []})
+        return written
 
 def _cell(field: Dict[str, Any]) -> Any:
     value = field.get("value")
