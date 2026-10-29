@@ -37,7 +37,7 @@ charged (stay on the Free Tier, do not upgrade the account).
 The settings the benchmarks measured (add them to `.env`):
 
 ```bash
-OMNIDOC_MODEL=nvidia:nvidia/nemotron-3-super-120b-a12b   # answers
+OMNIDOC_MODEL=nvidia:nvidia/nemotron-3-ultra-550b-a55b   # answers (Super, used by the benchmarks, was retired)
 OMNIDOC_LLM_PROVIDERS=nvidia,groq,gemini                 # fallbacks when one is rate-limited
 OMNIDOC_VISION_MODEL=gemini:gemini-3.5-flash-lite        # figures and page reading
 OLLAMA_HOST=http://ollama:11434                          # embeddings: nomic-embed-text
