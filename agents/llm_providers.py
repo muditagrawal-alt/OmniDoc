@@ -101,7 +101,7 @@ def build_registry() -> Dict[str, Provider]:
                   free_note="Free plan: 30 requests/min, 1,000/day and 8,000 tokens/min per model; Whisper speech-to-text included.",
                   sign_up="https://console.groq.com/keys"),
         _provider("nvidia", "NVIDIA NIM", "https://integrate.api.nvidia.com/v1", "NVIDIA_API_KEY",
-                  "nvidia/nemotron-3-super-120b-a12b", "nvidia/nemotron-3-super-120b-a12b", rpm=40,
+                  "nvidia/nemotron-3-ultra-550b-a55b", "nvidia/nemotron-3-ultra-550b-a55b", rpm=40,
                   embed_model="nvidia/nemotron-3-embed-1b",
                   reasoning="nemotron", key_aliases=("NVIDIA_NIM_API_KEY", "NIM_API_KEY"),
                   free_note="Free with an NVIDIA Developer account (about 40 requests/min per model); meant for development and evaluation.",
