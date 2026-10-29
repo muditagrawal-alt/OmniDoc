@@ -48,10 +48,11 @@ class ContextResolutionAgent:
 
     @staticmethod
     def _history_text(conversation_history: List[Dict[str, str]]) -> str:
-        lines = []
-        for turn in (conversation_history or [])[-6:]:
-            if not isinstance(turn, dict):
-                continue
+        turns = [t for t in (conversation_history or []) if isinstance(t, dict)]
+        # Older turns arrive as one summary (see core/chat_memory.py); the last three exchanges in full.
+        lines = [f"Earlier in this conversation (summary): {' '.join(str(t.get('content', '')).split())[:1200]}"
+                 for t in turns if t.get("role") == "summary"]
+        for turn in [t for t in turns if t.get("role") != "summary"][-6:]:
             role = str(turn.get("role", "user")).capitalize()
             content = " ".join(str(turn.get("content", "")).split())
             limit = 300 if role.lower() == "user" else 600
