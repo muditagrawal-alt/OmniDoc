@@ -2,6 +2,15 @@
 # Caddy obtains and renews the certificate automatically.
 {$OMNIDOC_DOMAIN:omnidoc.example.com} {
 	encode zstd gzip
+	header {
+		Strict-Transport-Security "max-age=31536000"
+		X-Content-Type-Options "nosniff"
+		X-Frame-Options "SAMEORIGIN"
+		Referrer-Policy "strict-origin-when-cross-origin"
+		# Voice input uses the microphone; nothing else is needed.
+		Permissions-Policy "camera=(), geolocation=(), microphone=(self)"
+		-Server
+	}
 	reverse_proxy omnidoc:8000 {
 		# Answers stream token by token: never buffer them.
 		flush_interval -1
