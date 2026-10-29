@@ -11,30 +11,46 @@ address can read and delete your documents.
 
 ## Recommended free host: Oracle Cloud "Always Free" VM
 
-Oracle's Always Free tier includes Arm (Ampere A1) capacity of 4 cores and 24 GB of memory and
-200 GB of disk that stays free, which is plenty for OmniDoc and keeps your library on a
+Oracle's Always Free tier includes Arm (Ampere A1) capacity of 2 OCPUs and 12 GB of memory and
+200 GB of disk that stays free, which is enough for OmniDoc and keeps your library on a
 persistent disk. Sign-up asks for a card for identity checks; Always Free resources are not
-charged.
+charged (stay on the Free Tier, do not upgrade the account).
 
 1. Create a VM: *Compute → Instances → Create*, image **Ubuntu 24.04**, shape
-   **VM.Standard.A1.Flex** (e.g. 2 OCPU, 12 GB), add your SSH key.
-2. Open the web ports: in the instance's subnet *Security List*, add ingress rules for TCP 80
-   and 443 from `0.0.0.0/0`. On the VM:
+   **VM.Standard.A1.Flex** with 2 OCPUs and 12 GB, boot volume up to 200 GB, and your SSH key.
+   "Out of capacity" means none is free in that availability domain right now: try another one or
+   try again later.
+2. Open the web ports in the instance's subnet *Security List*: an ingress rule for TCP 80 and
+   443 from `0.0.0.0/0`.
+3. On the VM (`ssh ubuntu@<public-ip>`):
    ```bash
-   sudo iptables -I INPUT 6 -p tcp -m multiport --dports 80,443 -j ACCEPT && sudo netfilter-persistent save
+   git clone https://github.com/muditagrawal-alt/OmniDoc.git && cd OmniDoc
+   cp .env.example .env && nano .env    # API keys and OMNIDOC_AUTH=you:a-long-random-password
+   bash deploy/oracle-setup.sh
    ```
-3. Install Docker and get the code:
-   ```bash
-   curl -fsSL https://get.docker.com | sudo sh && sudo usermod -aG docker $USER && newgrp docker
-   git clone https://github.com/<you>/OmniDoc.git && cd OmniDoc
-   cp .env.example .env && nano .env    # API keys, OMNIDOC_AUTH, OMNIDOC_DOMAIN
-   ```
-4. A domain: use your own, or the free `<public-ip>.sslip.io` (e.g. `OMNIDOC_DOMAIN=129-146-1-2.sslip.io`).
-5. Start it with HTTPS:
-   ```bash
-   docker compose -f docker-compose.yml -f deploy/compose.https.yml up -d --build
-   ```
-   Open `https://<your domain>`. Logs: `docker compose logs -f omnidoc`. Update: `git pull` and the same command.
+   The script installs Docker, opens the VM's own firewall for ports 80 and 443, builds the image
+   (about 15 minutes on 2 Arm cores) and starts OmniDoc behind Caddy with a free HTTPS address,
+   `https://<public-ip-with-dashes>.sslip.io` unless `OMNIDOC_DOMAIN` names your own domain. It
+   also starts Ollama for the `nomic-embed-text` embeddings, the model the benchmarks use. Run it
+   again to update to the latest code; the library is kept.
+
+The settings the benchmarks measured (add them to `.env`):
+
+```bash
+OMNIDOC_MODEL=nvidia:nvidia/nemotron-3-super-120b-a12b   # answers
+OMNIDOC_LLM_PROVIDERS=nvidia,groq,gemini                 # fallbacks when one is rate-limited
+OMNIDOC_VISION_MODEL=gemini:gemini-3.5-flash-lite        # figures and page reading
+OLLAMA_HOST=http://ollama:11434                          # embeddings: nomic-embed-text
+OLLAMA_KEEP_ALIVE=-1
+OMNIDOC_LOCAL_FALLBACK=0                                 # no local chat model on the VM
+```
+
+Oracle reclaims an Always Free Arm VM that stays below 20% CPU, network *and* memory use for
+seven days. OmniDoc keeps its reranker and (with `OLLAMA_KEEP_ALIVE=-1`) the embedding model in
+memory, about a fifth of 12 GB; check with `free -h` if the VM sees little use.
+
+Logs: `docker compose logs -f omnidoc`. Backups: the library is the `omnidoc_omnidoc-data` Docker
+volume (`docker run --rm -v omnidoc_omnidoc-data:/data -v $PWD:/b alpine tar czf /b/omnidoc-data.tgz /data`).
 
 ## Instant sharing from your own computer: Cloudflare Tunnel
 
@@ -54,7 +70,7 @@ your own domain, create a named tunnel in the Cloudflare dashboard (free).
 | Host | Fit | Notes |
 | --- | --- | --- |
 | Any VPS or home server with Docker | Good | `docker compose up -d` (+ `deploy/compose.https.yml` for HTTPS). 2 GB of memory is the practical minimum. |
-| Hugging Face Spaces (Docker) | Good, not free | Docker Spaces now need a PRO plan; CPU Basic (2 vCPU, 16 GB) itself costs nothing. Set `app_port: 8000`, add keys as Secrets; storage is lost on restart unless you add persistent storage. |
+| Hugging Face Spaces (Docker) | Good, not free | Docker and Gradio Spaces need a PRO plan (free accounts get only ZeroGPU Gradio Spaces); CPU Basic (2 vCPU, 16 GB) itself costs nothing. Set `app_port: 8000`, add keys as Secrets; storage is lost on restart unless you add persistent storage. |
 | Google Cloud Run | Poor for a library | Free request quota, but the disk is temporary: uploads and indexes vanish when the container stops unless you mount a bucket. |
 | Render / Koyeb / Railway free plans | Too small | 512 MB of memory is not enough for OCR, the reranker and the indexes. |
 
