@@ -38,7 +38,7 @@ def _content_words(text: str) -> Set[str]:
 
 _CITE_MARK_RE = re.compile(r"\[\d{1,3}\]")
 _ANSWER_NUM_RE = re.compile(
-    r"(?<![\w.])(\d{1,3}(?:,\d{3})+|\d+)(\.\d+)?(?![\d])(?:\s*(thousand|million|billion|trillion)\b)?",
+    r"(?<![\w.])(\d{1,3}(?:,\d{2})+,\d{3}|\d{1,3}(?:,\d{3})+|\d+)(\.\d+)?(?![\d])(?:\s*(thousand|million|billion|trillion)\b)?",
     re.IGNORECASE,
 )
 _SCALE_WORDS = {"thousand": 1e3, "million": 1e6, "billion": 1e9, "trillion": 1e12}
