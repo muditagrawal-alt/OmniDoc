@@ -443,7 +443,8 @@ class AgenticGraphRAGPipeline:
             rows.append({"id": d["id"], "title": d.get("filename") or d["id"], "file_type": d.get("file_type"),
                          "upload_date": d.get("upload_date"), "size_bytes": d.get("size_bytes"), "pages": meta.get("pages"),
                          "ocr_pages": len(meta.get("ocr_pages") or []), "tables": meta.get("tables", 0),
-                         "doc_type": meta.get("doc_type"), "has_summary": self.summarizer.has(d["id"])})
+                         "doc_type": meta.get("doc_type"), "has_summary": self.summarizer.has(d["id"]),
+                         "owner_id": d.get("owner_id")})
         return rows
 
     def backfill_types(self) -> int:
@@ -636,6 +637,7 @@ class AgenticGraphRAGPipeline:
         session_id: str = "default_session",
         conversation_history: Optional[List[Dict[str, str]]] = None,
         web_mode: str = "auto",
+        owner_id: Optional[str] = None,
     ) -> Iterator[Tuple[str, Dict[str, Any]]]:
         """Like query(), but yields events per agent, streamed answer text, and finally ("result", state)."""
         return self.workflow.execute_stream(
@@ -644,4 +646,5 @@ class AgenticGraphRAGPipeline:
             session_id=session_id,
             conversation_history=conversation_history or [],
             web_mode=web_mode,
+            owner_id=owner_id,
         )
