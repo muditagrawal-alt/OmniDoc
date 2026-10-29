@@ -316,6 +316,8 @@ class AgentWorkflowState(TypedDict):
     run_id: str
     user_query: str
     document_ids: List[str]
+    # The account whose library a question may read (None: the local library)
+    owner_id: Optional[str]
     # What the question needs (calculation, chart, figures, tables, graph, timeline, whole_documents, library)
     needs: Dict[str, Any]
     # Language to answer in (ISO code), and the time range the question limits itself to
