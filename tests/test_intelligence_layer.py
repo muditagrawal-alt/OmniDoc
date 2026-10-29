@@ -989,3 +989,20 @@ def test_figures_written_in_latex_are_read_as_figures():
 def test_fullwidth_citations_with_line_ranges_become_plain_citations():
     from agents.citations import normalize_citations
     assert normalize_citations("margins fell【15†L1-L4】【16†L1-L4】 and rose【2】.", 20) == "margins fell[15][16] and rose[2]."
+
+
+def test_indian_digit_grouping_is_read_as_one_number():
+    from agents.llm_utils import extract_numbers
+    from agents.compare_agent import changed_figures
+    assert extract_numbers("INR 5,40,000, 3,62,968.00, 1,212,503 and 1,25,00,000") == [540000.0, 362968.0, 1212503.0, 12500000.0]
+    assert changed_figures("a retainer of INR 5,40,000", "a retainer of INR 5,85,000") == [{"from": 540000.0, "to": 585000.0}]
+
+
+def test_a_statement_in_thousands_supports_figures_written_in_billions():
+    from guardrails.citation_checker import check_sentences
+    source = [{"n": 1, "kind": "chunk", "doc_id": "d", "page": 1, "snippet": "",
+               "_text": "Consolidated Statements of Income (In thousands) Net sales 3,226,773 Gross profit 1,212,503"}]
+    checks, _ = check_sentences("Gross profit was $1.212 billion on net sales of $3.227 billion [1].", "q", source)
+    assert checks[0]["verdict"] != "unsupported", checks[0]["reason"]
+    checks, _ = check_sentences("Gross profit was $1.9 billion [1].", "q", source)
+    assert checks[0]["verdict"] == "unsupported"
