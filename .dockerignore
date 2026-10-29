@@ -15,3 +15,5 @@ test_docs
 test_pictures
 untitled folder
 *.log
+benchmarks/work
+benchmarks/datasets
