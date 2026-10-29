@@ -1,0 +1,131 @@
+.page {
+  min-height: 100dvh;
+  display: grid;
+  place-items: center;
+  align-content: center;
+  gap: var(--space-5);
+  padding: var(--space-8) var(--space-4);
+  background: var(--bg);
+}
+
+.card {
+  width: 100%;
+  max-width: 400px;
+  padding: var(--space-8);
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-xl);
+  box-shadow: var(--shadow-2);
+  animation: rise-in var(--dur-4) var(--ease-out);
+}
+
+.brand {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  margin-bottom: var(--space-8);
+  font-size: var(--text-md);
+  font-weight: 600;
+  letter-spacing: var(--tracking-snug);
+}
+
+.title {
+  font-size: var(--text-xl);
+  font-weight: 600;
+  letter-spacing: var(--tracking-tight);
+  line-height: var(--leading-tight);
+}
+
+.sub {
+  margin: var(--space-2) 0 var(--space-6);
+  color: var(--text-2);
+  font-size: var(--text-base);
+  text-wrap: pretty;
+}
+
+.providers {
+  display: grid;
+  gap: var(--space-2);
+}
+
+.provider {
+  width: 100%;
+  justify-content: center;
+  gap: var(--space-2);
+  height: 40px;
+  text-decoration: none;
+}
+
+.divider {
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+  margin: var(--space-5) 0;
+  color: var(--text-3);
+  font-size: var(--text-xs);
+}
+
+.divider::before,
+.divider::after {
+  content: '';
+  flex: 1;
+  height: 1px;
+  background: var(--border);
+}
+
+.submit {
+  width: 100%;
+  justify-content: center;
+  gap: var(--space-2);
+  height: 40px;
+  margin-top: var(--space-3);
+}
+
+.code {
+  font-family: var(--font-mono);
+  font-size: var(--text-lg);
+  letter-spacing: 0.4em;
+  text-align: center;
+}
+
+.row {
+  display: flex;
+  justify-content: space-between;
+  gap: var(--space-3);
+  margin-top: var(--space-4);
+}
+
+.link {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-1);
+  padding: 0;
+  background: none;
+  border: 0;
+  color: var(--accent-ink);
+  font: inherit;
+  font-size: var(--text-sm);
+  cursor: pointer;
+}
+
+.link:disabled {
+  color: var(--text-3);
+  cursor: default;
+}
+
+.link:not(:disabled):hover {
+  text-decoration: underline;
+}
+
+.error {
+  margin-top: var(--space-4);
+  color: var(--bad);
+  font-size: var(--text-sm);
+}
+
+.footnote {
+  max-width: 400px;
+  color: var(--text-3);
+  font-size: var(--text-xs);
+  text-align: center;
+}
