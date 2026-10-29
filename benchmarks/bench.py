@@ -103,7 +103,7 @@ ATTEMPTS = 5
 RETRY_WAITS = (60, 90, 120, 150)
 DEFAULTS = {
     "provider": "nvidia",
-    "model": "nvidia:nvidia/nemotron-3-super-120b-a12b",
+    "model": "nvidia:nvidia/nemotron-3-ultra-550b-a55b",  # runs before 2026-10-29 used nemotron-3-super (retired)
     "vision": "gemini:gemini-3.5-flash-lite",
     "embed": "nomic-embed-text",
     "judge": "groq:openai/gpt-oss-120b",
