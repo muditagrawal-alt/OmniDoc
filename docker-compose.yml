@@ -18,6 +18,9 @@ services:
     image: ollama/ollama:latest
     profiles: ["local"]
     restart: unless-stopped
+    environment:
+      # How long a model stays loaded after use; -1 keeps the embedding model ready (deployments).
+      OLLAMA_KEEP_ALIVE: ${OLLAMA_KEEP_ALIVE:-5m}
     volumes:
       - ollama-models:/root/.ollama
 
