@@ -21,7 +21,7 @@ _SKIP_LINE = re.compile(r"^\s*(#{1,6}\s|\||```|~~~|\$\$|>\s*$)")
 _ABBREV = re.compile(r"(?:\b(?:[A-Z]|e\.g|i\.e|etc|vs|Dr|Mr|Mrs|Ms|Prof|No|Nos|Fig|Figs|Eq|approx|Inc|Ltd|Pvt|Co|Corp|LLC|LLP|"
                      r"Bros|Govt|Dept|Est|St|Jr|Sr|Rs|Mt|Ft|Vol|vol|pp|al|Jan|Feb|Mar|Apr|Jun|Jul|Aug|Sep|Sept|Oct|Nov|Dec|"
                      r"U\.S|U\.K|a\.m|p\.m))\.$")
-_NUM_RE = re.compile(r"(?<![\w.])(\d{1,3}(?:,\d{3})+|\d+)(\.\d+)?(?![\d])(?:\s*(thousand|million|billion|trillion)\b)?", re.IGNORECASE)
+_NUM_RE = re.compile(r"(?<![\w.])(\d{1,3}(?:,\d{2})+,\d{3}|\d{1,3}(?:,\d{3})+|\d+)(\.\d+)?(?![\d])(?:\s*(thousand|million|billion|trillion)\b)?", re.IGNORECASE)
 _SCALES = {"thousand": 1e3, "million": 1e6, "billion": 1e9, "trillion": 1e12}
 
 VERDICTS = ("supported", "partial", "unsupported", "contradicted", "no_claim")
@@ -141,12 +141,25 @@ def numbers_in(text: str) -> List[Tuple[str, List[float], int]]:
     return out
 
 
+# A statement's header gives the unit of its amounts: "(In thousands)" makes 1,212,503 read as $1.21 billion.
+_STATED_UNIT = re.compile(r"\bin\s+(thousands|millions|billions)\b", re.IGNORECASE)
+_UNIT_SCALE = {"thousands": 1e3, "millions": 1e6, "billions": 1e9}
+
+
 def figure_supported(values: List[float], decimals: int, text: str, text_numbers: List[float]) -> bool:
     from agents.llm_utils import number_in_text
     if any(number_in_text(v, text, text_numbers) for v in values):
         return True
     tolerance = 0.5 * 10 ** (-decimals)
-    return any(abs(c - values[0]) <= tolerance + 1e-12 for c in text_numbers)
+    if any(abs(c - values[0]) <= tolerance + 1e-12 for c in text_numbers):
+        return True
+    # "$1.212 billion" against 1,212,503 in a statement "in thousands", rounded or cut to the digits written.
+    if len(values) > 1 and values[0]:
+        step = 10 ** (-decimals) * (values[1] / values[0])
+        for unit in {m.group(1).lower() for m in _STATED_UNIT.finditer(text)}:
+            if any(abs(c * _UNIT_SCALE[unit] - values[1]) <= step for c in text_numbers if c):
+                return True
+    return False
 
 
 _APPROX = re.compile(r"\b(?:about|approximately|approx|roughly|around|nearly|almost|close to)\b|[~≈]", re.I)
