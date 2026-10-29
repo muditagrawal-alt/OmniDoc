@@ -39,11 +39,12 @@ sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 from pydantic import BaseModel, Field
 from fastapi import FastAPI, HTTPException, UploadFile, File, Header, Depends
 from fastapi.middleware.cors import CORSMiddleware
-from fastapi.responses import StreamingResponse, FileResponse
+from fastapi.responses import StreamingResponse, FileResponse, RedirectResponse
 
 from db_store import OmniDocDB, LOCAL_USER_ID, DATA_DIR
 from export.report_compiler import ReportCompiler
 from core.pipeline import AgenticGraphRAGPipeline
+from core import accounts, chat_memory
 from agents import llm_providers
 
 logging.basicConfig(level=logging.INFO, format="%(asctime)s [%(levelname)s] %(name)s: %(message)s")
@@ -141,6 +142,27 @@ if _GATE:
 
 db = OmniDocDB()
 report_compiler = ReportCompiler()
+
+# Accounts (OMNIDOC_ACCOUNTS=1, a hosted OmniDoc): every API call needs a signed-in session, except
+# the health check and signing in. Without accounts, requests act as the local profile, as before.
+_OPEN_API = ("/api/health", "/api/auth/methods", "/api/auth/code/", "/api/auth/oauth/")
+NO_DOCUMENTS = "doc_none"  # a scope that matches nothing: the account has no documents yet
+
+
+def accounts_on() -> bool:
+    return accounts.enabled()
+
+
+@app.middleware("http")
+async def require_session(request, call_next):
+    path = request.url.path
+    if not accounts_on() or request.method == "OPTIONS" or not path.startswith("/api/") or path.startswith(_OPEN_API):
+        return await call_next(request)
+    from starlette.responses import JSONResponse
+    token = _bearer(request.headers.get("authorization"), request.headers.get("x-omnidoc-token"))
+    if not token or not db.get_session_user_id(token):
+        return JSONResponse({"detail": "Sign in to continue."}, status_code=401)
+    return await call_next(request)
 
 
 # ---------------------------------------------------------------------------
@@ -277,11 +299,44 @@ def _bearer(authorization: Optional[str], omnidoc_token: Optional[str] = None) -
 def current_user_id(authorization: Optional[str] = Header(None), x_omnidoc_token: Optional[str] = Header(None)) -> str:
     token = _bearer(authorization, x_omnidoc_token)
     if not token:
+        if accounts_on():
+            raise HTTPException(status_code=401, detail="Sign in to continue.")
         return LOCAL_USER_ID
     user_id = db.get_session_user_id(token)
     if not user_id:
         raise HTTPException(status_code=401, detail="Session expired. Sign in again.")
     return user_id
+
+
+def library_owner(user_id: str) -> str:
+    """Whose documents a request sees: each account its own on a hosted server; one shared library on a local install."""
+    return user_id if accounts_on() else LOCAL_USER_ID
+
+
+def is_admin(user_id: str) -> bool:
+    return accounts_on() and accounts.is_admin((db.get_user(user_id) or {}).get("email"))
+
+
+def check_quota(user_id: str, kind: str) -> None:
+    """Daily limits per account on a hosted server (admins and local installs have none)."""
+    if not accounts_on() or is_admin(user_id):
+        return
+    limit = accounts.limits()["questions_per_day" if kind == "questions" else "uploads_per_day"]
+    if db.usage_today(user_id)[kind] >= limit:
+        what = "questions" if kind == "questions" else "uploads"
+        raise HTTPException(status_code=429, detail=f"You have reached today's limit of {limit} {what}. It resets at midnight UTC.")
+
+
+def scoped_ids(doc_ids: Optional[List[str]], user_id: str) -> List[str]:
+    """
+    The documents a question may read. Locally: the selected ones (none selected: the whole library).
+    With accounts: the selected ones the user owns, else all of theirs, never anyone else's.
+    """
+    ids = [d for d in (doc_ids or []) if DOC_ID_RE.match(d)]
+    if not accounts_on():
+        return ids
+    mine = set(db.document_ids(user_id))
+    return [d for d in ids if d in mine] or sorted(mine) or [NO_DOCUMENTS]
 
 
 def owned_chat(chat_id: str, user_id: str) -> Dict[str, Any]:
@@ -293,7 +348,9 @@ def owned_chat(chat_id: str, user_id: str) -> Dict[str, Any]:
 
 @app.post("/api/auth/login")
 def login(req: LoginRequest):
-    """Creates or reuses a local profile and returns a new session token."""
+    """Creates or reuses a local profile and returns a new session token (local installs only)."""
+    if accounts_on():
+        raise HTTPException(status_code=404, detail="Sign in with an e-mailed code, Google or GitHub.")
     email = (req.email or "").strip().lower()
     name = (req.name or "").strip()
     if not email or "@" not in email:
@@ -309,6 +366,95 @@ def login(req: LoginRequest):
     )
     token = db.create_session(user_id)
     return {"status": "success", "token": token, "user": user}
+
+
+class CodeRequest(BaseModel):
+    email: str = Field(..., min_length=3, max_length=254)
+
+
+class CodeVerifyRequest(BaseModel):
+    email: str = Field(..., min_length=3, max_length=254)
+    code: str = Field(..., min_length=4, max_length=12)
+    name: Optional[str] = Field(None, max_length=120)
+
+
+def _sign_in(email: str, name: str, provider: str, avatar_url: str = "") -> Dict[str, Any]:
+    """The account for a verified e-mail address (created on first sign-in) and a new session."""
+    existing = db.get_user_by_email(email)
+    user = db.upsert_user(
+        user_id=existing["id"] if existing else f"usr_{uuid.uuid4().hex[:12]}",
+        email=email, name=name or (existing or {}).get("name") or email.split("@")[0],
+        provider=provider, avatar_url=avatar_url or (existing or {}).get("avatar_url") or "")
+    return {"token": db.create_session(user["id"], ttl_days=accounts.SESSION_DAYS), "user": user}
+
+
+@app.get("/api/auth/methods")
+def auth_methods():
+    """Which ways of signing in this server offers (accounts: false means a local single-user install)."""
+    return accounts.methods()
+
+
+@app.post("/api/auth/code/request")
+def request_sign_in_code(req: CodeRequest):
+    """E-mails a six-digit sign-in code. The reply is the same whether or not the address has an account."""
+    if not accounts.methods()["email"]:
+        raise HTTPException(status_code=404, detail="E-mail sign-in is not available on this server.")
+    email = accounts.normalize_email(req.email)
+    if not email:
+        raise HTTPException(status_code=422, detail="Enter a valid e-mail address.")
+    if not accounts.allowed(email):
+        raise HTTPException(status_code=403, detail="This address is not invited to this OmniDoc. Ask its administrator.")
+    try:
+        accounts.request_code(db, DATA_DIR, email)
+    except accounts.CodeError as e:
+        raise HTTPException(status_code=e.status, detail=str(e))
+    except Exception as e:
+        logger.error(f"Could not send a sign-in code: {e}")
+        raise HTTPException(status_code=502, detail="The e-mail could not be sent. Try again in a minute.")
+    return {"status": "sent", "expires_in": accounts.CODE_TTL_S}
+
+
+@app.post("/api/auth/code/verify")
+def verify_sign_in_code(req: CodeVerifyRequest):
+    email = accounts.normalize_email(req.email)
+    if not email or not accounts.methods()["email"]:
+        raise HTTPException(status_code=422, detail="Enter a valid e-mail address.")
+    try:
+        accounts.verify_code(db, DATA_DIR, email, req.code)
+    except accounts.CodeError as e:
+        raise HTTPException(status_code=e.status, detail=str(e))
+    return {"status": "success", **_sign_in(email, (req.name or "").strip(), "email")}
+
+
+@app.get("/api/auth/oauth/{provider}/start")
+def oauth_start(provider: str):
+    try:
+        return RedirectResponse(accounts.authorize_url(db, DATA_DIR, provider), status_code=302)
+    except accounts.CodeError as e:
+        raise HTTPException(status_code=e.status, detail=str(e))
+
+
+@app.get("/api/auth/oauth/{provider}/callback")
+def oauth_callback(provider: str, code: str = "", state: str = "", error: str = ""):
+    """Finishes Google or GitHub sign-in and returns to the app with the session in the address fragment."""
+    home = accounts.public_url() + "/"
+    try:
+        if error or not code:
+            raise accounts.CodeError("Sign-in was cancelled.")
+        identity = accounts.oauth_identity(db, DATA_DIR, provider, code, state)
+        email = accounts.normalize_email(identity["email"])
+        if not email:
+            raise accounts.CodeError("Your account has no usable e-mail address.")
+        if not accounts.allowed(email):
+            raise accounts.CodeError("This address is not invited to this OmniDoc. Ask its administrator.")
+        session = _sign_in(email, identity.get("name") or "", provider, identity.get("avatar_url") or "")
+        # The fragment never reaches a server or its logs; the app reads it and removes it.
+        return RedirectResponse(f"{home}#auth={urllib.parse.quote(session['token'])}", status_code=302)
+    except accounts.CodeError as e:
+        return RedirectResponse(f"{home}#auth_error={urllib.parse.quote(str(e))}", status_code=302)
+    except Exception as e:
+        logger.error(f"{provider} sign-in failed: {e}", exc_info=True)
+        return RedirectResponse(f"{home}#auth_error={urllib.parse.quote('Sign-in failed. Try again.')}", status_code=302)
 
 
 @app.get("/api/auth/me")
@@ -335,6 +481,30 @@ def logout(authorization: Optional[str] = Header(None), x_omnidoc_token: Optiona
 # ---------------------------------------------------------------------------
 # System
 # ---------------------------------------------------------------------------
+@app.get("/api/account")
+def account_overview(user_id: str = Depends(current_user_id)):
+    """The signed-in account, today's usage and its limits."""
+    user = db.get_user(user_id) or {"id": user_id}
+    used = db.storage_used(library_owner(user_id))
+    return {"user": user, "accounts": accounts_on(), "admin": is_admin(user_id), "usage": db.usage_today(user_id),
+            "storage_bytes": used, "limits": accounts.limits() if accounts_on() and not is_admin(user_id) else None}
+
+
+@app.delete("/api/account")
+def delete_account(user_id: str = Depends(current_user_id)):
+    """Deletes the account with all its documents (and their indexes, graph and files), chats and sessions."""
+    if not accounts_on():
+        raise HTTPException(status_code=404, detail="Local installs have no account to delete.")
+    for doc_id in db.document_ids(user_id):
+        _remove_document(doc_id)
+    db.delete_user(user_id)
+    try:
+        get_pipeline().refresh_records()
+    except Exception:
+        pass
+    return {"status": "success"}
+
+
 @app.get("/api/health")
 def health_check():
     stores: Dict[str, str] = {}
@@ -369,7 +539,9 @@ def list_models():
 
 
 @app.put("/api/models/current")
-def set_model(req: ModelRequest):
+def set_model(req: ModelRequest, user_id: str = Depends(current_user_id)):
+    if accounts_on() and not is_admin(user_id):
+        raise HTTPException(status_code=403, detail="Only an administrator can change the server's model.")
     names = {m["name"] for m in available_models()}
     if req.model not in names:
         raise HTTPException(status_code=404, detail=f"Model {req.model} is not available (configure its API key or install it in Ollama)")
@@ -588,18 +760,34 @@ def build_answer(state: Dict[str, Any], steps: List[Dict[str, Any]], doc_ids: Li
     }
 
 
-def _query_inputs(chat: Dict[str, Any], req: QueryRequest):
-    history = [{"role": m["role"], "content": m["content"]} for m in db.get_messages(chat["id"])]
-    doc_ids = [d for d in (req.document_ids or []) if DOC_ID_RE.match(d)]
-    if not doc_ids and chat.get("document_id"):
-        doc_ids = [chat["document_id"]]
+def _query_inputs(chat: Dict[str, Any], req: QueryRequest, user_id: str):
+    """(what the model reads of the conversation, the documents the question may read, the question, the selected documents)."""
+    messages = db.get_messages(chat["id"])
+    # The last three exchanges in full, older ones as the chat's rolling summary (core/chat_memory.py).
+    history = chat_memory.history_for(messages, chat.get("memory"), chat.get("memory_upto") or 0)
+    selected = [d for d in (req.document_ids or []) if DOC_ID_RE.match(d)]
+    if not selected and chat.get("document_id"):
+        selected = [chat["document_id"]]
+    doc_ids = scoped_ids(selected, user_id)
     query_text = req.query.strip()
     if req.language and req.language in LANGUAGE_NAMES:
         query_text += (
             f"\n\n[Instruction: write the complete final answer in {LANGUAGE_NAMES[req.language]}, "
             "keeping numbers, formulas and names exact.]"
         )
-    return history, doc_ids, query_text
+    return history, doc_ids, query_text, selected
+
+
+def _summarize_for_memory(prompt: str) -> str:
+    from agents.llm_utils import chat
+    return chat(current_model(), [{"role": "user", "content": prompt}], fast=True, temperature=0.1, num_predict=400)
+
+
+def _after_turn(chat_id: str, user_id: str) -> None:
+    """Counts the question and brings the chat's memory up to date in the background."""
+    if accounts_on():
+        db.count_usage(user_id, "questions")
+    chat_memory.update_in_background(chat_id, db.get_messages, db.get_chat, db.set_chat_memory, _summarize_for_memory)
 
 
 def _persist_turn(chat: Dict[str, Any], query: str, payload: Dict[str, Any], first_turn: bool) -> int:
@@ -622,14 +810,16 @@ def _persist_turn(chat: Dict[str, Any], query: str, payload: Dict[str, Any], fir
 def execute_chat_query(chat_id: str, req: QueryRequest, user_id: str = Depends(current_user_id)):
     """Runs the agent pipeline and returns the complete answer."""
     chat = owned_chat(chat_id, user_id)
-    history, doc_ids, query_text = _query_inputs(chat, req)
+    check_quota(user_id, "questions")
+    history, doc_ids, query_text, selected = _query_inputs(chat, req, user_id)
+    first_turn = not chat.get("memory_upto") and not db.get_messages(chat_id)
     started = time.perf_counter()
     steps: List[Dict[str, Any]] = []
     state: Dict[str, Any] = {}
     try:
         for kind, data in get_pipeline().query_stream(
             user_query=query_text, document_ids=doc_ids, session_id=chat_id, conversation_history=history,
-            web_mode=req.web or "auto",
+            web_mode=req.web or "auto", owner_id=library_owner(user_id) if accounts_on() else None,
         ):
             if kind == "step":
                 steps.append(data)
@@ -638,8 +828,9 @@ def execute_chat_query(chat_id: str, req: QueryRequest, user_id: str = Depends(c
     except Exception as e:
         logger.error(f"Pipeline failed for chat {chat_id}: {e}", exc_info=True)
         raise HTTPException(status_code=500, detail="The agent pipeline failed. Check that Ollama is running and try again.")
-    payload = build_answer(state, steps, doc_ids, int((time.perf_counter() - started) * 1000))
-    msg_id = _persist_turn(chat, req.query.strip(), payload, first_turn=not history)
+    payload = build_answer(state, steps, selected, int((time.perf_counter() - started) * 1000))
+    msg_id = _persist_turn(chat, req.query.strip(), payload, first_turn=first_turn)
+    _after_turn(chat_id, user_id)
     return {"status": "success", "message_id": msg_id, **payload}
 
 
@@ -651,7 +842,9 @@ def _sse(event: str, data: Any) -> str:
 def stream_chat_query(chat_id: str, req: QueryRequest, user_id: str = Depends(current_user_id)):
     """Runs the agent pipeline, streaming one `step` event per agent and a final `result`."""
     chat = owned_chat(chat_id, user_id)
-    history, doc_ids, query_text = _query_inputs(chat, req)
+    check_quota(user_id, "questions")
+    history, doc_ids, query_text, selected = _query_inputs(chat, req, user_id)
+    first_turn = not chat.get("memory_upto") and not db.get_messages(chat_id)
 
     def events() -> Iterator[str]:
         started = time.perf_counter()
@@ -660,7 +853,7 @@ def stream_chat_query(chat_id: str, req: QueryRequest, user_id: str = Depends(cu
         try:
             for kind, data in get_pipeline().query_stream(
                 user_query=query_text, document_ids=doc_ids, session_id=chat_id, conversation_history=history,
-                web_mode=req.web or "auto",
+                web_mode=req.web or "auto", owner_id=library_owner(user_id) if accounts_on() else None,
             ):
                 if kind == "step":
                     steps.append(data)
@@ -675,8 +868,9 @@ def stream_chat_query(chat_id: str, req: QueryRequest, user_id: str = Depends(cu
                     continue
                 if kind == "result":
                     state = data
-            payload = build_answer(state, steps, doc_ids, int((time.perf_counter() - started) * 1000))
-            msg_id = _persist_turn(chat, req.query.strip(), payload, first_turn=not history)
+            payload = build_answer(state, steps, selected, int((time.perf_counter() - started) * 1000))
+            msg_id = _persist_turn(chat, req.query.strip(), payload, first_turn=first_turn)
+            _after_turn(chat_id, user_id)
             yield _sse("result", {"status": "success", "message_id": msg_id, **payload})
         except Exception as e:
             logger.error(f"Streaming pipeline failed for chat {chat_id}: {e}", exc_info=True)
@@ -690,21 +884,24 @@ def stream_chat_query(chat_id: str, req: QueryRequest, user_id: str = Depends(cu
 
 
 @app.post("/api/query")
-def standalone_query(req: QueryRequest):
+def standalone_query(req: QueryRequest, user_id: str = Depends(current_user_id)):
     """One-off agentic query without a stored conversation (used by scripts and evals)."""
+    check_quota(user_id, "questions")
     started = time.perf_counter()
-    doc_ids = [d for d in (req.document_ids or []) if DOC_ID_RE.match(d)]
+    doc_ids = scoped_ids(req.document_ids, user_id)
     steps: List[Dict[str, Any]] = []
     state: Dict[str, Any] = {}
     for kind, data in get_pipeline().query_stream(
         user_query=req.query, document_ids=doc_ids,
         session_id=req.session_id or f"session_{uuid.uuid4().hex[:8]}",
-        web_mode=req.web or "auto",
+        web_mode=req.web or "auto", owner_id=library_owner(user_id) if accounts_on() else None,
     ):
         if kind == "step":
             steps.append(data)
         elif kind == "result":
             state = data
+    if accounts_on():
+        db.count_usage(user_id, "questions")
     return {"status": "success", **build_answer(state, steps, doc_ids, int((time.perf_counter() - started) * 1000))}
 
 
@@ -739,11 +936,11 @@ def _doc_meta(doc_id: str) -> Dict[str, Any]:
 
 
 @app.get("/api/documents")
-def list_documents():
+def list_documents(user_id: str = Depends(current_user_id)):
     # Extraction progress lives in memory; after a restart fall back to what the graph holds.
     counts = _pipeline.graph_store.entity_counts_by_document() if _pipeline is not None else {}
     docs = []
-    for d in db.get_all_documents():
+    for d in db.get_all_documents(owner_id=library_owner(user_id)):
         d = dict(d)
         status = _graph_status(d["id"])
         if status is None and d["id"] in counts:
@@ -765,17 +962,25 @@ def list_documents():
     return {"documents": docs}
 
 
-def _ingest_bytes(contents: bytes, original_name: str, ext: str) -> Dict[str, Any]:
-    """Stores and indexes a document's bytes (shared by uploads and URL imports)."""
+def _ingest_bytes(contents: bytes, original_name: str, ext: str, user_id: str = LOCAL_USER_ID) -> Dict[str, Any]:
+    """Stores and indexes a document's bytes (shared by uploads and URL imports) in the user's library."""
     if not contents:
         raise HTTPException(status_code=400, detail="The file is empty")
+    owner = library_owner(user_id)
     file_hash = hashlib.sha256(contents).hexdigest()
-    existing = db.get_document_by_hash(file_hash)
+    existing = db.get_document_by_hash(file_hash, owner)
     if existing:
         return {"status": "success", "doc_id": existing["id"], "filename": existing["filename"],
                 "chunk_count": existing.get("chunk_count") or 0, "duplicate": True}
+    if accounts_on() and not is_admin(user_id):
+        check_quota(user_id, "uploads")
+        cap = accounts.limits()["storage_mb"] * 1024 * 1024
+        if db.storage_used(owner) + len(contents) > cap:
+            raise HTTPException(status_code=413, detail=f"Your library is full ({cap // (1024 * 1024)} MB). Delete documents to add more.")
 
-    doc_id = f"doc_{file_hash[:12]}"
+    # Each account keeps its own copy (and index) of a file; the local library keeps its ids.
+    doc_id = (f"doc_{file_hash[:12]}" if owner == LOCAL_USER_ID
+              else "doc_" + hashlib.sha256(f"{owner}:{file_hash}".encode()).hexdigest()[:12])
     UPLOAD_DIR.mkdir(parents=True, exist_ok=True)
     saved_path = UPLOAD_DIR / f"{doc_id}.{ext}"  # never trust the client filename in a path
     saved_path.write_bytes(contents)
@@ -796,7 +1001,9 @@ def _ingest_bytes(contents: bytes, original_name: str, ext: str) -> Dict[str, An
 
     chunk_count = len(parsed.chunks)
     db.add_document(doc_id=doc_id, filename=original_name, file_hash=file_hash,
-                    size_bytes=len(contents), file_type=ext, chunk_count=chunk_count)
+                    size_bytes=len(contents), file_type=ext, chunk_count=chunk_count, owner_id=owner)
+    if accounts_on():
+        db.count_usage(user_id, "uploads")
     get_pipeline().refresh_records()
     result = {"status": "success", "doc_id": doc_id, "filename": original_name,
               "chunk_count": chunk_count, "duplicate": False,
@@ -811,7 +1018,7 @@ def _ingest_bytes(contents: bytes, original_name: str, ext: str) -> Dict[str, An
 
 
 @app.post("/api/documents/upload")
-def upload_document(file: UploadFile = File(...)):
+def upload_document(file: UploadFile = File(...), user_id: str = Depends(current_user_id)):
     """Stores and indexes a document. Summaries, field extraction and the knowledge graph continue in the background."""
     original_name = Path(file.filename or "document").name or "document"
     ext = original_name.rsplit(".", 1)[-1].lower() if "." in original_name else ""
@@ -820,7 +1027,7 @@ def upload_document(file: UploadFile = File(...)):
     contents = file.file.read(MAX_UPLOAD_BYTES + 1)
     if len(contents) > MAX_UPLOAD_BYTES:
         raise HTTPException(status_code=413, detail=f"File is larger than {MAX_UPLOAD_BYTES // (1024 * 1024)} MB")
-    return _ingest_bytes(contents, original_name, ext)
+    return _ingest_bytes(contents, original_name, ext, user_id)
 
 
 class ImportUrlRequest(BaseModel):
@@ -828,7 +1035,7 @@ class ImportUrlRequest(BaseModel):
 
 
 @app.post("/api/documents/import-url")
-def import_url(req: ImportUrlRequest):
+def import_url(req: ImportUrlRequest, user_id: str = Depends(current_user_id)):
     """Adds a web page or an online PDF to the library (public addresses only)."""
     from parsing.web import safe_get, readable, FetchError
     try:
@@ -841,27 +1048,33 @@ def import_url(req: ImportUrlRequest):
     path_name = Path(urllib.parse.urlparse(final_url).path).name
     if ctype == "application/pdf" or body[:5] == b"%PDF-":
         name = path_name if path_name.lower().endswith(".pdf") else (path_name or "document") + ".pdf"
-        return {**_ingest_bytes(body, name, "pdf"), "url": final_url}
+        return {**_ingest_bytes(body, name, "pdf", user_id), "url": final_url}
     if ctype.startswith("text/plain"):
-        return {**_ingest_bytes(body, (path_name or "page") + ".txt", "txt"), "url": final_url}
+        return {**_ingest_bytes(body, (path_name or "page") + ".txt", "txt", user_id), "url": final_url}
     title = readable(body.decode("utf-8", errors="replace"), final_url).get("title") or final_url
     safe_title = re.sub(r"[\\/:*?\"<>|]+", " ", title).strip()[:90] or "Web page"
-    return {**_ingest_bytes(body, f"{safe_title}.html", "html"), "url": final_url}
+    return {**_ingest_bytes(body, f"{safe_title}.html", "html", user_id), "url": final_url}
+
+
+def _remove_document(doc_id: str) -> None:
+    """Removes a document from SQLite, LanceDB, the knowledge graph, the record tables and disk."""
+    get_pipeline().delete_document(doc_id)
+    db.delete_document(doc_id)
+    get_pipeline().refresh_records()
+    for path in UPLOAD_DIR.glob(f"{doc_id}*"):
+        path.unlink(missing_ok=True)
 
 
 @app.delete("/api/documents/{doc_id}")
-def delete_document(doc_id: str):
+def delete_document(doc_id: str, user_id: str = Depends(current_user_id)):
     """Removes a document from SQLite, LanceDB, the knowledge graph and disk."""
     if not DOC_ID_RE.match(doc_id):
         raise HTTPException(status_code=400, detail="Invalid document id")
     doc = db.get_document(doc_id)
+    if doc and doc.get("owner_id", LOCAL_USER_ID) != library_owner(user_id):
+        raise HTTPException(status_code=404, detail="Document not found")
     try:
-        get_pipeline().delete_document(doc_id)
-        db.delete_document(doc_id)
-        get_pipeline().refresh_records()
-        if doc:
-            for path in UPLOAD_DIR.glob(f"{doc_id}*"):
-                path.unlink(missing_ok=True)
+        _remove_document(doc_id)
     except Exception as e:
         logger.error(f"Failed to delete document {doc_id}: {e}", exc_info=True)
         raise HTTPException(status_code=500, detail="Could not delete the document")
@@ -873,9 +1086,12 @@ class SummariesRequest(BaseModel):
 
 
 @app.post("/api/documents/summaries")
-def summarize_documents(req: Optional[SummariesRequest] = None):
+def summarize_documents(req: Optional[SummariesRequest] = None, user_id: str = Depends(current_user_id)):
     """Writes summaries, in the background, for documents (all by default) that have none yet."""
     doc_ids = [d for d in (req.document_ids or []) if DOC_ID_RE.match(d)] if req and req.document_ids else None
+    if accounts_on():
+        mine = set(db.document_ids(user_id))
+        doc_ids = [d for d in (doc_ids or mine) if d in mine] or [NO_DOCUMENTS]
     queued = get_pipeline().summarize_missing(doc_ids)
     return {"status": "success", "queued": queued}
 
@@ -886,12 +1102,12 @@ def summarize_documents(req: Optional[SummariesRequest] = None):
 _render_lock = threading.Lock()
 
 
-def _stored_document(doc_id: str):
-    """The library record and the stored upload of a document (404 when either is missing)."""
+def _stored_document(doc_id: str, user_id: str = LOCAL_USER_ID):
+    """The library record and the stored upload of a document the user may read (404 otherwise)."""
     if not DOC_ID_RE.match(doc_id):
         raise HTTPException(status_code=400, detail="Invalid document id")
     doc = db.get_document(doc_id)
-    if not doc:
+    if not doc or doc.get("owner_id", LOCAL_USER_ID) != library_owner(user_id):
         raise HTTPException(status_code=404, detail="Document not found")
     ext = (doc.get("file_type") or "").lower()
     path = UPLOAD_DIR / f"{doc_id}.{ext}"
@@ -909,9 +1125,9 @@ def _file_type(path: Path) -> str:
 
 
 @app.get("/api/documents/{doc_id}/file")
-def document_file(doc_id: str):
+def document_file(doc_id: str, user_id: str = Depends(current_user_id)):
     """The original uploaded file, shown inline by the browser where it can."""
-    doc, path = _stored_document(doc_id)
+    doc, path = _stored_document(doc_id, user_id)
     name = doc.get("filename") or path.name
     disposition = _attachment(name.rsplit(".", 1)[0], _file_type(path))["Content-Disposition"].replace("attachment", "inline", 1)
     return FileResponse(path, media_type=MEDIA_TYPES.get(_file_type(path), "application/octet-stream"),
@@ -919,9 +1135,9 @@ def document_file(doc_id: str):
 
 
 @app.get("/api/documents/{doc_id}/info")
-def document_info(doc_id: str):
+def document_info(doc_id: str, user_id: str = Depends(current_user_id)):
     """What the viewer needs: page sizes (with OCR language per page), tables and summary state."""
-    doc, path = _stored_document(doc_id)
+    doc, path = _stored_document(doc_id, user_id)
     ftype = _file_type(path)
     pipeline = get_pipeline()
     layout = pipeline.layout(doc_id)
@@ -954,9 +1170,9 @@ def document_info(doc_id: str):
 
 
 @app.get("/api/documents/{doc_id}/pages/{page_no}")
-def document_page(doc_id: str, page_no: int, width: int = 1000):
+def document_page(doc_id: str, page_no: int, width: int = 1000, user_id: str = Depends(current_user_id)):
     """One page as a PNG at the nearest standard width (cached on disk; ids are content hashes)."""
-    _, path = _stored_document(doc_id)
+    _, path = _stored_document(doc_id, user_id)
     if _file_type(path) not in PAGED_TYPES:
         raise HTTPException(status_code=404, detail="This document has no page images")
     width = min(PAGE_WIDTHS, key=lambda w: abs(w - width))
@@ -990,14 +1206,14 @@ class LocateRequest(BaseModel):
 
 
 @app.post("/api/documents/{doc_id}/locate")
-def locate_citation(doc_id: str, req: LocateRequest):
+def locate_citation(doc_id: str, req: LocateRequest, user_id: str = Depends(current_user_id)):
     """
     Where a cited passage, and the sentence of it that supports the claim, sits in the
     document: normalised rectangles on a page for PDFs and images, or the chunk and quote to
     mark in the text of other documents.
     """
     from parsing.locate import locate, best_sentence
-    _, path = _stored_document(doc_id)
+    _, path = _stored_document(doc_id, user_id)
     pipeline = get_pipeline()
     passage, page_no, chunk_id = req.passage or "", req.page, ""
     if req.chunk_id and DOC_ID_RE.match(req.chunk_id):
@@ -1037,9 +1253,9 @@ def _strip_overlap(previous: str, text: str, max_words: int = 80) -> str:
 
 
 @app.get("/api/documents/{doc_id}/text")
-def document_text(doc_id: str):
+def document_text(doc_id: str, user_id: str = Depends(current_user_id)):
     """The document's text in reading order, as its indexed passages (overlaps removed)."""
-    doc, _ = _stored_document(doc_id)
+    doc, _ = _stored_document(doc_id, user_id)
     chunks = get_pipeline().lance_store.get_document_chunks(doc_id)
     out, previous = [], ""
     for c in chunks:
@@ -1050,9 +1266,9 @@ def document_text(doc_id: str):
 
 
 @app.get("/api/documents/{doc_id}/tables/{table}")
-def document_table(doc_id: str, table: str, limit: int = 200):
+def document_table(doc_id: str, table: str, limit: int = 200, user_id: str = Depends(current_user_id)):
     """Rows of one extracted table (for the viewer of spreadsheets and table citations)."""
-    _stored_document(doc_id)
+    _stored_document(doc_id, user_id)
     store = get_pipeline().table_store
     entry = next((t for t in store.tables_for([doc_id]) if table in (t["table"], t["table_id"])), None)
     if entry is None:
@@ -1068,8 +1284,8 @@ def document_table(doc_id: str, table: str, limit: int = 200):
 
 
 @app.get("/api/documents/{doc_id}/summary")
-def document_summary(doc_id: str):
-    _stored_document(doc_id)
+def document_summary(doc_id: str, user_id: str = Depends(current_user_id)):
+    _stored_document(doc_id, user_id)
     summary = get_pipeline().summarizer.load(doc_id)
     if summary is not None:
         return {"status": "ready", "summary": summary}
@@ -1084,9 +1300,9 @@ class RecordRequest(BaseModel):
 
 
 @app.get("/api/documents/{doc_id}/record")
-def document_record(doc_id: str):
+def document_record(doc_id: str, user_id: str = Depends(current_user_id)):
     """The document's detected type and the fields extracted from it, with consistency checks."""
-    _stored_document(doc_id)
+    _stored_document(doc_id, user_id)
     meta = _doc_meta(doc_id)
     job = _graph_status(doc_id) or {}
     return {
@@ -1099,11 +1315,11 @@ def document_record(doc_id: str):
 
 
 @app.post("/api/documents/{doc_id}/record")
-def extract_record(doc_id: str, req: RecordRequest):
+def extract_record(doc_id: str, req: RecordRequest, user_id: str = Depends(current_user_id)):
     """(Re-)extracts the fields of the document's type; ``doc_type`` corrects a wrong detection."""
     from agents.extraction_agent import TYPE_PRESETS
     from agents.doc_classifier import LABELS
-    doc, _ = _stored_document(doc_id)
+    doc, _ = _stored_document(doc_id, user_id)
     pipeline = get_pipeline()
     meta_path = LAYOUT_DIR / f"{doc_id}.meta.json"
     meta = _doc_meta(doc_id)
@@ -1135,9 +1351,9 @@ def _pii_findings(doc_id: str, path: Path, kinds: Optional[List[str]] = None) ->
 
 
 @app.get("/api/documents/{doc_id}/sensitive")
-def sensitive_data(doc_id: str):
+def sensitive_data(doc_id: str, user_id: str = Depends(current_user_id)):
     """Personal and financial identifiers found in the document (values masked), with where they are."""
-    _, path = _stored_document(doc_id)
+    _, path = _stored_document(doc_id, user_id)
     findings = _pii_findings(doc_id, path)
     counts: Dict[str, int] = {}
     for f in findings:
@@ -1152,10 +1368,10 @@ class RedactRequest(BaseModel):
 
 
 @app.post("/api/documents/{doc_id}/redact")
-def redact_document(doc_id: str, req: RedactRequest):
+def redact_document(doc_id: str, req: RedactRequest, user_id: str = Depends(current_user_id)):
     """A copy with the sensitive values removed: real PDF redactions for PDFs and scans, blacked-out text otherwise."""
     from parsing import pii
-    doc, path = _stored_document(doc_id)
+    doc, path = _stored_document(doc_id, user_id)
     kinds = [k for k in (req.types or []) if k in pii.LABELS] or None
     base = (doc.get("filename") or doc_id).rsplit(".", 1)[0] + " (redacted)"
     if _file_type(path) in PAGED_TYPES:
@@ -1178,11 +1394,11 @@ class CompareRequest(BaseModel):
 
 
 @app.post("/api/compare")
-def compare_documents(req: CompareRequest):
+def compare_documents(req: CompareRequest, user_id: str = Depends(current_user_id)):
     """Sentence-level comparison of two documents (modified, added, removed, changed figures); optional summary."""
     from agents.compare_agent import compare, summarize
-    doc_a, _ = _stored_document(req.a)
-    doc_b, _ = _stored_document(req.b)
+    doc_a, _ = _stored_document(req.a, user_id)
+    doc_b, _ = _stored_document(req.b, user_id)
     store = get_pipeline().lance_store
     result = compare(store.get_document_chunks(req.a), store.get_document_chunks(req.b))
     result["a"] = {"id": req.a, "title": doc_a.get("filename") or req.a}
@@ -1203,9 +1419,9 @@ class SearchRequest(BaseModel):
 
 
 @app.post("/api/search")
-def search_documents(req: SearchRequest):
+def search_documents(req: SearchRequest, user_id: str = Depends(current_user_id)):
     """Hybrid search (vectors + BM25, reranked) without a model call: the passages, with their document and page."""
-    doc_ids = [d for d in (req.document_ids or []) if DOC_ID_RE.match(d)] or None
+    doc_ids = scoped_ids(req.document_ids, user_id) or None
     hits, pool = get_pipeline().hybrid_agent.search([req.query], doc_ids, top_k=req.top_k)
     titles = _doc_titles()
     return {"candidates": pool, "results": [{
@@ -1257,7 +1473,7 @@ def extract_presets():
 
 
 @app.post("/api/extract/stream")
-def extract_stream(req: ExtractRequest):
+def extract_stream(req: ExtractRequest, user_id: str = Depends(current_user_id)):
     """
     Fills the fields from each document, streaming `start`, then per document `doc_start`,
     `progress` and `doc_result` (or `doc_error`), and finally `done` with CSV rows.
@@ -1267,7 +1483,8 @@ def extract_stream(req: ExtractRequest):
     if not fields:
         raise HTTPException(status_code=400, detail="Add at least one field to extract")
     titles = _doc_titles()
-    doc_ids = [d for d in dict.fromkeys(req.document_ids) if DOC_ID_RE.match(d) and d in titles]
+    mine = set(db.document_ids(library_owner(user_id)))
+    doc_ids = [d for d in dict.fromkeys(req.document_ids) if DOC_ID_RE.match(d) and d in titles and d in mine]
     if not doc_ids:
         raise HTTPException(status_code=404, detail="None of the selected documents exist")
     agent = get_pipeline().extraction_agent
@@ -1315,8 +1532,9 @@ def extract_stream(req: ExtractRequest):
 # Knowledge graph
 # ---------------------------------------------------------------------------
 @app.get("/api/graph")
-def get_knowledge_graph(limit: int = 2000):
-    data = get_pipeline().graph_store.get_all_graph(limit=limit)
+def get_knowledge_graph(limit: int = 2000, user_id: str = Depends(current_user_id)):
+    scope = db.document_ids(user_id) if accounts_on() else None
+    data = get_pipeline().graph_store.get_all_graph(limit=limit, doc_ids=scope)
     # Graphs built by older versions stored the internal file name as the title.
     titles = _doc_titles()
     for d in data.get("documents", []):
@@ -1325,8 +1543,10 @@ def get_knowledge_graph(limit: int = 2000):
 
 
 @app.get("/api/graph/node/{node_id}")
-def get_node_details(node_id: str):
+def get_node_details(node_id: str, user_id: str = Depends(current_user_id)):
     found = get_pipeline().graph_store.get_node(node_id)
+    if found and accounts_on() and found["node"].get("doc_id") not in set(db.document_ids(user_id)):
+        found = None
     if not found:
         raise HTTPException(status_code=404, detail="Entity not found")
     return {"node": found["node"], "connected_edges": found["edges"],
