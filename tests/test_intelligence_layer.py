@@ -984,3 +984,8 @@ def test_figures_written_in_latex_are_read_as_figures():
     answer = r"The operating cash flow ratio is $\frac{2{,}912{,}853}{3{,}527{,}457} \approx 0.83$ [1]."
     checks, _ = check_sentences(answer, "What is the operating cash flow ratio?", sources)
     assert checks[0]["verdict"] != "unsupported", checks[0]["reason"]
+
+
+def test_fullwidth_citations_with_line_ranges_become_plain_citations():
+    from agents.citations import normalize_citations
+    assert normalize_citations("margins fell【15†L1-L4】【16†L1-L4】 and rose【2】.", 20) == "margins fell[15][16] and rose[2]."
