@@ -51,6 +51,8 @@ $compose up -d --build
 for i in $(seq 1 30); do $compose exec -T ollama ollama list >/dev/null 2>&1 && break; sleep 2; done
 $compose exec -T ollama ollama pull nomic-embed-text >/dev/null
 $DOCKER image prune -f >/dev/null
+# A nightly snapshot of the library (deploy/backup.sh keeps the last 7).
+( crontab -l 2>/dev/null | grep -v "# omnidoc-backup" ; echo "30 3 * * * bash $PWD/deploy/backup.sh >> $HOME/omnidoc-backup.log 2>&1 # omnidoc-backup" ) | crontab -
 
 echo "Waiting for OmniDoc to start..."
 for i in $(seq 1 90); do
