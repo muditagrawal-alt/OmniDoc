@@ -1,6 +1,6 @@
 import { lazy, Suspense, useCallback, useEffect, useRef, useState } from 'react';
 import { api, ApiError } from './api';
-import type { AgentStep, ChatMessage, ChatSession, DocumentItem, Source, User, WebMode } from './api';
+import type { AgentStep, AuthMethods, ChatMessage, ChatSession, DocumentItem, Source, User, WebMode } from './api';
 import { payloadToMetadata } from './lib/normalize';
 import { Sidebar } from './components/Sidebar';
 import type { View } from './components/Sidebar';
@@ -10,6 +10,8 @@ import type { UploadItem } from './components/library/LibraryView';
 import { ExtractView } from './components/extract/ExtractView';
 import { CompareView } from './components/compare/CompareView';
 import { ProfileDialog } from './components/ProfileDialog';
+import { SignIn } from './components/SignIn';
+import { AccountDialog } from './components/AccountDialog';
 import { ToastProvider, useToast } from './components/ui/Toast';
 import styles from './App.module.css';
 
@@ -50,6 +52,10 @@ function Shell() {
 
   const [user, setUser] = useState<User | null>(null);
   const [profileOpen, setProfileOpen] = useState(false);
+  // A hosted server with accounts shows the sign-in page until a session exists; a local install never does.
+  const [methods, setMethods] = useState<AuthMethods | null>(null);
+  const [authError, setAuthError] = useState<string | null>(null);
+  const [accountOpen, setAccountOpen] = useState(false);
 
   const [chats, setChats] = useState<ChatSession[]>([]);
   const [chatsLoading, setChatsLoading] = useState(true);
@@ -136,9 +142,26 @@ function Shell() {
   }, []);
 
   useEffect(() => {
-    api.getMe().then(setUser);
-    loadChats();
-    loadDocuments();
+    let cancelled = false;
+    (async () => {
+      const m = await api.authMethods();
+      if (m.accounts) {
+        const { error } = api.takeRedirect(); // back from Google or GitHub sign-in
+        if (error) setAuthError(error);
+      }
+      const u = await api.getMe();
+      if (cancelled) return;
+      setUser(u);
+      setMethods(m);
+      if (!m.accounts || u) {
+        loadChats();
+        loadDocuments();
+      }
+    })();
+    api.onUnauthorized = () => setUser(null);
+    return () => {
+      cancelled = true;
+    };
   }, [loadChats, loadDocuments]);
 
   // Poll while summaries or knowledge-graph extraction run in the background
@@ -424,6 +447,33 @@ function Shell() {
   const busy = !!inflight;
   const liveSteps = inflight && inflight.chatId === activeChatId ? inflight.steps : [];
 
+  if (!methods) return <div className={styles.app} aria-busy="true" />;
+  if (methods.accounts && !user) {
+    return (
+      <SignIn
+        methods={methods}
+        initialError={authError}
+        onSignedIn={(u) => {
+          setUser(u);
+          setAuthError(null);
+          setActiveChatId(null);
+          loadChats();
+          loadDocuments();
+        }}
+      />
+    );
+  }
+
+  const signOut = async () => {
+    await api.logout();
+    setUser(null);
+    setAccountOpen(false);
+    setActiveChatId(null);
+    setChats([]);
+    setDocuments([]);
+    if (!methods.accounts) loadChats();
+  };
+
   return (
     <div className={styles.app}>
       <Sidebar
@@ -441,12 +491,9 @@ function Shell() {
         onDeleteChat={deleteChat}
         user={user}
         onOpenProfile={() => setProfileOpen(true)}
-        onSignOut={async () => {
-          await api.logout();
-          setUser(null);
-          setActiveChatId(null);
-          loadChats();
-        }}
+        onSignOut={signOut}
+        accountsMode={methods.accounts}
+        onOpenAccount={() => setAccountOpen(true)}
         documentCount={documents.length}
       />
       <div className={styles.main}>
@@ -532,6 +579,19 @@ function Shell() {
           </div>
         )}
       </div>
+      <AccountDialog
+        key={accountOpen ? 'open' : 'closed'}
+        open={accountOpen}
+        onClose={() => setAccountOpen(false)}
+        onSignOut={signOut}
+        onDeleted={() => {
+          setAccountOpen(false);
+          setUser(null);
+          setChats([]);
+          setDocuments([]);
+          toast('Your account and its data were deleted', 'good');
+        }}
+      />
       <ProfileDialog
         open={profileOpen}
         onClose={() => setProfileOpen(false)}
