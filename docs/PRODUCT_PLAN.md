@@ -4,7 +4,12 @@ The plan for turning OmniDoc into an enterprise-grade SaaS product that runs ent
 resources. It records what is done, what comes next and in which order, which free service each
 part uses, and the decisions still open. Update it as items ship.
 
-**Constraint:** no paid services and no billing. Every item below names its free resource and the
+**Constraints:** no paid services and no billing, no domain (the free `<ip>.sslip.io` address), and
+no e-mail sending of any kind (decided 2026-10-29). Sign-in, second factors and notifications therefore
+use methods that need neither: GitHub (and Google if it accepts the address), passkeys, authenticator
+apps, in-app notices and browser push.
+
+**Earlier constraint, still in force:** no paid services and no billing. Every item below names its free resource and the
 limit that matters. Where a free tier runs out, the plan says what happens (a lower limit, a queue,
 or bring-your-own-key), never "upgrade".
 
@@ -16,7 +21,7 @@ or bring-your-own-key), never "upgrade".
 | Benchmarks (FinanceBench, MMLongBench-Doc, BEIR, RAGAS) | Done; full MMLongBench run paused at 2 of 10 batches |
 | Web app redesign (enterprise look, IBM Plex, one accent) | Done |
 | README, demo video, GIFs, screenshots | Done |
-| Accounts: Google, GitHub and e-mailed codes; private libraries; limits; account deletion | Done (code), not yet live |
+| Accounts: Google and GitHub sign-in (e-mailed codes built but switched off: no e-mail sending); private libraries; limits; account deletion | Done (code), not yet live |
 | Conversation memory (rolling summary of older turns) | Done |
 | One-command deployment, HTTPS, nightly backups, security headers | Done (code), not yet live |
 | Everything in the phases below | Planned |
@@ -27,10 +32,13 @@ or bring-your-own-key), never "upgrade".
 |---|---|---|
 | Server | Oracle Cloud Always Free, Ampere A1 VM | 2 OCPUs, 12 GB, 200 GB disk; reclaimed if idle (<20% CPU, network and memory) for 7 days |
 | HTTPS and address | Caddy + `<ip>.sslip.io` | No custom name until a domain is added |
-| Domain (optional) | is-a.dev subdomain (free, via GitHub pull request) or eu.org (free, slow approval) | A paid domain (~$1–10/year) is the only reliable way to custom e-mail and Cloudflare |
-| Edge protection | Cloudflare free plan (DDoS protection, WAF managed rules, caching) | Needs a domain on Cloudflare |
-| Bot protection | Cloudflare Turnstile | Free, unlimited |
-| E-mail (codes, updates) | Gmail SMTP with an app password; Brevo as second sender | Gmail ~500/day, Brevo 300/day |
+| Domain | None: `<ip>.sslip.io` (decided). If a nicer name is ever wanted at no cost: an is-a.dev subdomain (free, via a GitHub pull request) | Without a domain, Cloudflare's proxy and branded e-mail are not available |
+| Edge protection | Caddy plus rate limits in the app (Cloudflare's proxy needs a domain) | Per-IP and per-account limits enforced by OmniDoc |
+| Bot protection | Cloudflare Turnstile (a free Cloudflare account, no domain on Cloudflare) | Verify that it accepts the sslip.io hostname; otherwise a self-hosted proof-of-work challenge |
+| Sign-in without e-mail | GitHub OAuth; Google OAuth if it accepts the address; passkeys (WebAuthn, `py_webauthn`) | Passkeys need HTTPS, which Caddy provides |
+| Second factor | Authenticator apps (TOTP, `pyotp`) with recovery codes; passkeys | Free; no messages sent |
+| Notifications (security, updates) | In-app notices, browser push (Web Push with the server's own VAPID keys, `pywebpush`), an RSS feed, GitHub Releases | Push needs the user's permission and HTTPS |
+| E-mail | Not used (decided) | — |
 | Answer models | Gemini, Groq, NVIDIA NIM, OpenRouter free tiers; users' own keys (BYOK) | Per-provider daily and per-minute limits |
 | In-browser models | WebLLM (MLC) on WebGPU | Chrome/Edge desktop; 1–4 GB download per model |
 | Landing page hosting | Cloudflare Pages or GitHub Pages | Free; Cloudflare Pages allows 500 builds/month |
@@ -47,7 +55,9 @@ or bring-your-own-key), never "upgrade".
 ## Phase 0: go live
 
 1. Oracle VM, `oracle-setup.sh`, HTTPS on `<ip>.sslip.io`.
-2. Accounts on: Gmail app password for codes, GitHub OAuth app, optional Google OAuth client.
+2. Accounts on: a GitHub OAuth app, and a Google OAuth client if Google accepts the sslip.io address.
+   Passkeys (Phase 1) let people without GitHub or Google sign up: an account is a display name plus a
+   passkey, with recovery codes shown once at sign-up.
 3. UptimeRobot on `/api/health`; status page.
 4. Off-site encrypted backup (restic to R2 or B2) next to the nightly local snapshot; one restore drill.
 5. CI: tests, lint and build on every push; Docker image to GHCR; deploy to the VM over SSH on `main`.
@@ -58,11 +68,15 @@ backup has been restored once.
 ## Phase 1: security for users and for the operator
 
 For users:
-- **Two-step sign-in.** After Google or GitHub, an e-mailed code as a second factor (optional per
-  user, required for admins). Then authenticator apps (TOTP, `pyotp`) with ten one-time recovery
-  codes, and passkeys (WebAuthn, `py_webauthn`) later.
+- **Passkeys** (WebAuthn, `py_webauthn`): sign up and sign in with Face ID, Touch ID, Windows Hello or
+  a phone, with no password and no e-mail. Ten one-time recovery codes are shown at sign-up; an account
+  can also link GitHub or Google as a second way in.
+- **Two-step sign-in** without e-mail: a code from an authenticator app (TOTP, `pyotp`: Google
+  Authenticator, Microsoft Authenticator, 1Password...) after GitHub or Google sign-in, or a passkey.
+  Optional per user, required for admins; recovery codes as the fallback.
 - **Sessions and devices.** A list of signed-in devices (browser, approximate place, last use) with
-  "sign out" per device and "sign out everywhere"; an e-mail on each new-device sign-in.
+  "sign out" per device and "sign out everywhere"; a notice in the app (and a browser push, if allowed)
+  on each new-device sign-in.
 - **Data rights.** Export everything (documents, chats, records) as a zip; deletion already exists.
 - **Encryption at rest** for each user's chats (key derived per user from the server secret), and
   for stored API keys (see Phase 2).
@@ -124,16 +138,17 @@ A privacy panel states plainly, for the current settings, what leaves the device
 - **Support assistant** on the site: OmniDoc answering from its own documentation (README, deploy
   guide, FAQ, changelog) with citations, rate-limited per visitor and protected by Turnstile.
 
-## Phase 5: automatic update e-mails
+## Phase 5: automatic update notices (no e-mail)
 
 - Commits already follow conventional subjects. release-please turns them into versioned releases
   and a `CHANGELOG.md` with no manual writing.
 - On each release, a GitHub Action calls the server's `/api/admin/announce` with the notes. The
-  server writes a short readable summary with a model and e-mails subscribers in batches that stay
-  within the daily sending limits (Gmail ~500/day; Brevo as overflow).
-- Users opt in or out in the account dialog; every e-mail has a one-click unsubscribe link (needed
-  under CAN-SPAM, GDPR and India's DPDP Act). A weekly digest option keeps volume low.
-- The same notes appear in the app as "What's new".
+  server writes a short readable summary with a model and:
+  - shows it in the app as "What's new" (a dot on the menu until read);
+  - sends a browser push notification to users who allowed them (Web Push with the server's own
+    VAPID keys: free, no third-party service, works on the sslip.io HTTPS address);
+  - publishes it in an RSS feed, and on GitHub Releases, which anyone can watch.
+- Users choose in the account dialog: push for every release, a weekly digest, or in-app only.
 
 ## Phase 6: enterprise features
 
@@ -156,8 +171,7 @@ A privacy panel states plainly, for the current settings, what leaves the device
 
 ## Decisions still open
 
-- A real domain: stay on `sslip.io` (free) or buy one (~$1–10/year). Cloudflare protection,
-  branded e-mail (SPF, DKIM, DMARC) and Google sign-in verification are much easier with one.
+- Decided 2026-10-29: no domain (`sslip.io`) and no e-mail sending.
 - The trial size (5, 6 or 7 answers) and whether background work counts against it.
 - Whether chats default to "on this device only" or to the server.
 - The landing page: coded in this repository (full control, free hosting) or built in Framer (fast
@@ -167,7 +181,9 @@ A privacy panel states plainly, for the current settings, what leaves the device
 
 - Free model tiers change without notice: NVIDIA retired Nemotron 3 Super in October 2026. Keep
   several providers configured and BYOK available.
-- Gmail sending limits cap e-mail volume; a second sender and digests keep codes flowing.
+- Without e-mail there is no automatic account recovery: users must keep their recovery codes or
+  link a second sign-in method. The sign-up flow insists on one of the two.
+- Google may refuse an sslip.io redirect address; GitHub sign-in and passkeys then cover everyone.
 - Oracle reclaims idle Always Free VMs; keeping the models loaded keeps memory above the threshold,
   and the uptime monitor provides light traffic.
 - One VM is a single point of failure: off-site backups and a written restore procedure matter
