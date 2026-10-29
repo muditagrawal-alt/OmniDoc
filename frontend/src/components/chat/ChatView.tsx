@@ -221,7 +221,7 @@ export function ChatView(props: ChatViewProps) {
             )}
             <div className={styles.dock}>
               <Composer {...composer} variant="dock" draft={draft} />
-              <p className={styles.disclaimer}>OmniDoc runs on a local model and can be wrong. Check the cited sources.</p>
+              <p className={styles.disclaimer}>Answers can contain mistakes. Every claim links to its source so you can check it.</p>
             </div>
           </>
         )}
