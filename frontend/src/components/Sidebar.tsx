@@ -7,6 +7,7 @@ import {
   ListChecks,
   LogIn,
   LogOut,
+  UserRound,
   MessageSquare,
   Monitor,
   Moon,
@@ -49,6 +50,9 @@ interface SidebarProps {
   user: User | null;
   onOpenProfile: () => void;
   onSignOut: () => void;
+  /** A hosted server with accounts: the menu opens the account dialog instead of local profiles. */
+  accountsMode?: boolean;
+  onOpenAccount?: () => void;
   documentCount: number;
 }
 
@@ -71,6 +75,8 @@ export function Sidebar(props: SidebarProps) {
     user,
     onOpenProfile,
     onSignOut,
+    accountsMode = false,
+    onOpenAccount,
     documentCount,
   } = props;
   const [filter, setFilter] = useState('');
@@ -195,7 +201,7 @@ export function Sidebar(props: SidebarProps) {
           </div>
         </div>
 
-        <SettingsFooter user={user} onOpenProfile={onOpenProfile} onSignOut={onSignOut} />
+        <SettingsFooter user={user} onOpenProfile={onOpenProfile} onSignOut={onSignOut} accountsMode={accountsMode} onOpenAccount={onOpenAccount} />
       </aside>
     </>
   );
@@ -269,7 +275,9 @@ const THEMES: Array<{ key: ThemePreference; label: string; icon: typeof Sun }> =
   { key: 'dark', label: 'Dark', icon: Moon },
 ];
 
-function SettingsFooter({ user, onOpenProfile, onSignOut }: { user: User | null; onOpenProfile: () => void; onSignOut: () => void }) {
+function SettingsFooter({ user, onOpenProfile, onSignOut, accountsMode = false, onOpenAccount }: {
+  user: User | null; onOpenProfile: () => void; onSignOut: () => void; accountsMode?: boolean; onOpenAccount?: () => void;
+}) {
   const { preference, setPreference } = useTheme();
   const toast = useToast();
   const [models, setModels] = useState<ModelInfo[] | null>(null);
@@ -362,6 +370,11 @@ function SettingsFooter({ user, onOpenProfile, onSignOut }: { user: User | null;
               <Sparkles size={15} strokeWidth={1.75} /> Free model APIs and web search…
             </button>
             <div className="menu-sep" />
+            {accountsMode && (
+              <button type="button" role="menuitem" className="menu-item" onClick={() => { close(); onOpenAccount?.(); }}>
+                <UserRound size={15} strokeWidth={1.75} /> Account and usage…
+              </button>
+            )}
             {user ? (
               <button type="button" role="menuitem" className="menu-item" onClick={() => { close(); onSignOut(); }}>
                 <LogOut size={15} strokeWidth={1.75} /> Sign out of {user.email}
