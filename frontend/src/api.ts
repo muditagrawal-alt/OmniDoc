@@ -13,6 +13,23 @@ export interface User {
   avatar_url?: string;
 }
 
+export interface AuthMethods {
+  /** false: a local single-user install (no sign-in) */
+  accounts: boolean;
+  email: boolean;
+  google: boolean;
+  github: boolean;
+}
+
+export interface AccountInfo {
+  user: User;
+  accounts: boolean;
+  admin: boolean;
+  usage: { questions: number; uploads: number };
+  storage_bytes: number;
+  limits: { questions_per_day: number; uploads_per_day: number; storage_mb: number } | null;
+}
+
 export interface ChatSession {
   id: string;
   title: string;
@@ -551,8 +568,67 @@ class OmniDocApiClient {
     } catch {
       throw new ApiError('Cannot reach the OmniDoc server. Is it running on port 8000?', 0);
     }
-    if (!res.ok) throw await readError(res, fallback);
+    if (!res.ok) {
+      if (res.status === 401 && this.token && this.onUnauthorized) {
+        this.setToken(null);
+        this.onUnauthorized();
+      }
+      throw await readError(res, fallback);
+    }
     return res.json() as Promise<T>;
+  }
+
+  // ---- Accounts (hosted servers) --------------------------------------------
+  /** Called when the server answers 401 (the session ended): the app shows the sign-in page. */
+  onUnauthorized: (() => void) | null = null;
+
+  async authMethods(): Promise<AuthMethods> {
+    try {
+      return await this.request<AuthMethods>('/api/auth/methods');
+    } catch {
+      return { accounts: false, email: false, google: false, github: false };
+    }
+  }
+
+  async requestCode(email: string): Promise<void> {
+    await this.request('/api/auth/code/request', { method: 'POST', body: JSON.stringify({ email }) }, 'Could not send the code');
+  }
+
+  async verifyCode(email: string, code: string, name?: string): Promise<User> {
+    const data = await this.request<{ user: User; token: string }>(
+      '/api/auth/code/verify',
+      { method: 'POST', body: JSON.stringify({ email, code, name }) },
+      'Could not verify the code',
+    );
+    this.setToken(data.token);
+    return data.user;
+  }
+
+  /** Google and GitHub sign-in leave the app and come back with the session in the address fragment. */
+  oauthUrl(provider: 'google' | 'github'): string {
+    return `${API_BASE}/api/auth/oauth/${provider}/start`;
+  }
+
+  /** Takes a session (or an error) handed back by Google or GitHub sign-in, and clears it from the address. */
+  takeRedirect(): { error?: string } {
+    const hash = window.location.hash;
+    if (!hash.startsWith('#auth=') && !hash.startsWith('#auth_error=')) return {};
+    const value = decodeURIComponent(hash.slice(hash.indexOf('=') + 1));
+    window.history.replaceState(null, '', window.location.pathname + window.location.search);
+    if (hash.startsWith('#auth=')) {
+      this.setToken(value);
+      return {};
+    }
+    return { error: value };
+  }
+
+  getAccount(): Promise<AccountInfo> {
+    return this.request<AccountInfo>('/api/account');
+  }
+
+  async deleteAccount(): Promise<void> {
+    await this.request('/api/account', { method: 'DELETE' }, 'Could not delete the account');
+    this.setToken(null);
   }
 
   // ---- Profile -------------------------------------------------------------
