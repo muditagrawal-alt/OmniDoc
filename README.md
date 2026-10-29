@@ -1,100 +1,276 @@
-# OmniDoc
+<div align="center">
 
-OmniDoc is a document intelligence workspace for every kind of document: PDFs, scans and photos, Word files, spreadsheets, slide decks, e-mails, e-books, web pages and audio or video recordings. Ask questions in plain language and a team of agents searches the documents (and the web when needed), walks a knowledge graph built from them, queries their tables with SQL, reads their figures, runs exact calculations and writes an answer in which every claim cites its source. A verifier checks the answer sentence by sentence, and clicking any citation opens the document, or the web page, with the supporting sentence highlighted.
+<picture>
+  <source media="(prefers-color-scheme: dark)" srcset="docs/media/logo-dark.svg">
+  <img src="docs/media/logo-light.svg" alt="OmniDoc" width="300">
+</picture>
 
-It runs on free hosted model APIs (Gemini, Groq, NVIDIA, Mistral, OpenRouter, ...) or entirely on your machine with [Ollama](https://ollama.com). Documents, indexes, the graph and conversations stay in your data folder.
+### Document intelligence with answers you can verify
 
-## What you can do
+Ask questions across PDFs, scans, contracts, spreadsheets, slide decks and recordings.<br>
+Every claim cites the page it came from, and every sentence is checked against its source.
 
-- **Ask with citations you can check.** Answers cite numbered sources (`[1]`, `[2]`) and stream in as they are written. Clicking a citation opens the document beside the answer at the cited page and highlights the sentence that supports the claim; scanned pages are highlighted from their OCR word positions and recordings play from the cited moment.
-- **Search the web, with cited pages.** When a question needs current or general information, or the documents do not answer it, the web search agent searches (Tavily, Brave, Serper, SearXNG or DuckDuckGo without a key), reads the best pages and cites them like documents. A web citation opens the page in OmniDoc's reader with the cited passage highlighted. The composer's Web menu chooses *when needed*, *always* or *never*.
-- **Sentence-level citation checking.** Every sentence is checked against the passages it cites. Figures must appear in a cited passage, wrong citation numbers are corrected, and unsupported sentences are underlined with the reason.
-- **Any document type.** Scans and photos are read with Tesseract OCR (Indian languages included); slides, e-mails (with attachments), EPUB books and saved web pages keep their structure; recordings are transcribed with timestamps (Whisper). Add a web page or online PDF from its link.
-- **Document types, fields and checks.** Each upload is classified (invoice, receipt, purchase order, contract, resume, research paper, bank statement, report, ...). Its template's fields are filled in the background, each with a verbatim quote, and checked (subtotal + tax = total, due date after invoice date, opening + credits − debits = closing). The viewer's Details tab shows them; questions like "total due across all my invoices" are answered from these records with SQL.
-- **Ask about tables.** Tables in PDFs, Word, slides and spreadsheets are queried with read-only SQL. Question words are matched to the table's own values by meaning ("solar" finds "Photovoltaic plants" and "Rooftop PV").
-- **Fill a form from your documents.** The Extract view fills any set of fields from many documents at once, with a citation per value, and exports CSV or JSON.
-- **Compare documents.** The Compare view aligns two versions sentence by sentence and shows modified, added and removed text with word-level differences and changed figures, plus an optional summary of what matters.
-- **Find and redact sensitive data.** The viewer's Privacy tab finds Aadhaar (checksum-verified), PAN, GSTIN, IFSC, card (Luhn), account, passport and voter-ID numbers, phone numbers, e-mail addresses and dates of birth, shows each on the page, and downloads a truly redacted copy (text and pixels removed, metadata scrubbed).
-- **Summaries across documents.** Every document is summarized after upload; questions about whole documents or the library are answered from the summaries.
-- **Explore the knowledge globe.** Entities and relations from your documents on an interactive 3D globe.
-- **Charts, calculations and figures.** Charts only from numbers in the sources; exact calculations in a restricted SymPy evaluator; figures read by a vision model.
-- **Indian languages.** Ask in Hindi, Marathi, Tamil, Telugu, Kannada, Bengali, Gujarati and more; the documents are searched with English queries and the answer is written in your language.
-- **Use OmniDoc from other AI tools.** `mcp_server.py` makes the library available to Claude Desktop, Claude Code, Cursor and other MCP clients.
+[![License: MIT](https://img.shields.io/badge/license-MIT-0f62fe)](LICENSE)
+[![Python](https://img.shields.io/badge/python-3.9%2B-0f62fe)](requirements.txt)
+[![React](https://img.shields.io/badge/react-19-0f62fe)](frontend/package.json)
+[![Tests](https://img.shields.io/badge/tests-139%20passing-198038)](#development)
+[![FinanceBench](https://img.shields.io/badge/FinanceBench-77.8%25-121620)](#benchmarks)
+[![MMLongBench-Doc](https://img.shields.io/badge/MMLongBench--Doc-71.7%25-121620)](#benchmarks)
+[![Docker](https://img.shields.io/badge/deploy-Docker-121620)](#deployment)
 
-## How a question is answered
+[**Watch the demo**](docs/media/omnidoc-demo.mp4) · [Quick start](#quick-start) · [Features](#features) · [Benchmarks](#benchmarks) · [Architecture](#architecture) · [Deployment](#deployment)
 
-```text
-question
-  → input guard           empty, oversized or prompt-injection input is refused (no model call)
-  → understanding         one fast-model call when it helps (follow-up questions, other languages,
-                          several parts), rules otherwise: resolved question, English search queries,
-                          sub-questions, entities, intent and needs; context memory, language, intent,
-                          entity resolution against the graph and query expansion are derived from it
-  → plan                  steps chosen from the needs; a per-question budget of model calls and time
-  → hybrid search         vectors + BM25 with document context, reranked; a second search for parts
-                          of the question the passages do not cover
-  → document intelligence follows "Table 3", "Figure 2", "page 12" (at that position and where it is
-                          printed); adds whole financial statements, a survey's sample sizes and the rest
-                          of cut-off passages
-  → knowledge graph, figures, SQL over tables and library records, document summaries, web search
-  → temporal reasoning    dates the evidence, applies the question's time range, orders events
-  → evidence selection    one numbered evidence list shared by every later step
-  → conflict check        model audit only when figures about the same thing differ across documents
-  → math, charts          only when asked for, only from numbers in the evidence
-  → cited answer          streamed to the interface as it is written
-  → sentence check        citations corrected; one rewrite only if the answer is badly supported
-```
+<br>
 
-A typical question costs two or three model calls (understanding when it helps, writing, checking), down from about ten. The trace under each answer shows the steps, the model calls and which models answered.
+<img src="docs/media/hero.gif" alt="Asking a question about an earnings release and opening the cited page" width="900">
+
+</div>
+
+<br>
+
+## Why OmniDoc
+
+Most document assistants give fluent answers you cannot check. OmniDoc is built the other way round:
+retrieval, reading and calculation are done by specialised agents, and the answer is only as strong
+as the evidence it cites.
+
+- **Verifiable.** Answers cite numbered sources. A citation opens the document at the cited page with the supporting sentence highlighted, and a verifier checks each sentence before you read it.
+- **Exact.** Figures come from the documents, calculations run in a restricted symbolic evaluator, tables are queried with SQL, and charts are drawn only from cited numbers.
+- **Every format.** PDFs, scans and photos (OCR, Indian languages included), Word, spreadsheets, slides, e-mails, e-books, web pages and audio or video recordings.
+- **Yours.** Runs on free hosted model APIs or entirely on your machine with Ollama. Documents, indexes and conversations stay in your data folder.
+
+<div align="center">
+
+[![Watch the three-minute walkthrough](docs/media/demo-thumbnail.png)](docs/media/omnidoc-demo.mp4)
+
+<sub>Three-minute walkthrough with subtitles. Music: “Inspired” by Kevin MacLeod (incompetech.com), CC BY 4.0.</sub>
+
+</div>
+
+## Features
+
+<table>
+<tr>
+<td width="50%" valign="top">
+
+**Cited answers, checked sentence by sentence**<br>
+Answers stream in as they are written. Each sentence is checked against the passages it cites: figures must appear there, wrong citation numbers are corrected, and unsupported claims are flagged with the reason.
+
+</td>
+<td width="50%"><img src="docs/media/screens/answer.png" alt="A cited answer with its sentence check"></td>
+</tr>
+<tr>
+<td><img src="docs/media/screens/viewer.png" alt="The cited page opened with the supporting sentence highlighted"></td>
+<td valign="top">
+
+**Open the evidence**<br>
+Clicking a citation opens the document beside the answer at the cited page and highlights the sentence that supports the claim. Scanned pages are highlighted from their OCR word positions; recordings play from the cited moment.
+
+</td>
+</tr>
+<tr>
+<td valign="top">
+
+**Statements, tables and calculations**<br>
+Financial statements a question needs are added whole, even when split over two pages. Tables are queried with read-only SQL, ratios follow standard definitions, and every computed figure shows its inputs and formula.
+
+</td>
+<td><img src="docs/media/screens/table.png" alt="An answer comparing quarterly figures in a table"></td>
+</tr>
+<tr>
+<td><img src="docs/media/screens/details.png" alt="Fields extracted from a scanned invoice, with validation checks"></td>
+<td valign="top">
+
+**Document types, fields and checks**<br>
+Each upload is classified (invoice, receipt, purchase order, contract, résumé, research paper, bank statement and more). Its template's fields are filled in the background, each with a verbatim quote, and validated: due date after invoice date, subtotal plus tax equals total.
+
+</td>
+</tr>
+<tr>
+<td valign="top">
+
+**Find and redact sensitive data**<br>
+The Privacy tab finds Aadhaar (checksum-verified), PAN, GSTIN, IFSC, card (Luhn), account, passport and voter-ID numbers, phone numbers, e-mail addresses and dates of birth, and downloads a truly redacted copy: text and pixels removed, metadata scrubbed.
+
+</td>
+<td><img src="docs/media/screens/privacy.png" alt="Sensitive values found in an invoice, masked"></td>
+</tr>
+<tr>
+<td><img src="docs/media/screens/extract.png" alt="Contract fields extracted from two documents, each with its quote"></td>
+<td valign="top">
+
+**Extract structured data at scale**<br>
+Fill any set of fields from many documents at once. Every value carries the passage it was quoted from; export to CSV or JSON.
+
+</td>
+</tr>
+<tr>
+<td valign="top">
+
+**Compare versions**<br>
+Two versions are aligned clause by clause, with word-level differences, changed figures and added or removed text, plus an optional summary of what matters.
+
+</td>
+<td><img src="docs/media/screens/compare.png" alt="Two contract versions compared clause by clause"></td>
+</tr>
+<tr>
+<td><img src="docs/media/screens/globe.png" alt="The knowledge globe of entities and relations"></td>
+<td valign="top">
+
+**Knowledge graph**<br>
+Entities and relations extracted from every document, explorable on an interactive globe and used to answer multi-hop questions.
+
+</td>
+</tr>
+<tr>
+<td valign="top">
+
+**Multilingual, recordings and the web**<br>
+Ask in Hindi, Marathi, Tamil, Telugu, Kannada, Bengali, Gujarati and more; the answer is written in your language. Recordings are transcribed with timestamps. When the documents do not answer a question, a web search agent reads and cites pages like documents.
+
+</td>
+<td><img src="docs/media/screens/hindi.png" alt="A question in Hindi answered from an invoice"></td>
+</tr>
+</table>
+
+<div align="center">
+<img src="docs/media/workflow.gif" alt="Extracting contract fields from two versions, then comparing them clause by clause" width="900">
+<br><sub>Extraction and comparison of two versions of a contract, at about four times real speed.</sub>
+</div>
+
+<br>
+
+<table>
+<tr>
+<td width="50%"><img src="docs/media/screens/library.png" alt="The library in the light theme"></td>
+<td width="50%"><img src="docs/media/screens/dark.png" alt="A cited answer in the dark theme"></td>
+</tr>
+</table>
+
+**Also included:** a light and a dark theme, conversation export to PDF and Word, voice input, per-question budgets for model calls and time, and an [MCP server](#use-from-mcp-clients) that makes your library available to Claude, Cursor and other AI tools.
 
 ## Quick start
 
-**Requirements:** Python 3.9+ and Node.js 20+. Either a free API key (recommended: fast, nothing heavy runs on your computer) or Ollama.
+**Docker** (one container serves the API and the web app):
 
 ```bash
-# 1. Models: copy the template and add at least one free key (see "Free model APIs" below)
-cp .env.example .env
-#    ...or run models locally instead:
-#    ollama pull qwen2.5:7b-instruct && ollama pull nomic-embed-text
-brew install tesseract tesseract-lang ffmpeg   # optional: scans and images (OCR), recordings
-
-# 2. Backend (http://127.0.0.1:8000)
-python3 -m venv .venv && source .venv/bin/activate
-pip install -r requirements.txt
-python server.py
-
-# 3. Frontend (http://localhost:5173)
-cd frontend && npm install && npm run dev
+git clone https://github.com/muditagrawal-alt/OmniDoc.git && cd OmniDoc
+cp .env.example .env        # add at least one free API key, see "Model providers"
+docker compose up -d        # http://localhost:8000
 ```
 
-`npm run build` in `frontend/` makes `server.py` serve the app itself at http://127.0.0.1:8000. PDF reports use WeasyPrint, which needs Pango on macOS (`brew install pango`).
+**From source** (Python 3.9+ and Node.js 20+):
 
-## Free model APIs
+```bash
+cp .env.example .env                              # or run models locally: ollama pull qwen2.5:7b-instruct nomic-embed-text
+brew install tesseract tesseract-lang ffmpeg      # optional: OCR for scans, transcripts for recordings
+python3 -m venv .venv && source .venv/bin/activate
+pip install -r requirements.txt
+cd frontend && npm install && npm run build && cd ..
+python server.py                                  # http://127.0.0.1:8000
+```
 
-Add keys to `.env` (see [`.env.example`](.env.example)). The first configured provider answers; when it is rate-limited, out of daily quota or too small for a request, the next one takes over, then local Ollama if it runs. Each provider has a strong model for writing and checking and a fast one for understanding questions and background work. Settings → *Free model APIs and web search* shows what is configured.
+For frontend development run `npm run dev` in `frontend/` (http://localhost:5173). PDF reports use WeasyPrint, which needs Pango on macOS (`brew install pango`).
+
+## Benchmarks
+
+OmniDoc is measured on public benchmarks with reference answers, and every run is kept in
+[`benchmarks/results/`](benchmarks/results/HISTORY.md) with its configuration, answers and grades.
+Answers are graded by a judge model from another family than the answer model.
+
+| Benchmark | What it measures | Questions | OmniDoc |
+|---|---|---|---|
+| [FinanceBench](https://github.com/patronus-ai/financebench) | Questions on SEC filings: figures, ratios and financial judgement | 36 (test split) | **77.8%** |
+| | | all 150 | **70.7%** |
+| [MMLongBench-Doc](https://huggingface.co/datasets/yubo2333/MMLongBench-Doc) | Long PDFs with evidence in text, tables, charts and images | 53 (test split) | **71.7%** |
+| | | first 255 of 1,072 | **57.3%** |
+| [BEIR SciFact](https://github.com/beir-cellar/beir) | Retrieval alone, nDCG@10 (exact, no judge) | 300 claims | **0.732** |
+| SciFact claims with [RAGAS](https://github.com/explodinggradients/ragas) | Verdict accuracy / faithfulness / answer relevancy | 300 claims | **78.0% / 75.7% / 80.1%** |
+
+For reference, published results put standard retrieval-augmented pipelines near 50% on
+FinanceBench and the strongest agentic systems near 84%; document-RAG systems on MMLongBench-Doc
+report 50 to 65%. Across the baseline and four revisions, the test-split scores rose from 30.6% to 77.8% (FinanceBench)
+and from 35.8% to 71.7% (MMLongBench-Doc); [`benchmarks/README.md`](benchmarks/README.md) explains
+the method, the splits and how to reproduce every number.
+
+<sub>Measured with NVIDIA's Nemotron 3 Super for answers, Gemini 3.5 Flash-Lite for figures and nomic-embed-text for embeddings, all on free tiers. NVIDIA has since retired Nemotron 3 Super; OmniDoc now defaults to Nemotron 3 Ultra.</sub>
+
+## Architecture
+
+```mermaid
+flowchart LR
+    Q([Question]) --> G[Input guard]
+    G --> U[Understanding<br/>and planning]
+    U --> R[Hybrid search<br/>vectors + BM25<br/>+ reranker]
+    R --> DI[Document intelligence<br/>pages, statements,<br/>references]
+    DI --> P{{Evidence agents}}
+    P --> KG[Knowledge graph]
+    P --> V[Vision<br/>figures and pages]
+    P --> T[SQL over tables<br/>and records]
+    P --> W[Web search]
+    KG & V & T & W --> E[Evidence selection]
+    E --> M[Exact math<br/>and charts]
+    M --> S[Cited answer<br/>streamed]
+    S --> C[Sentence check]
+    C --> A([Answer with<br/>verified citations])
+```
+
+A typical question costs two or three model calls: understanding when it helps, writing and checking.
+Optional steps run only when the question needs them and within a per-question budget, and the trace
+under each answer shows every step, model call and model.
+
+| Layer | Technology |
+|---|---|
+| API and orchestration | FastAPI, LangGraph |
+| Retrieval | LanceDB (vectors), Tantivy (BM25), MiniLM cross-encoder, nomic-embed-text |
+| Knowledge graph | Kùzu |
+| Tables and records | SQLite with read-only SQL |
+| Parsing | PyMuPDF, Tesseract OCR, python-docx, python-pptx, openpyxl, Whisper transcripts |
+| Models | Gemini, Groq, NVIDIA NIM, Mistral, OpenRouter, Cerebras, GitHub Models or Ollama, with automatic fallback |
+| Web app | React 19, TypeScript, Vite |
+
+## Deployment
+
+`docker compose up -d` runs OmniDoc in one container on port 8000. Before exposing it, set
+`OMNIDOC_AUTH=user:password` in `.env`. Every visitor is then asked for it; serve it over HTTPS.
+
+On a fresh Ubuntu server, one command installs Docker, opens the firewall, builds the image and starts
+OmniDoc behind automatic HTTPS:
+
+```bash
+bash deploy/oracle-setup.sh
+```
+
+[`deploy/README.md`](deploy/README.md) walks through a free Oracle Cloud Always Free VM, a Cloudflare
+tunnel from your own computer, and other hosts.
+
+## Model providers
+
+Add keys to `.env` (see [`.env.example`](.env.example)). The first configured provider answers; when
+it is rate-limited, out of daily quota or too small for a request, the next one takes over, then local
+Ollama if it runs. Settings → *Free model APIs and web search* shows what is configured.
 
 | Provider | Free tier (October 2026) | Notes |
 | --- | --- | --- |
 | Google Gemini | Gemini 3.5 Flash-Lite (about 500 requests/day; 3.5 Flash only 20/day), embeddings, images | Prompts may be used to improve Google's models outside the EEA, UK and Switzerland |
 | Groq | gpt-oss-120b/20b, Qwen; 30 requests/min, 1,000/day, 8,000 tokens/min per model; Whisper | Fastest; the small per-minute token limit means long prompts move to the next provider |
-| NVIDIA NIM | Nemotron 3 Super, Kimi, GLM, DeepSeek and more; about 40 requests/min per model | NVIDIA Developer account; meant for development and evaluation |
+| NVIDIA NIM | Nemotron 3 Ultra, Kimi, GLM, DeepSeek and more; about 40 requests/min per model | NVIDIA Developer account; meant for development and evaluation |
 | Mistral | Free Experiment plan | Requests may be used for training unless you opt out |
 | OpenRouter | Models ending in `:free`; 50 requests/day (1,000 after a one-time $10 top-up) | Free routes rotate |
 | Cerebras, GitHub Models | Trial credit / low daily limits | |
 
-Web search: Tavily (1,000 searches a month free), Brave ($5 monthly credit, card required), Serper (2,500 once), your own SearXNG, or DuckDuckGo without a key. Speech to text uses Groq's free Whisper.
+Web search: Tavily (1,000 searches a month free), Brave, Serper, your own SearXNG, or DuckDuckGo without a key.
 
-## Deploying
-
-`docker compose up -d` runs everything in one container on port 8000; set `OMNIDOC_AUTH=user:password` before exposing it. [deploy/README.md](deploy/README.md) covers a free Oracle Cloud Always Free VM with automatic HTTPS, an instant Cloudflare tunnel from your computer, and other hosts.
-
-## Use from Claude, Cursor and other MCP clients
+## Use from MCP clients
 
 ```bash
 claude mcp add omnidoc -- python /path/to/OmniDoc/mcp_server.py      # Claude Code
 ```
 
-Claude Desktop (`claude_desktop_config.json`): `{"mcpServers": {"omnidoc": {"command": "python", "args": ["/path/to/OmniDoc/mcp_server.py"]}}}`. Tools: `list_documents`, `search_documents`, `ask`, `read_document`, `extract_fields`, `find_sensitive_data`, `compare_documents`. The server must be running (`OMNIDOC_API_URL`, and `OMNIDOC_API_AUTH` when it has a password). The REST API is documented at `/docs`.
+Claude Desktop (`claude_desktop_config.json`): `{"mcpServers": {"omnidoc": {"command": "python", "args": ["/path/to/OmniDoc/mcp_server.py"]}}}`.
+Tools: `list_documents`, `search_documents`, `ask`, `read_document`, `extract_fields`, `find_sensitive_data`
+and `compare_documents`. The server must be running (`OMNIDOC_API_URL`, and `OMNIDOC_API_AUTH` when it has a
+password). The REST API is described at `/docs` (OpenAPI).
 
 ## Configuration
 
@@ -132,40 +308,53 @@ server.py              FastAPI: profiles, conversations, streaming answers, docu
                        sensitive data, comparison, extraction, web pages, search, graph, export, the built app
 mcp_server.py          MCP server (stdio) over the REST API
 core/                  LangGraph workflow, state, pipeline (ingestion and questions), streaming channel
-agents/                understanding, context memory, multilingual, planner, supervisor, entity resolution,
-                       query expansion, hybrid search, document intelligence, graph, vision, structured data
-                       and tables (SQL), summaries, web search, temporal reasoning, evidence, conflicts, math,
-                       charts, synthesis, extraction, document types, validation, comparison, model providers
-guardrails/            input guard, intent, semantic NLU, execution budget, output verification, sentence checks
+agents/                understanding, planning, hybrid search, document intelligence, graph, vision, tables,
+                       summaries, web search, temporal reasoning, evidence, conflicts, math, charts, synthesis,
+                       extraction, document types, validation, comparison, model providers
+guardrails/            input guard, intent, execution budget, output verification, sentence checks
 retrieval/             LanceDB store, embeddings, reranker, SQLite tables and library records
 graph/                 Kùzu store, schema, triple extraction
-parsing/               PDF/Word/spreadsheet/slide/e-mail/EPUB/HTML/recording parsing, OCR, transcription,
-                       tables, highlighting, sensitive data, safe web reading
+parsing/               PDF, Word, spreadsheet, slide, e-mail, EPUB, HTML and recording parsing; OCR,
+                       transcription, tables, highlighting, sensitive data, safe web reading
 frontend/              React 19 + TypeScript: chat, viewer, library, extract, compare, knowledge globe
-deploy/                deployment guide, HTTPS (Caddy) compose file
-tests/                 API, viewer, agents, providers and export tests
+benchmarks/            FinanceBench, MMLongBench-Doc, BEIR and RAGAS harnesses and every result
+deploy/                deployment guide, one-command VM setup, HTTPS (Caddy)
+tests/                 API, viewer, agents, providers, grounding and export tests
 ```
 
-## Tests
+## Development
 
 ```bash
 pytest tests/test_grounding.py tests/test_document_intelligence.py tests/test_intelligence_layer.py \
        tests/test_server_endpoints.py tests/test_report_compiler.py      # no model calls
 pytest tests/test_viewer_endpoints.py                                   # uploads: needs Ollama embeddings
-pytest tests/test_agentic_rag_full.py                                   # calls the local model
 cd frontend && npx tsc -p tsconfig.app.json --noEmit && npx oxlint src && npm run build
 ```
 
-The API tests run against a temporary data folder and never touch `.data/`. Hosted providers are tested against a local fake API server.
+The API tests run against a temporary data folder and never touch your library. Hosted providers are
+tested against a local fake API server.
 
-## Evaluation
+## Roadmap
 
-[`benchmarks/`](benchmarks/README.md) measures OmniDoc on public benchmarks and keeps every run: FinanceBench and MMLongBench-Doc for cited answers over long documents (graded by a judge model from another family) BEIR SciFact for the search alone (exact retrieval metrics, no judge), and SciFact claims answered end to end and scored with RAGAS (faithfulness, answer relevancy, factual correctness) and against the gold verdicts. `evaluation/` runs a few hand-written questions as a smoke test; its numbers are not benchmark results. Other public benchmarks that fit OmniDoc include OmniDocBench and olmOCR-Bench (parsing), MultiHop-RAG (cited QA), GraphRAG-Bench (graph retrieval), UniDoc-Bench (long multimodal documents), ViDoRe v3 (visual retrieval) and RAGTruth (hallucination detection).
+- **Accounts and shared workspaces.** Separate libraries per user, with sharing of folders and conversations.
+- **Focused page reading.** Read the one or two pages a table or chart question needs at full resolution, and count by majority over repeated readings: the largest remaining source of errors on MMLongBench-Doc.
+- **Watched sources.** Re-import a web page or online PDF on a schedule and report what changed, using the Compare engine.
+- **Answer feedback.** Thumbs up or down on answers, collected into an evaluation set from real use.
+- **Automatic backups.** Scheduled snapshots of the library to object storage for self-hosted deployments.
+- **Mobile capture.** Photograph receipts and documents from a phone straight into the library.
 
-## Privacy
+## Privacy and security
 
-With Ollama, inference, embeddings, figure reading, storage and export all stay on your machine. With hosted APIs, the question and the selected passages are sent to the provider you configured (read its data terms; some free tiers may train on prompts); the documents themselves stay in your data folder. Web search sends the search query to the search provider and fetches the result pages from your server; page addresses on private networks are refused. Sessions use opaque tokens and conversations are private to the profile that created them.
+With Ollama, inference, embeddings, figure reading, storage and export all stay on your machine. With
+hosted APIs, the question and the selected passages are sent to the provider you configured (read its
+data terms; some free tiers may train on prompts); the documents themselves stay in your data folder.
+Web search sends the query to the search provider and fetches result pages from your server; addresses
+on private networks are refused. Sessions use opaque tokens, and conversations are private to the
+profile that created them.
 
 ## License
 
-MIT
+[MIT](LICENSE). Benchmark datasets keep their own licenses (FinanceBench: CC BY-NC 4.0). The demo uses
+public SEC filings, an arXiv paper and sample documents written for it; its music is “Inspired” by
+Kevin MacLeod ([incompetech.com](https://incompetech.com)), licensed under
+[CC BY 4.0](https://creativecommons.org/licenses/by/4.0/).
