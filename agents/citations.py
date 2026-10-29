@@ -345,7 +345,7 @@ _MATH_OR_CODE_RE = re.compile(r"(\$\$.*?\$\$|\$[^$\n]+\$|```.*?```|`[^`\n]+`)", 
 _LIST_CITE_RE = re.compile(r"\[\s*(\d{1,3}(?:\s*[,;]\s*\d{1,3})+)\s*\]")
 _RANGE_CITE_RE = re.compile(r"\[\s*(\d{1,3})\s*[-–—]\s*(\d{1,3})\s*\]")
 _LABEL_CITE_RE = re.compile(r"\[\s*(?:source|evidence|ref|reference|doc|item|citation)s?\s*[:#]?\s*(\d{1,3})\s*\]", re.IGNORECASE)
-_FULLWIDTH_CITE_RE = re.compile(r"[【［]\s*(\d{1,3})\s*[】］]")
+_FULLWIDTH_CITE_RE = re.compile(r"[【［]\s*(\d{1,3})(?:\s*†[^】］]*)?\s*[】］]")  # 【3】, 【15†L1-L4】
 _SINGLE_CITE_RE = re.compile(r"\[(\d{1,4})\](?!\()")
 _TRAILING_REFS_RE = re.compile(
     r"\n+(?:#{1,6}\s*|\*\*)?(?:sources|references|citations|evidence used)\s*:?\**\s*\n(?:\s*(?:[-*]\s*)?\[\d+\][^\n]*\n?)+\s*$",
