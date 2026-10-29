@@ -23,7 +23,7 @@ from typing import Any, Dict, List, Optional
 from core.state import AgentWorkflowState
 from agents.llm_utils import trace
 from agents.table_agent import TableQAAgent, MIN_SCORE, asks_about_tables
-from retrieval.table_store import LIBRARY_DOC_ID
+from retrieval.table_store import library_id
 
 logger = logging.getLogger("OmniDoc.StructuredDataAgent")
 
@@ -41,15 +41,15 @@ class StructuredDataAgent:
     def __init__(self, table_agent: TableQAAgent):
         self.table_agent = table_agent
 
-    def _library_tables(self, query: str, needs: Dict[str, Any]) -> List[Dict[str, Any]]:
+    def _library_tables(self, query: str, needs: Dict[str, Any], owner: Optional[str] = None) -> List[Dict[str, Any]]:
         if not (needs.get("library") or (_LIBRARY_RE.search(query) and asks_about_tables(query))):
             return []
-        tables = self.table_agent.table_store.tables_for([LIBRARY_DOC_ID])
+        tables = self.table_agent.table_store.tables_for([library_id(owner)])  # this library's tables only
         words = {w.lower().rstrip("s") for w in re.findall(r"[A-Za-z]+", query)}
         # The overview table always; record tables of the types the question names (or all if none is named).
         named = [t for t in tables if t["table"].startswith("t_records_")
                  and any(w in t["title"].lower() for w in words if len(w) > 3)]
-        overview = [t for t in tables if t["table"] == "t_library"]
+        overview = [t for t in tables if t["table"].startswith("t_library")]
         return overview + (named or [t for t in tables if t["table"].startswith("t_records_")][:3])
 
     def run(self, state: AgentWorkflowState) -> Dict[str, Any]:
@@ -63,7 +63,7 @@ class StructuredDataAgent:
         about_tables = asks_about_tables(query)
         candidates = [t for score, t in self.table_agent.candidate_tables(query, doc_ids)
                       if score >= MIN_SCORE and (about_tables or _has_numbers(t))]
-        library = self._library_tables(query, needs)
+        library = self._library_tables(query, needs, state.get("owner_id"))
         if not candidates and not library:
             return {}
         try:
