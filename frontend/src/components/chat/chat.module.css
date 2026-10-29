@@ -108,27 +108,36 @@
   max-width: var(--read-w);
 }
 
+.heroEyebrow {
+  margin-bottom: var(--space-3);
+  color: var(--text-3);
+  font-family: var(--font-mono);
+  font-size: var(--text-xs);
+  animation: rise-in var(--dur-4) var(--ease-out);
+}
+
 .heroTitle {
-  font-family: var(--font-read);
-  font-size: clamp(2rem, 4.2vw, var(--text-3xl));
-  font-weight: 500;
+  font-family: var(--font-ui);
+  font-size: clamp(1.75rem, 3.4vw, var(--text-2xl));
+  font-weight: 600;
+  line-height: var(--leading-tight);
   letter-spacing: var(--tracking-tight);
-  text-align: center;
+  text-wrap: balance;
   animation: rise-in var(--dur-4) var(--ease-out);
 }
 
 .heroSub {
-  margin: var(--space-3) auto var(--space-8);
-  max-width: 46ch;
+  margin: var(--space-3) 0 var(--space-6);
+  max-width: 58ch;
   color: var(--text-2);
   font-size: var(--text-md);
-  text-align: center;
+  text-wrap: pretty;
 }
 
 .suggestions {
   display: flex;
   flex-wrap: wrap;
-  justify-content: center;
+  justify-content: flex-start;
   gap: var(--space-2);
   margin-top: var(--space-5);
 }
