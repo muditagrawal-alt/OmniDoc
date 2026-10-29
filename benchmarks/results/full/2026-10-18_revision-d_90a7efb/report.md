@@ -4,52 +4,53 @@ Commit `90a7efb`. Answer model `nvidia:nvidia/nemotron-3-super-120b-a12b` (provi
 
 Notes: Revision D on the full MMLongBench-Doc, batch 1 of 10 (every 10th of the 135 documents with its questions; later batches add to this run with --resume). The 7 documents of the test split come from the test index (built at revision C, re-embedded at revision D); the others are ingested by the batches. Code: revision D plus changes that leave MMLongBench answers as they were (query/passage modes for NVIDIA and Jina embeddings, retries of hosted embedding batches, an optional vector weight left at 1, a FinanceBench note on registered securities).
 
-## MMLongBench-Doc (136 questions)
+## MMLongBench-Doc (255 questions)
 
 | Metric | Value |
 |---|---|
-| Accuracy | **55.9%** (95% CI 47.5%–64.0%) |
-| Wrong answers | 28.7% |
-| Declined to answer | 15.4% |
-| Accuracy on answerable questions | 52.9% |
-| Unanswerable questions correctly declined (32) | 65.6% |
-| F1 (MMLongBench-Doc definition) | 55.6% |
-| Gold page among the sources | 88.3% |
-| Gold page among the cited sources | 64.1% |
-| First word, median / p90 | 9.4s / 20.2s |
-| Full answer, median / p90 | 12.4s / 26.1s |
+| Accuracy | **57.3%** (95% CI 51.1%–63.2%) |
+| Wrong answers | 31.0% |
+| Declined to answer | 11.8% |
+| Accuracy on answerable questions | 56.1% |
+| Unanswerable questions correctly declined (57) | 61.4% |
+| F1 (MMLongBench-Doc definition) | 57.2% |
+| Gold page among the sources | 90.8% |
+| Gold page among the cited sources | 68.4% |
+| First word, median / p90 | 11.1s / 32.3s |
+| Full answer, median / p90 | 15.4s / 40.5s |
 | Model calls per question | 3.5 |
-| Tokens per question | 28694 |
+| Tokens per question | 29781 |
 | Answers with errors | 0 |
 | Answers that needed a retry (rate limit or model error) | 0 |
-| Answers rewritten after the sentence check (graded correct) | 11 (5) |
-| Ingestion | 18 documents, 1575 chunks; upload 253.8s, background 3621.6s (index built at `991bbaa`) |
+| Answers rewritten after the sentence check (graded correct) | 23 (8) |
+| Left out | 9 questions on mi_phone.pdf: the downloaded file is another document (NYU_graduate.pdf) |
+| Ingestion | 31 documents, 3190 chunks; upload 525.1s, background 4478.8s (index built at `991bbaa`) |
 
 **By evidence**
 
 | Group | Questions | Accuracy |
 |---|---|---|
-| (unspecified) | 1 | 100.0% |
-| Chart | 24 | 50.0% |
-| Figure | 26 | 50.0% |
-| Generalized-text | 13 | 61.5% |
-| Multi-page | 37 | 37.8% |
-| Not answerable | 32 | 65.6% |
-| Pure-text | 25 | 52.0% |
-| Single-page | 67 | 61.2% |
-| Table | 33 | 39.4% |
+| (unspecified) | 4 | 100.0% |
+| Chart | 34 | 52.9% |
+| Figure | 63 | 52.4% |
+| Generalized-text | 20 | 55.0% |
+| Multi-page | 78 | 38.5% |
+| Not answerable | 57 | 61.4% |
+| Pure-text | 54 | 59.3% |
+| Single-page | 120 | 67.5% |
+| Table | 67 | 52.2% |
 
 **By document type**
 
 | Group | Questions | Accuracy |
 |---|---|---|
-| Academic paper | 20 | 50.0% |
-| Administration/Industry file | 18 | 55.6% |
-| Brochure | 8 | 87.5% |
-| Financial report | 34 | 50.0% |
-| Guidebook | 25 | 36.0% |
-| Research report / Introduction | 25 | 72.0% |
-| Tutorial/Workshop | 6 | 83.3% |
+| Academic paper | 61 | 54.1% |
+| Administration/Industry file | 25 | 56.0% |
+| Brochure | 14 | 64.3% |
+| Financial report | 46 | 54.3% |
+| Guidebook | 21 | 52.4% |
+| Research report / Introduction | 62 | 62.9% |
+| Tutorial/Workshop | 26 | 57.7% |
 
 **Missed questions**
 
@@ -96,14 +97,6 @@ Notes: Revision D on the full MMLongBench-Doc, batch 1 of 10 (every 10th of the 
 | mm_0764 | How many strategies outperform the uniform sampling baseline on CIFAR-10-LT? | Not answerable | The assistant gave a numeric answer (6) while the reference indicates the question is not answerable. |
 | mm_0766 | How many line plots are in this paper? | 3 | Provided answer 15 does not match reference answer 3 |
 | mm_0769 | On the dataset map of PathMNIST, does the map by ground truth or pseudo-labels have a larger confidence varia… | ground truth | The response claims pseudo‑labels have larger variance, contradicting the reference answer 'ground truth'. |
-| mm_0890 | How many applications are mentioned in Pages 3-6? | 22 | Answer given (1) does not match reference (22) |
-| mm_0892 | According to the overview section, list the buttons of Mi phones | ['Power Button', 'Volume Buttons', 'Menu Buttons', 'Home Bu… | The response declines to provide the list, which does not match the reference answer. |
-| mm_0893 | How many icons can be found in Status Bar? | 23 | The response does not provide the numeric answer 23 required. |
-| mm_0894 | List all the different icons about networks that can be found in Status Bar | ['Cellular Data Network Connected', '4G Network', 'HSPA+ Ne… | The response does not provide any of the listed network icons. |
-| mm_0895 | List all the icons about signals that can not be found in Status Bar | Not answerable | Response provides an answer while reference says not answerable |
-| mm_0896 | How many interface layout examples of virtual keypads are shown in Chapter 3 for text input purpose? | 4 | Response does not provide the required numeric answer of 4. |
-| mm_0897 | How many steps are needed for editing an SMS? | 4 | The response does not provide an answer, while the reference answer is 4. |
-| mm_0898 | What are the last four example websites in the figure of Page 29 | ['Vimeo', 'Linkedin', 'Google+', 'Wikipedia'] | The response declines to provide the list, which does not match the reference answer. |
 | mm_0971 | According to the paper, there are five different relation types between two events. | Not answerable | Provided an answer instead of declining, contradicting the 'Not answerable' reference |
 | mm_0972 | The authors propose four different solutions for logical reasoning of LLMs. | Not answerable | The response provides an answer instead of indicating the information is not answerable. |
 | mm_0973 | Which baseline did the pre-trained Vicuna-13B perform best on MAVEN-ERE? | CoT w. logical constraints | The response omits "CoT" and adds "all", not matching the reference answer |
@@ -115,4 +108,61 @@ Notes: Revision D on the full MMLongBench-Doc, batch 1 of 10 (every 10th of the 
 | mm_1084 | what is interest coverage ratio for AMCOR'FY 2020? round your answer to three decimal? | 51.286 | The assistant did not provide the numeric answer 51.286, instead claimed the information was unavailable. |
 | mm_1085 | What is effective tax ratio of Best Buy for for the fiscal year ending January 28, 2023?Answer in percentage … | 20.7% | Provided answer 11.5% does not match reference 20.7% |
 | mm_1086 | what is invested capital of Best Buy for for the fiscal year ending January 28, 2023? Answer in million. | 13929 | Response declines to provide the numeric answer, which does not match the reference value of 13929. |
+| mm_0024 | Of the four missions of Indian Space Program's space mission from 2012 to 2017, which mission includes the la… | Space Science & Planetary Exploration Satellites. | Response gives a different answer than the reference mission |
+| mm_0025 | How many organisations does this report introduce in detail (at least one paragraph) ? | 19 | The response answers 15, which does not match the reference answer of 19 |
+| mm_0026 | How many exterior photos of organisations does this report provide? | 10 | Provided answer 8 does not match reference answer 10 |
+| mm_0035 | How many pages include charts whose horizontal-axis are set as year (like 2024)? | 13 | Provided answer 5 pages, which does not match reference answer 13 |
+| mm_0039 | In the slides, how many charts compare between ONLY US and Europe? | 10 | Provided answer 8 does not match reference answer 10 |
+| mm_0041 | On the chart showing average exit cap, there is one point that US, Europe, and China have the same average ex… | 300 million | The response does not provide the required numeric answer, thus it declines and does not match the reference answer. |
+| mm_0179 | How many samples in MMMU belong to sociology subject? | 287 | Response declines to provide the number, while reference answer is 287 |
+| mm_0180 | Among all samples belonging to 'Public Health' subject, how many percentage samples showcased in this paper? … | 0.55% | Answer provided but value 0.5894% does not match reference 0.55% |
+| mm_0183 | According to this paper, What's the GPT-4V's performance difference between CS subject and math subject on MM… | 12.1% | Assistant declined to provide the 12.1% figure required |
+| mm_0219 | How many people who do not go online or only use SNS in the Older Adults and Technology by Princeton Survey R… | 4087 | Provided number 1,038 does not match reference answer 4087 |
+| mm_0220 | How many people who do not go online or only use SNS in the Older Adults and Technology by Princeton Survey R… | Not answerable | Response provides a specific number instead of indicating the information is not answerable, contradicting the referenc… |
+| mm_0224 | Among the Higher-income seniors, what are the percentage of them go online, has smartphone phone, and own a t… | Not answerable | The assistant provided specific percentages instead of indicating the information is not answerable. |
+| mm_0225 | How many 65+ age group people go online 3-5 times per week or Every day in the Pew Research Center’s Internet… | 1251 | Response declines to provide a numeric answer, but reference answer gives 1251. |
+| mm_0227 | What is the gap of 65+ people with College graduate contain a cell phone and a tablet computer in the Pew Res… | 301 | The assistant gave 56 percentage points, which does not match the reference answer of 301 |
+| mm_0228 | What is the gap of infants with College graduate contain a cell phone and a tablet computer in the Pew Resear… | Not answerable | The response provides a specific answer instead of indicating the information is not answerable. |
+| mm_0229 | What is the gap between male 65+ age group who use internet and broadband at home in the Pew Research Center’… | 73.0 | Provided answer 12.0 does not match reference 73.0 |
+| mm_0233 | Who Visited the U.S. Naval Medical Research centre on November 29, 2020? | Not answerable | The response provides a specific visitor despite the reference indicating the question is not answerable. |
+| mm_0235 | Among all the pictures, how many of them contain only one person? | 6 | Provided answer 3 does not match reference 6 |
+| mm_0236 | Among all the pictures, in which page the picture contains the most number of people? Give me the page no. as… | 9 | The assistant answered 4, which does not match the reference answer 9. |
+| mm_0237 | What date is mentioned on the second page? Format the date as YYYY-MM | 2009-07 | The response does not provide the required date answer. |
+| mm_0241 | How many pages does websites address appeared? List all the pages in list format, for example ["p1","p2"] | ['p4', 'p7', 'p9'] | Provided list of pages does not match the reference list ['p4','p7','p9] |
+| mm_0294 | What are the personality scores of the data sample with extreme personality cases, in which the personality v… | ['71.02', '75.38'] | Provided extra values beyond the reference list, not matching the expected answer |
+| mm_0295 | What is the highest hit rate number in the dataset for the personality located furthest to the left in the di… | 0.833 | Provided answer 0.977 does not match reference 0.833 |
+| mm_0296 | What is the evaluation metric that has highest number for the method located at the bottom of the model struc… | H@10 | Response gave '# of ratings [11]' which does not match the reference answer 'H@10'. |
+| mm_0424 | What is in the overlap area between Danger Zone and Machine Learning? | Not answerable | The assistant provided an answer (Data Science) while the reference indicates the question is not answerable. |
+| mm_0426 | What types of animals appear in the PPT? | ['Dog', 'Cat', 'Bear'] | Missing Bear from the list of animals |
+| mm_0428 | Which three deep learning conspirators appear in the PPT? | ['Bengio', 'Hinton', 'LeCun'] | The response does not provide the three names, it claims the information is unavailable. |
+| mm_0430 | How many times does the image of a tiger appear in the PPT? | 0 | Response declines without providing the answer |
+| mm_0431 | How many layers does the neural network mentioned in the PPT for distinguishing faces have? | 5 | The response does not provide the answer (5) required by the reference. |
+| mm_0433 | Which animal did the detector ultimately recognize the person as? | Dog | Response does not provide the answer 'Dog' required by the reference. |
+| mm_0434 | Which dataset was introduced in the 'coding time' section of the PPT for training? | Cat vs Dog dataset | The response does not provide the required answer 'Cat vs Dog dataset'. |
+| mm_0435 | How many libraries were imported in the code section of the PPT? | 9 | The response does not provide the number of imported libraries, contrary to the reference answer of 9. |
+| mm_0450 | How many GPT-4o examples are listed in the paper? | Not answerable | Response provides an answer (zero) instead of declining, but reference says not answerable |
+| mm_0451 | In the 4-shot classification task, how much higher is the top-5 average accuracy of RAR (LLaVA1.5) compared t… | 18.9% | Provided answer 12.3% does not match reference 18.9% |
+| mm_0452 | In the visualization of the ranking examples and ranking prompt examples, how many images appear in total? | 8 | The assistant answered 7 images, which does not match the reference answer of 8 |
+| mm_0534 | Which of the following company logos do not appear in the slides? Facebook, AWS, Cargo and Manta. | AWS | Assistant says no logos are absent, contradicting reference answer that AWS does not appear |
+| mm_0538 | What is the Top-Level Page name of the page with the slowest page processing time? | /video/videocat/video9201 | Provided answer " / " does not match reference "/video/videocat/video9201" |
+| mm_0558 | If I want to use the detector in the paper `SOLO: Segmenting Objects by Locations`, what is the implemented c… | DecoupledSOLOHead | Provided answer SOLOHead does not match reference DecoupledSOLOHead |
+| mm_0560 | How many data preparation operators in the classical pipeline? | 8 | Provided answer of 7 operators does not match reference answer of 8 |
+| mm_0644 | Among the three generation strategies: training-time generation, generation-time generation, and post-hoc gen… | Not answerable | The reference says not answerable, but the response provides a specific answer |
+| mm_0646 | How many strategies are plotted for training-time generation, generation-time generation, and post-hoc genera… | Not answerable | The assistant provided specific numbers instead of indicating the information is not answerable. |
+| mm_0649 | For all the papers that are listed in Table 1 and Table 2, how many of them are proposed in 2021? | 1 | Provided answer 4 does not match reference answer 1 |
+| mm_0650 | Does Section 3.3 cite more papers than Section 3.1? Directly answer 'yes' or 'no'. | Yes | The assistant answered 'No' while the reference answer is 'Yes'. |
+| mm_0795 | What is the Account No. of Account 7 in the portfolio overview example? | ILF0000808 | Response declines to provide the account number, which does not match the reference answer. |
+| mm_0796 | What is the Account No. of Account 6 in the portfolio overview example? | Not answerable | The assistant provided a specific account number despite the reference indicating the question is not answerable |
+| mm_0797 | What are the currencies shown in Multiple settlement options? | ['US Dollar', 'Euro', 'Pound'] | Missing US Dollar from the list of currencies |
+| mm_0798 | How many images are shown in the section of trading capabilities? | 6 | Assistant answered 3 images, which does not match the reference answer of 6 |
+| mm_0822 | What are the counties mentioned in the document? | ['Hamilton', 'Lucas', 'Murphy', 'York', 'Aurora'] | Response lists only Hamilton, York, and Lucas, missing Murphy and Aurora |
+| mm_0865 | How many different icon are shown as different image types in Figure 1? | 17 | Provided answer (30) does not match reference answer (17) |
+| mm_0866 | How many different icon are shown as different Disciplines in Figure 10 ? | Not answerable | The response provides an answer (2) while the reference says the question is not answerable. |
+| mm_0867 | How many charts are included in Pages 5-10? | 4 | Provided answer 3 does not match reference answer 4 |
+| mm_0868 | How many tables are included in Pages 105-110? | Not answerable | Provided an answer (0 tables) instead of declining as required by the reference. |
+| mm_0870 | According to this paper, among nice different datasets in Fig 4, which one can reflect the highest efficiency? | Not answerable | The response provides a specific dataset answer, but the reference indicates the question is not answerable. |
+| mm_1029 | what is the FY2015 unadjusted EBITDA % margin for Netflix?Answer in percentage term, round to one decimal pla… | 5.4% | The assistant declined to provide the required percentage, which does not match the reference answer of 5.4%. |
+| mm_1031 | What is sales to working capital ratio of Neflix in FY 2015?Round your answer to two decimal places. | 3.56 | The assistant declined to provide a numeric answer, but the reference answer gives 3.56. |
+| mm_1032 | What amount did personnel-related costs increase for Netfilx in 2015? Answer in millions. | 253.3 | Answer given (133.2) does not match reference (253.3) |
+| mm_1036 | what is sales to stockholder equity ratio of Neflix in FY 2015? Round your answer to three decimal places. | 3.049 | The assistant declined to provide the numeric ratio, which does not match the reference answer of 3.049. |
 
