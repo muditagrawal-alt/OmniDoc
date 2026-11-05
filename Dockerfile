@@ -34,8 +34,11 @@ RUN pip install --extra-index-url https://download.pytorch.org/whl/cpu -r requir
 
 COPY . .
 COPY --from=web /web/dist /app/frontend/dist
+# The demo's sample library (OMNIDOC_DEMO=1): five documents about a fictional company.
+RUN python deploy/demo/make_samples.py /opt/demo
+ENV OMNIDOC_DEMO_DIR=/opt/demo
 
-RUN useradd --create-home --uid 1000 omnidoc && mkdir -p /data && chown -R omnidoc:omnidoc /data /app
+RUN useradd --create-home --uid 1000 omnidoc && mkdir -p /data && chown -R omnidoc:omnidoc /data /app /opt/demo
 USER omnidoc
 
 EXPOSE 8000
