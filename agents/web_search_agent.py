@@ -25,6 +25,7 @@ from urllib.parse import urlparse, unquote, parse_qs
 from core.state import AgentWorkflowState
 from agents.llm_utils import trace
 from parsing.web import read_page, passages, FetchError, USER_AGENT
+from agents import llm_providers
 
 logger = logging.getLogger("OmniDoc.WebSearch")
 
@@ -215,7 +216,7 @@ class WebSearchAgent:
             detail = "No web results" + (f" ({'; '.join(found.get('errors') or [])[:160]})" if found.get("errors") else "")
             return {"agent_traces": [trace("web_search", "failed", detail, started)]}
         with ThreadPoolExecutor(max_workers=PAGES_TO_READ) as pool:
-            pages = list(pool.map(lambda r: self._read(r, question), results[:PAGES_TO_READ + 1]))
+            pages = list(pool.map(llm_providers.carry(lambda r: self._read(r, question)), results[:PAGES_TO_READ + 1]))
         pages = sorted([p for p in pages if p], key=lambda p: -p["score"])
         # Keep pages whose best passage is relevant (at least the best page, whatever its score).
         kept = [p for p in pages if p["score"] >= MIN_PASSAGE_SCORE][:PAGES_TO_READ] or pages[:1]
