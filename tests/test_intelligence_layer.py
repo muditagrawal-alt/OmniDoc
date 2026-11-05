@@ -754,7 +754,7 @@ def test_search_fuses_the_cross_encoder_order_with_the_hybrid_order():
 
 def test_the_cross_encoder_avoids_apple_gpus(monkeypatch):
     import types
-    import torch
+    torch = pytest.importorskip("torch")  # the slim build has no PyTorch
     from retrieval import reranker as R
     seen = {}
 
@@ -1006,3 +1006,14 @@ def test_a_statement_in_thousands_supports_figures_written_in_billions():
     assert checks[0]["verdict"] != "unsupported", checks[0]["reason"]
     checks, _ = check_sentences("Gross profit was $1.9 billion [1].", "q", source)
     assert checks[0]["verdict"] == "unsupported"
+
+
+def test_a_document_summary_survives_a_model_that_answers_with_a_list(monkeypatch, tmp_path):
+    # A reply such as "Revenue grew 12% [1]." parses as the JSON list [1]; the summary then comes from the sections.
+    from agents import summary_agent
+    monkeypatch.setattr(summary_agent, "chat", lambda *a, **k: "Revenue grew 12% in 2023.")
+    monkeypatch.setattr(summary_agent, "chat_json", lambda *a, **k: [1])
+    chunks = [RetrievedChunk(chunk_id=f"c{i}", doc_id="d", text="Revenue grew 12% to $4.2 billion. " * 30, page_number=i)
+              for i in range(1, 4)]
+    result = summary_agent.DocumentSummarizer(str(tmp_path)).summarize("d", "Annual report", chunks)
+    assert result["summary"].startswith("Revenue grew 12% in 2023.") and result["key_points"] == []
