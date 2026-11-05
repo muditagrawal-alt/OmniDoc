@@ -12,6 +12,10 @@ interface SignInProps {
   initialError?: string | null;
   /** A two-step ticket handed back by GitHub or Google sign-in */
   initialTicket?: string | null;
+  /** Open on account creation instead of sign-in (the landing page's "Create a free account"). */
+  initialStep?: 'start' | 'signup';
+  /** Back to the product page. */
+  onBack?: () => void;
   onSignedIn: (user: User) => void;
 }
 
@@ -82,8 +86,8 @@ export function RecoveryCodes({ codes }: { codes: string[] }) {
  * The sign-in page of a hosted OmniDoc: a passkey, GitHub, Google or an e-mailed code; creating an
  * account with a passkey (no e-mail); recovery codes; the authenticator-app step; and the demo.
  */
-export function SignIn({ methods, initialError, initialTicket, onSignedIn }: SignInProps) {
-  const [step, setStep] = useState<Step>(initialTicket ? 'mfa' : 'start');
+export function SignIn({ methods, initialError, initialTicket, initialStep, onBack, onSignedIn }: SignInProps) {
+  const [step, setStep] = useState<Step>(initialTicket ? 'mfa' : initialStep === 'signup' && methods.passkey ? 'signup' : 'start');
   const [email, setEmail] = useState('');
   const [name, setName] = useState('');
   const [code, setCode] = useState('');
@@ -178,10 +182,17 @@ export function SignIn({ methods, initialError, initialTicket, onSignedIn }: Sig
   return (
     <main className={styles.page}>
       <section className={styles.card} aria-labelledby="signin-title">
-        <div className={styles.brand}>
-          <BrandMark size={28} />
-          <span>OmniDoc</span>
-        </div>
+        {onBack ? (
+          <button type="button" className={`${styles.brand} ${styles.brandLink}`} onClick={onBack} aria-label="Back to the OmniDoc home page">
+            <BrandMark size={28} />
+            <span>OmniDoc</span>
+          </button>
+        ) : (
+          <div className={styles.brand}>
+            <BrandMark size={28} />
+            <span>OmniDoc</span>
+          </div>
+        )}
 
         {step === 'start' && (
           <>
