@@ -12,6 +12,8 @@ import sys
 import os
 import json
 
+import pytest
+
 # Ensure project root is in sys.path
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 from core.state import (
@@ -37,6 +39,17 @@ from guardrails.output_guard import OutputGuardrail
 from core.pipeline import AgenticGraphRAGPipeline
 
 
+def _model_reachable() -> bool:
+    from agents import llm_providers
+    from agents.llm_utils import ollama_reachable
+    return bool(llm_providers.chat_providers()) or ollama_reachable()
+
+
+# These run the agents against a real language model (local Ollama or a hosted key); CI has neither.
+needs_model = pytest.mark.skipif(not _model_reachable(), reason="needs a language model (Ollama or a hosted API key)")
+
+
+@needs_model
 def test_context_memory_resolution():
     """Test that multi-turn pronouns like 'it', 'them', 'that' are resolved from conversational history."""
     agent = ContextResolutionAgent()
@@ -54,6 +67,7 @@ def test_context_memory_resolution():
     print(f"✓ Context Resolution: '{query}' -> '{resolved}'")
 
 
+@needs_model
 def test_zero_keyword_semantic_nlu():
     """Test deep semantic understanding extracts entities, operations, and modalities without keyword lists."""
     engine = SemanticNLUEngine()
@@ -67,6 +81,7 @@ def test_zero_keyword_semantic_nlu():
     print(f"✓ Semantic NLU Goal: {sq.goal} | Operations: {sq.operations}")
 
 
+@needs_model
 def test_math_agent_sandboxed_execution():
     """Test MathematicalReasoningAgent computes exact CAGR without arithmetic hallucination."""
     agent = MathematicsAgent()
@@ -91,6 +106,7 @@ def test_math_agent_sandboxed_execution():
     print(f"✓ Math Agent computed exact CAGR: {exact_val} (Formula: {math_res[0]['formula']})")
 
 
+@needs_model
 def test_visualization_agent_plotly_spec():
     """Test VisualizationAgent generates valid Plotly chart specification with data and layout."""
     agent = VisualizationAgent()
