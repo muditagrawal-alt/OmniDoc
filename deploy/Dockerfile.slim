@@ -51,10 +51,13 @@ RUN pip install -r requirements-slim.txt
 
 COPY . .
 COPY --from=web /web/dist /app/frontend/dist
-# The two ONNX models (about 60 MB) ship in the image, so a fresh server needs no download.
-RUN python -c "from retrieval import onnx_models; onnx_models.warm()"
+# The two ONNX models (about 60 MB) ship in the image, so a fresh server needs no download, and so
+# does the demo's sample library (five documents about a fictional company: deploy/demo/make_samples.py).
+RUN python -c "from retrieval import onnx_models; onnx_models.warm()" \
+    && python deploy/demo/make_samples.py /opt/demo
+ENV OMNIDOC_DEMO_DIR=/opt/demo
 
-RUN useradd --create-home --uid 1000 omnidoc && mkdir -p /data && chown -R omnidoc:omnidoc /data /app /opt/onnx
+RUN useradd --create-home --uid 1000 omnidoc && mkdir -p /data && chown -R omnidoc:omnidoc /data /app /opt/onnx /opt/demo
 USER omnidoc
 
 EXPOSE 8000
