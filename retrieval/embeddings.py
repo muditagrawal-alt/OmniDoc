@@ -6,6 +6,8 @@ The embedding model is a spec, like the chat models:
     "nomic-embed-text"                 local Ollama model (the default when Ollama runs)
     "st:intfloat/multilingual-e5-small"  local sentence-transformers model on the CPU (no Ollama
                                        needed; multilingual, used in deployments without Ollama)
+    "onnx:Xenova/bge-small-en-v1.5"    an int8 ONNX model on ONNX Runtime: no PyTorch, about 180 MB
+                                       (the slim image for 1 GB servers; see retrieval/onnx_models.py)
     "gemini:gemini-embedding-001"      hosted, free tier (also "jina:...", "mistral:...")
 
 Embeddings are batched and cached on disk; the cache key includes the model, so switching
@@ -15,6 +17,7 @@ expects it (E5 "query:" / "passage:", Nomic "search_query:" / "search_document:"
 import os
 import time
 import pickle
+import importlib.util
 import hashlib
 import logging
 import threading
@@ -23,7 +26,9 @@ from typing import Any, List, Optional
 logger = logging.getLogger("OmniDoc.Embeddings")
 
 _EMBED_BATCH = 32
-LOCAL_FALLBACK = "st:intfloat/multilingual-e5-small"
+# Without PyTorch (the slim image) the local model is a small int8 ONNX model instead.
+LOCAL_FALLBACK = ("st:intfloat/multilingual-e5-small" if importlib.util.find_spec("sentence_transformers")
+                  else "onnx:Xenova/bge-small-en-v1.5")
 
 
 def default_embed_model() -> str:
@@ -61,12 +66,17 @@ class EmbeddingService:
         from agents.llm_providers import parse_spec
         if self.model_name.startswith("st:"):
             return "st"
+        if self.model_name.startswith("onnx:"):
+            return "onnx"
         return parse_spec(self.model_name)[0]
 
     def _prefix(self, text: str, kind: str) -> str:
         name = self.model_name.lower()
         if "e5" in name:
             return ("query: " if kind == "query" else "passage: ") + text
+        if "bge-" in name and "-v1.5" in name:
+            # BGE v1.5 retrieves best with this instruction on short queries (passages take none).
+            return ("Represent this sentence for searching relevant passages: " + text) if kind == "query" else text
         if "nomic-embed" in name:
             # Nomic's models are trained with task prefixes and need them (model card: the text "must
             # include a task instruction prefix").
@@ -80,6 +90,11 @@ class EmbeddingService:
                 self._st = SentenceTransformer(self.model_name[3:], device="cpu")
         vectors = self._st.encode([self._prefix(t, kind) for t in texts], batch_size=16, normalize_embeddings=True)
         return [list(map(float, v)) for v in vectors]
+
+    def _embed_onnx(self, texts: List[str], kind: str) -> List[Optional[List[float]]]:
+        from retrieval import onnx_models
+        model = onnx_models.load("embed", self.model_name[len("onnx:"):])
+        return model.embed([self._prefix(t, kind) for t in texts])
 
     def _embed_ollama(self, texts: List[str]) -> List[Optional[List[float]]]:
         import ollama
@@ -108,6 +123,8 @@ class EmbeddingService:
         backend = self.kind
         if backend == "st":
             return self._embed_st(texts, kind)
+        if backend == "onnx":
+            return self._embed_onnx(texts, kind)
         if backend == "ollama":
             return self._embed_ollama([self._prefix(t, kind) for t in texts])
         from agents.llm_providers import REGISTRY, parse_spec, openai_embed
@@ -157,7 +174,7 @@ class EmbeddingService:
             batch = [texts[i] if texts[i].strip() else " " for i in idxs]
             vectors = [None] * len(batch)
             # A hosted API may throttle a burst of batches: wait and retry before falling back to lexical search.
-            for wait in (0, 10, 30, 60) if self.kind not in ("ollama", "st") else (0,):
+            for wait in (0, 10, 30, 60) if self.kind not in ("ollama", "st", "onnx") else (0,):
                 time.sleep(wait)
                 try:
                     vectors = self._embed_remote(batch, kind)
