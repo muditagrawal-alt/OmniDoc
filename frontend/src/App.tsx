@@ -12,6 +12,7 @@ import { CompareView } from './components/compare/CompareView';
 import { ProfileDialog } from './components/ProfileDialog';
 import { SignIn } from './components/SignIn';
 import { AccountDialog } from './components/AccountDialog';
+import { NoticesDialog } from './components/NoticesDialog';
 import { ToastProvider, useToast } from './components/ui/Toast';
 import styles from './App.module.css';
 
@@ -55,7 +56,10 @@ function Shell() {
   // A hosted server with accounts shows the sign-in page until a session exists; a local install never does.
   const [methods, setMethods] = useState<AuthMethods | null>(null);
   const [authError, setAuthError] = useState<string | null>(null);
+  const [authTicket, setAuthTicket] = useState<string | null>(null);
   const [accountOpen, setAccountOpen] = useState(false);
+  const [noticesOpen, setNoticesOpen] = useState(false);
+  const [unread, setUnread] = useState(0);
 
   const [chats, setChats] = useState<ChatSession[]>([]);
   const [chatsLoading, setChatsLoading] = useState(true);
@@ -146,8 +150,13 @@ function Shell() {
     (async () => {
       const m = await api.authMethods();
       if (m.accounts) {
-        const { error } = api.takeRedirect(); // back from Google or GitHub sign-in
-        if (error) setAuthError(error);
+        const back = api.takeRedirect(); // back from Google or GitHub sign-in, or from linking one
+        if (back.error) setAuthError(back.error);
+        if (back.mfa) setAuthTicket(back.mfa);
+        if (back.linked) {
+          toast(`${back.linked === 'github' ? 'GitHub' : 'Google'} is now linked to your account`, 'good');
+          setAccountOpen(true);
+        }
       }
       const u = await api.getMe();
       if (cancelled) return;
@@ -162,7 +171,20 @@ function Shell() {
     return () => {
       cancelled = true;
     };
-  }, [loadChats, loadDocuments]);
+  }, [loadChats, loadDocuments, toast]);
+
+  // Unread notices (new sign-ins, account changes, What's new), checked on sign-in and every few minutes.
+  const accountsOn = !!methods?.accounts;
+  const signedInId = user?.id;
+  const guestSession = user?.kind === 'guest';
+  useEffect(() => {
+    if (!accountsOn || !signedInId || guestSession) return;
+    const check = () => api.listNotices().then((d) => setUnread(d.unread)).catch(() => undefined);
+    check();
+    const t = window.setInterval(check, 5 * 60_000);
+    return () => window.clearInterval(t);
+  }, [accountsOn, signedInId, guestSession]);
+  const clearUnread = useCallback(() => setUnread(0), []);
 
   // Poll while summaries or knowledge-graph extraction run in the background
   const extracting = documents.some((d) => d.graph_status && ['queued', 'running'].includes(d.graph_status.status));
@@ -362,8 +384,14 @@ function Shell() {
   };
 
   // ---- documents -----------------------------------------------------------
+  const guest = user?.kind === 'guest';
+  const READ_ONLY = 'The demo is read-only. Sign in to add your own documents.';
   const upload = useCallback(
     async (files: File[]) => {
+      if (guest) {
+        toast(READ_ONLY);
+        return;
+      }
       for (const file of files) {
         const id = `${file.name}-${file.size}-${file.lastModified}`;
         setUploads((u) => [...u.filter((x) => x.id !== id), { id, name: file.name, status: 'uploading' }]);
@@ -388,11 +416,15 @@ function Shell() {
         loadDocuments();
       }
     },
-    [loadDocuments, toast],
+    [loadDocuments, toast, guest],
   );
 
   const importUrl = useCallback(
     async (url: string) => {
+      if (guest) {
+        toast(READ_ONLY);
+        return;
+      }
       const id = `url-${url}`;
       setUploads((u) => [...u.filter((x) => x.id !== id), { id, name: url, status: 'uploading' }]);
       try {
@@ -405,7 +437,7 @@ function Shell() {
       }
       loadDocuments();
     },
-    [loadDocuments, toast],
+    [loadDocuments, toast, guest],
   );
 
   const deleteDocument = async (doc: DocumentItem) => {
@@ -453,9 +485,11 @@ function Shell() {
       <SignIn
         methods={methods}
         initialError={authError}
+        initialTicket={authTicket}
         onSignedIn={(u) => {
           setUser(u);
           setAuthError(null);
+          setAuthTicket(null);
           setActiveChatId(null);
           loadChats();
           loadDocuments();
@@ -494,6 +528,8 @@ function Shell() {
         onSignOut={signOut}
         accountsMode={methods.accounts}
         onOpenAccount={() => setAccountOpen(true)}
+        unreadNotices={unread}
+        onOpenNotices={() => setNoticesOpen(true)}
         documentCount={documents.length}
       />
       <div className={styles.main}>
@@ -582,6 +618,7 @@ function Shell() {
       <AccountDialog
         key={accountOpen ? 'open' : 'closed'}
         open={accountOpen}
+        methods={methods}
         onClose={() => setAccountOpen(false)}
         onSignOut={signOut}
         onDeleted={() => {
@@ -592,6 +629,7 @@ function Shell() {
           toast('Your account and its data were deleted', 'good');
         }}
       />
+      <NoticesDialog key={noticesOpen ? 'open' : 'closed'} open={noticesOpen} onClose={() => setNoticesOpen(false)} onRead={clearUnread} />
       <ProfileDialog
         open={profileOpen}
         onClose={() => setProfileOpen(false)}
