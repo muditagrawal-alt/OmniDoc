@@ -23,6 +23,8 @@ or bring-your-own-key), never "upgrade".
 | README, demo video, GIFs, screenshots | Done |
 | Accounts: Google and GitHub sign-in (e-mailed codes built but switched off: no e-mail sending); private libraries; limits; account deletion | Done (code), not yet live |
 | Conversation memory (rolling summary of older turns) | Done |
+| Sign-in without e-mail: passkeys, recovery codes, authenticator apps, devices, linking GitHub/Google, data export, notices | Done (code), not yet live |
+| Guest demo on a read-only sample library; proof-of-work check and per-address rate limits | Done (code), not yet live |
 | One-command deployment, HTTPS, nightly backups, security headers | Done (code), not yet live |
 | Everything in the phases below | Planned |
 
