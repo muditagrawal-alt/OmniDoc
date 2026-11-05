@@ -147,7 +147,7 @@ Ask in Hindi, Marathi, Tamil, Telugu, Kannada, Bengali, Gujarati and more; the a
 </tr>
 </table>
 
-**Accounts for a hosted server:** sign-in with Google, GitHub or an e-mailed one-time code, a private library per account, daily limits and a storage cap per account, and self-service account deletion. Long conversations keep a rolling summary of earlier turns, so follow-up questions can refer back to anything said in the chat.
+**Accounts for a hosted server, with no e-mail needed:** passkeys (Face ID, Touch ID, Windows Hello, a phone) with one-time recovery codes, GitHub or Google sign-in, an authenticator app as a second step, a devices list with remote sign-out, a private library per account, daily limits and a storage cap, export of everything as a zip, and self-service account deletion. A read-only guest demo lets visitors try a sample library without an account, behind a proof-of-work check and per-address limits. Long conversations keep a rolling summary of earlier turns, so follow-up questions can refer back to anything said in the chat.
 
 **Also included:** a light and a dark theme, conversation export to PDF and Word, voice input, per-question budgets for model calls and time, and an [MCP server](#use-from-mcp-clients) that makes your library available to Claude, Cursor and other AI tools.
 
@@ -294,7 +294,8 @@ Model and search keys are listed in [`.env.example`](.env.example). Other settin
 | `OMNIDOC_RETRIEVAL_TOP_K` / `OMNIDOC_EVIDENCE_PASSAGES` / `OMNIDOC_EVIDENCE_CHARS` | `10` / `10` / `2400` | Passages retrieved and handed to the writer, and their length, sized for hosted models (a small local model may want `6` / `6` / `1500`); financial statements and pages a question names come whole on top |
 | `OMNIDOC_GRAPH_MEMORY_MB` | `512` | Memory the knowledge-graph database may use for its cache (Kùzu would otherwise take up to 80% of RAM) |
 | `OMNIDOC_DATA_DIR` | `./.data` | Database, indexes, graph, uploads, caches |
-| `OMNIDOC_ACCOUNTS` | `0` | `1`: every visitor signs in (Google, GitHub or an e-mailed code) and gets a private library; see [deploy/README.md](deploy/README.md#accounts-sign-in-for-everyone-you-share-it-with) |
+| `OMNIDOC_ACCOUNTS` | `0` | `1`: every visitor signs in (a passkey, GitHub, Google or an e-mailed code) and gets a private library; see [deploy/README.md](deploy/README.md#accounts-sign-in-for-everyone-you-share-it-with) |
+| `OMNIDOC_DEMO` | `0` | `1` (with accounts): "Try the demo" opens a read-only guest session on the files in `<data>/demo` |
 | `OMNIDOC_DAILY_QUESTIONS` / `OMNIDOC_DAILY_UPLOADS` / `OMNIDOC_STORAGE_MB` | `40` / `20` / `200` | Limits per account with accounts on (administrators, `OMNIDOC_ADMIN_EMAILS`, have none) |
 | `OMNIDOC_AUTH` | none | `user:password` required from every visitor (deployments; use HTTPS) |
 | `OMNIDOC_GRAPH_CHUNKS` | `40` | Passages per document used for graph extraction (four per model call) |
