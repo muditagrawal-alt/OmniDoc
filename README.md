@@ -147,7 +147,7 @@ Ask in Hindi, Marathi, Tamil, Telugu, Kannada, Bengali, Gujarati and more; the a
 </tr>
 </table>
 
-**Accounts for a hosted server, with no e-mail needed:** passkeys (Face ID, Touch ID, Windows Hello, a phone) with one-time recovery codes, GitHub or Google sign-in, an authenticator app as a second step, a devices list with remote sign-out, a private library per account, daily limits and a storage cap, export of everything as a zip, and self-service account deletion. A read-only guest demo lets visitors try a sample library without an account, behind a proof-of-work check and per-address limits. Long conversations keep a rolling summary of earlier turns, so follow-up questions can refer back to anything said in the chat.
+**Accounts for a hosted server, with no e-mail needed:** passkeys (Face ID, Touch ID, Windows Hello, a phone) with one-time recovery codes, GitHub or Google sign-in, an authenticator app as a second step, a devices list with remote sign-out, a private library per account, daily limits and a storage cap, export of everything as a zip, and self-service account deletion. A read-only guest demo lets visitors try a sample library without an account, behind a proof-of-work check and per-address limits. Signed-out visitors first see a product page (built with [React Bits](https://reactbits.dev) components). Every account gets three answers on the server's free model keys; then users add their own free key, kept in their browser or, if they choose, encrypted on the server. Long conversations keep a rolling summary of earlier turns, so follow-up questions can refer back to anything said in the chat.
 
 **Also included:** a light and a dark theme, conversation export to PDF and Word, voice input, per-question budgets for model calls and time, and an [MCP server](#use-from-mcp-clients) that makes your library available to Claude, Cursor and other AI tools.
 
@@ -245,6 +245,12 @@ bash deploy/oracle-setup.sh
 
 [`deploy/README.md`](deploy/README.md) walks through a free Oracle Cloud Always Free VM, a Cloudflare
 tunnel from your own computer, and other hosts.
+
+**On 1 GB of memory, for free:** [`deploy/Dockerfile.slim`](deploy/Dockerfile.slim) runs the whole app
+without PyTorch or Ollama, with int8 ONNX models for embeddings and reranking. CI measures it on every
+push (peak near 790 MB through an upload with OCR and a run of questions) and publishes it to GitHub's
+container registry; [`deploy/CLAWCLOUD.md`](deploy/CLAWCLOUD.md) deploys it on ClawCloud Run's free
+plan.
 
 ## Model providers
 
