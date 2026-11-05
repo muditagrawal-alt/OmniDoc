@@ -9,7 +9,15 @@ key) a small embedding model run on the CPU. Everything you upload lives in the 
 then asked for it (HTTP basic auth, so always serve over HTTPS). Without it, anyone with the
 address can read and delete your documents.
 
-## Recommended free host: Oracle Cloud "Always Free" VM
+## Free hosts
+
+| Host | What you get | Guide |
+|---|---|---|
+| **ClawCloud Run** (no card) | $5 credit a month for GitHub accounts over 180 days old: the slim image at 0.5 vCPU and 1 GB, HTTPS, a persistent disk | [CLAWCLOUD.md](CLAWCLOUD.md) |
+| Oracle Cloud Always Free | A 2 OCPU, 12 GB Arm VM with 200 GB of disk; the full image with Ollama | below |
+| Your own computer | Cloudflare Tunnel for a temporary public address | below |
+
+## Oracle Cloud "Always Free" VM
 
 Oracle's Always Free tier includes Arm (Ampere A1) capacity of 2 OCPUs and 12 GB of memory and
 200 GB of disk that stays free, which is enough for OmniDoc and keeps your library on a
