@@ -21,8 +21,11 @@ import json
 import time
 import uuid
 import queue
+import zipfile
+import tempfile
 import hashlib
 import logging
+import secrets
 import threading
 import urllib.parse
 import urllib.request
@@ -37,14 +40,14 @@ os.environ.setdefault("DYLD_FALLBACK_LIBRARY_PATH", "/opt/homebrew/lib")
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 
 from pydantic import BaseModel, Field
-from fastapi import FastAPI, HTTPException, UploadFile, File, Header, Depends
+from fastapi import FastAPI, HTTPException, UploadFile, File, Header, Depends, Request
 from fastapi.middleware.cors import CORSMiddleware
-from fastapi.responses import StreamingResponse, FileResponse, RedirectResponse
+from fastapi.responses import StreamingResponse, FileResponse, RedirectResponse, JSONResponse
 
 from db_store import OmniDocDB, LOCAL_USER_ID, DATA_DIR
 from export.report_compiler import ReportCompiler
 from core.pipeline import AgenticGraphRAGPipeline
-from core import accounts, chat_memory
+from core import accounts, chat_memory, abuse, passkeys, two_factor
 from agents import llm_providers
 
 logging.basicConfig(level=logging.INFO, format="%(asctime)s [%(levelname)s] %(name)s: %(message)s")
@@ -89,6 +92,8 @@ async def lifespan(_app: FastAPI):
     # Load the models in the background so the first question does not wait for them.
     if os.environ.get("OMNIDOC_WARMUP", "1") != "0":
         threading.Thread(target=get_pipeline, name="pipeline-warmup", daemon=True).start()
+    if accounts.demo_enabled():
+        threading.Thread(target=_seed_demo_library, name="demo-library", daemon=True).start()
     yield
 
 
@@ -145,23 +150,62 @@ report_compiler = ReportCompiler()
 
 # Accounts (OMNIDOC_ACCOUNTS=1, a hosted OmniDoc): every API call needs a signed-in session, except
 # the health check and signing in. Without accounts, requests act as the local profile, as before.
-_OPEN_API = ("/api/health", "/api/auth/methods", "/api/auth/code/", "/api/auth/oauth/")
+_OPEN_API = ("/api/health", "/api/auth/methods", "/api/auth/code/", "/api/auth/oauth/", "/api/auth/passkey/",
+             "/api/auth/challenge", "/api/auth/recovery", "/api/auth/mfa", "/api/auth/guest")
 NO_DOCUMENTS = "doc_none"  # a scope that matches nothing: the account has no documents yet
+API_PER_MINUTE = int(os.environ.get("OMNIDOC_API_PER_MINUTE", "240"))
+
+# Besides reading, a guest (the demo) may ask, compare, search, extract and keep conversations; nothing else.
+_GUEST_WRITES = (
+    re.compile(r"^/api/chats(/[^/]+(/query(/stream)?)?)?$"),
+    re.compile(r"^/api/(query|compare|search|extract/stream|documents/summaries|auth/logout|notices/read|export/(pdf|docx))$"),
+    re.compile(r"^/api/documents/[^/]+/(locate|redact)$"),
+)
 
 
 def accounts_on() -> bool:
     return accounts.enabled()
 
 
+def is_guest(user_id: str) -> bool:
+    return user_id.startswith("gst_")
+
+
+def _client_ip(request: Request) -> str:
+    cached = getattr(request.state, "client_ip", None)
+    if cached:
+        return cached
+    return abuse.client_ip(request.client.host if request.client else None, request.headers.get("x-forwarded-for"))
+
+
+def _guest_may(method: str, path: str) -> bool:
+    if path.startswith(("/api/account/", "/api/admin")):
+        return False
+    if method in ("GET", "HEAD"):
+        return True
+    return any(rule.match(path) for rule in _GUEST_WRITES)
+
+
 @app.middleware("http")
 async def require_session(request, call_next):
     path = request.url.path
-    if not accounts_on() or request.method == "OPTIONS" or not path.startswith("/api/") or path.startswith(_OPEN_API):
+    if request.method == "OPTIONS" or not path.startswith("/api/") or not accounts_on():
         return await call_next(request)
-    from starlette.responses import JSONResponse
+    ip = _client_ip(request)
+    request.state.client_ip = ip
+    wait = abuse.limiter.hit(f"api:{ip}", API_PER_MINUTE, 60)
+    if wait:
+        return JSONResponse({"detail": "Too many requests. Wait a moment and try again."}, status_code=429,
+                            headers={"Retry-After": str(int(wait))})
+    if path.startswith(_OPEN_API):
+        return await call_next(request)
     token = _bearer(request.headers.get("authorization"), request.headers.get("x-omnidoc-token"))
-    if not token or not db.get_session_user_id(token):
+    user_id = db.get_session_user_id(token, ip) if token else None
+    if not user_id:
         return JSONResponse({"detail": "Sign in to continue."}, status_code=401)
+    if is_guest(user_id) and not _guest_may(request.method, path):
+        return JSONResponse({"detail": "The demo is read-only. Sign in to add documents and keep your own library."},
+                            status_code=403)
     return await call_next(request)
 
 
@@ -309,17 +353,43 @@ def current_user_id(authorization: Optional[str] = Header(None), x_omnidoc_token
 
 
 def library_owner(user_id: str) -> str:
-    """Whose documents a request sees: each account its own on a hosted server; one shared library on a local install."""
-    return user_id if accounts_on() else LOCAL_USER_ID
+    """
+    Whose documents a request sees: each account its own on a hosted server, guests the shared demo
+    library, and one shared library on a local install.
+    """
+    if not accounts_on():
+        return LOCAL_USER_ID
+    return accounts.DEMO_OWNER if is_guest(user_id) else user_id
 
 
 def is_admin(user_id: str) -> bool:
     return accounts_on() and accounts.is_admin((db.get_user(user_id) or {}).get("email"))
 
 
+def has_two_step(user_id: str) -> bool:
+    return bool((db.get_user(user_id) or {}).get("totp_enabled")) or bool(db.list_passkeys(user_id))
+
+
+def require_admin(user_id: str) -> None:
+    """Administrator settings on a hosted server need an admin account protected by a passkey or an authenticator app."""
+    if not accounts_on():
+        return
+    if not is_admin(user_id):
+        raise HTTPException(status_code=403, detail="Only an administrator can change this.")
+    if not has_two_step(user_id) and os.environ.get("OMNIDOC_ADMIN_TWO_STEP", "1") != "0":
+        raise HTTPException(status_code=403, detail="Turn on two-step sign-in (a passkey or an authenticator app) under Account first.")
+
+
 def check_quota(user_id: str, kind: str) -> None:
-    """Daily limits per account on a hosted server (admins and local installs have none)."""
-    if not accounts_on() or is_admin(user_id):
+    """Daily limits per account on a hosted server (admins, the demo library and local installs have none)."""
+    if not accounts_on() or is_admin(user_id) or user_id == accounts.DEMO_OWNER:
+        return
+    if is_guest(user_id):
+        if kind != "questions":
+            raise HTTPException(status_code=403, detail="The demo is read-only. Sign in to add documents.")
+        limit = accounts.guest_limits()["questions_per_day"]
+        if db.usage_today(user_id)["questions"] >= limit:
+            raise HTTPException(status_code=429, detail=f"The demo allows {limit} questions. Sign in to keep going with your own documents.")
         return
     limit = accounts.limits()["questions_per_day" if kind == "questions" else "uploads_per_day"]
     if db.usage_today(user_id)[kind] >= limit:
@@ -335,7 +405,7 @@ def scoped_ids(doc_ids: Optional[List[str]], user_id: str) -> List[str]:
     ids = [d for d in (doc_ids or []) if DOC_ID_RE.match(d)]
     if not accounts_on():
         return ids
-    mine = set(db.document_ids(user_id))
+    mine = set(db.document_ids(library_owner(user_id)))
     return [d for d in ids if d in mine] or sorted(mine) or [NO_DOCUMENTS]
 
 
@@ -365,7 +435,7 @@ def login(req: LoginRequest):
         avatar_url="",
     )
     token = db.create_session(user_id)
-    return {"status": "success", "token": token, "user": user}
+    return {"status": "success", "token": token, "user": _public_user(user)}
 
 
 class CodeRequest(BaseModel):
@@ -378,14 +448,65 @@ class CodeVerifyRequest(BaseModel):
     name: Optional[str] = Field(None, max_length=120)
 
 
-def _sign_in(email: str, name: str, provider: str, avatar_url: str = "") -> Dict[str, Any]:
-    """The account for a verified e-mail address (created on first sign-in) and a new session."""
+_PRIVATE_USER_FIELDS = ("totp_secret", "totp_last_step", "webauthn_handle")
+
+
+def _public_user(user: Optional[Dict[str, Any]]) -> Dict[str, Any]:
+    """A user record without its secrets, as the app sees it."""
+    user = dict(user or {})
+    for key in _PRIVATE_USER_FIELDS:
+        user.pop(key, None)
+    user["totp_enabled"] = bool(user.get("totp_enabled"))
+    user["email"] = user.get("email") or ""
+    return user
+
+
+def _new_session(user_id: str, request: Optional[Request], days: Optional[float] = None) -> str:
+    """A session for a signed-in user; a sign-in from a kind of device the account has not used before leaves a notice."""
+    ua = request.headers.get("user-agent", "") if request is not None else ""
+    seen = {accounts.device_label(s["user_agent"]) for s in db.list_sessions(user_id)}
+    token = db.create_session(user_id, ttl_days=days or accounts.SESSION_DAYS, user_agent=ua,
+                              ip=_client_ip(request) if request is not None else None)
+    label = accounts.device_label(ua)
+    if seen and label not in seen:
+        db.add_notice(user_id, "security", f"New sign-in: {label}",
+                      "If this was not you, sign that device out under Account, Devices.")
+    return token
+
+
+def _sign_in(email: str, name: str, provider: str, avatar_url: str = "", request: Optional[Request] = None) -> Dict[str, Any]:
+    """
+    The account for a verified e-mail address (created on first sign-in) and a new session, or, when
+    the account has an authenticator app, a ticket for the second step instead of a session.
+    """
     existing = db.get_user_by_email(email)
     user = db.upsert_user(
         user_id=existing["id"] if existing else f"usr_{uuid.uuid4().hex[:12]}",
         email=email, name=name or (existing or {}).get("name") or email.split("@")[0],
-        provider=provider, avatar_url=avatar_url or (existing or {}).get("avatar_url") or "")
-    return {"token": db.create_session(user["id"], ttl_days=accounts.SESSION_DAYS), "user": user}
+        provider=(existing or {}).get("provider") if (existing or {}).get("provider") == "passkey" else provider,
+        avatar_url=avatar_url or (existing or {}).get("avatar_url") or "")
+    if user.get("totp_enabled"):
+        return {"mfa": two_factor.issue_ticket(db, DATA_DIR, user["id"], provider)}
+    return {"token": _new_session(user["id"], request), "user": _public_user(user)}
+
+
+def _limit(request: Request, name: str, limit: int, window_s: float) -> None:
+    if not accounts_on():
+        return
+    wait = abuse.limiter.hit(f"{name}:{_client_ip(request)}", limit, window_s)
+    if wait:
+        minutes = max(1, round(wait / 60))
+        raise HTTPException(status_code=429, detail=f"Too many attempts. Try again in {minutes} minute{'s' if minutes != 1 else ''}.",
+                            headers={"Retry-After": str(int(wait))})
+
+
+def _require_proof(solution: Optional[Dict[str, Any]]) -> None:
+    """The browser's proof-of-work answer (see core/abuse.py); OMNIDOC_POW=0 turns the check off."""
+    if os.environ.get("OMNIDOC_POW", "1") == "0":
+        return
+    ok, why = abuse.check_solution(accounts.derived_key(DATA_DIR, "pow"), solution)
+    if not ok:
+        raise HTTPException(status_code=400, detail=why)
 
 
 @app.get("/api/auth/methods")
@@ -415,7 +536,7 @@ def request_sign_in_code(req: CodeRequest):
 
 
 @app.post("/api/auth/code/verify")
-def verify_sign_in_code(req: CodeVerifyRequest):
+def verify_sign_in_code(req: CodeVerifyRequest, request: Request):
     email = accounts.normalize_email(req.email)
     if not email or not accounts.methods()["email"]:
         raise HTTPException(status_code=422, detail="Enter a valid e-mail address.")
@@ -423,7 +544,7 @@ def verify_sign_in_code(req: CodeVerifyRequest):
         accounts.verify_code(db, DATA_DIR, email, req.code)
     except accounts.CodeError as e:
         raise HTTPException(status_code=e.status, detail=str(e))
-    return {"status": "success", **_sign_in(email, (req.name or "").strip(), "email")}
+    return {"status": "success", **_sign_in(email, (req.name or "").strip(), "email", request=request)}
 
 
 @app.get("/api/auth/oauth/{provider}/start")
@@ -435,8 +556,11 @@ def oauth_start(provider: str):
 
 
 @app.get("/api/auth/oauth/{provider}/callback")
-def oauth_callback(provider: str, code: str = "", state: str = "", error: str = ""):
-    """Finishes Google or GitHub sign-in and returns to the app with the session in the address fragment."""
+def oauth_callback(request: Request, provider: str, code: str = "", state: str = "", error: str = ""):
+    """
+    Finishes Google or GitHub sign-in and returns to the app with the session (or the ticket for the
+    second step) in the address fragment. A flow started from Account links the address instead.
+    """
     home = accounts.public_url() + "/"
     try:
         if error or not code:
@@ -447,14 +571,162 @@ def oauth_callback(provider: str, code: str = "", state: str = "", error: str = 
             raise accounts.CodeError("Your account has no usable e-mail address.")
         if not accounts.allowed(email):
             raise accounts.CodeError("This address is not invited to this OmniDoc. Ask its administrator.")
-        session = _sign_in(email, identity.get("name") or "", provider, identity.get("avatar_url") or "")
+        target = identity.get("link_user_id")
+        if target:
+            other = db.get_user_by_email(email)
+            if other and other["id"] != target:
+                raise accounts.CodeError("That address already belongs to another OmniDoc account.")
+            db.set_user_email(target, email, identity.get("avatar_url") or "")
+            db.add_notice(target, "security", f"{provider.title()} sign-in linked", f"You can now also sign in with {provider.title()} ({email}).")
+            return RedirectResponse(f"{home}#linked={provider}", status_code=302)
+        session = _sign_in(email, identity.get("name") or "", provider, identity.get("avatar_url") or "", request)
         # The fragment never reaches a server or its logs; the app reads it and removes it.
+        if "mfa" in session:
+            return RedirectResponse(f"{home}#mfa={urllib.parse.quote(session['mfa'])}", status_code=302)
         return RedirectResponse(f"{home}#auth={urllib.parse.quote(session['token'])}", status_code=302)
     except accounts.CodeError as e:
         return RedirectResponse(f"{home}#auth_error={urllib.parse.quote(str(e))}", status_code=302)
     except Exception as e:
         logger.error(f"{provider} sign-in failed: {e}", exc_info=True)
         return RedirectResponse(f"{home}#auth_error={urllib.parse.quote('Sign-in failed. Try again.')}", status_code=302)
+
+
+@app.get("/api/auth/challenge")
+def proof_of_work_challenge(request: Request):
+    """A small puzzle the browser solves before creating an account or a guest session (see core/abuse.py)."""
+    _limit(request, "challenge", 30, 60)
+    return abuse.new_challenge(accounts.derived_key(DATA_DIR, "pow"))
+
+
+class PasskeySignupRequest(BaseModel):
+    name: str = Field(..., min_length=1, max_length=80)
+    pow: Optional[Dict[str, Any]] = None
+
+
+class PasskeyVerifyRequest(BaseModel):
+    challenge_id: str = Field(..., min_length=8, max_length=64)
+    credential: Dict[str, Any]
+    label: Optional[str] = Field(None, max_length=80)
+
+
+def _passkeys_on() -> None:
+    if not passkeys.enabled():
+        raise HTTPException(status_code=404, detail="Passkeys are not available on this server.")
+
+
+def _passkey_label(given: Optional[str], request: Request) -> str:
+    return re.sub(r"\s+", " ", given or "").strip()[:80] or accounts.device_label(request.headers.get("user-agent"))
+
+
+@app.post("/api/auth/passkey/signup/options")
+def passkey_signup_options(req: PasskeySignupRequest, request: Request):
+    """Starts creating an account with a passkey: no e-mail, just a name the account is shown with."""
+    _passkeys_on()
+    _limit(request, "signup", 10, 3600)
+    _require_proof(req.pow)
+    name = re.sub(r"\s+", " ", req.name).strip()
+    if not name:
+        raise HTTPException(status_code=422, detail="Enter your name.")
+    challenge_id, options = passkeys.registration_options(db, "signup", passkeys.new_user_handle(), name)
+    return {"challenge_id": challenge_id, "options": options}
+
+
+@app.post("/api/auth/passkey/signup/verify")
+def passkey_signup_verify(req: PasskeyVerifyRequest, request: Request):
+    """Creates the account with its first passkey, signs it in and returns its ten recovery codes (shown once)."""
+    _passkeys_on()
+    try:
+        reg = passkeys.verify_registration(db, req.challenge_id, "signup", req.credential)
+    except passkeys.PasskeyError as e:
+        raise HTTPException(status_code=e.status, detail=str(e))
+    if db.get_passkey(reg["credential_id"]):
+        raise HTTPException(status_code=409, detail="This passkey already belongs to an account. Sign in with it instead.")
+    user_id = f"usr_{uuid.uuid4().hex[:12]}"
+    user = db.create_user(user_id, reg["name"], "passkey", webauthn_handle=reg["handle"])
+    db.add_passkey(reg["credential_id"], user_id, reg["public_key"], reg["sign_count"], reg["transports"],
+                   _passkey_label(req.label, request))
+    codes = two_factor.new_recovery_codes(db, DATA_DIR, user_id)
+    return {"status": "success", "token": _new_session(user_id, request), "user": _public_user(user), "recovery_codes": codes}
+
+
+@app.post("/api/auth/passkey/signin/options")
+def passkey_signin_options(request: Request):
+    _passkeys_on()
+    _limit(request, "signin", 30, 300)
+    challenge_id, options = passkeys.authentication_options(db)
+    return {"challenge_id": challenge_id, "options": options}
+
+
+@app.post("/api/auth/passkey/signin/verify")
+def passkey_signin_verify(req: PasskeyVerifyRequest, request: Request):
+    """Signs in with a passkey. A passkey is already two factors (the device and its lock), so no code follows."""
+    _passkeys_on()
+    try:
+        user_id = passkeys.verify_authentication(db, req.challenge_id, req.credential)
+    except passkeys.PasskeyError as e:
+        raise HTTPException(status_code=e.status, detail=str(e))
+    user = db.get_user(user_id)
+    if not user:
+        raise HTTPException(status_code=401, detail="This passkey's account no longer exists.")
+    return {"status": "success", "token": _new_session(user_id, request), "user": _public_user(user)}
+
+
+class RecoveryRequest(BaseModel):
+    code: str = Field(..., min_length=8, max_length=40)
+    pow: Optional[Dict[str, Any]] = None
+
+
+@app.post("/api/auth/recovery")
+def recovery_sign_in(req: RecoveryRequest, request: Request):
+    """Signs in with a one-time recovery code (for an account whose passkeys are lost). The code is spent."""
+    if not accounts_on():
+        raise HTTPException(status_code=404, detail="Not available on a local install.")
+    _limit(request, "recovery", 10, 3600)
+    _require_proof(req.pow)
+    user_id = two_factor.use_recovery_code(db, DATA_DIR, req.code)
+    if not user_id or not db.get_user(user_id):
+        raise HTTPException(status_code=401, detail="That recovery code is not valid, or it was already used.")
+    left = db.recovery_codes_left(user_id)
+    db.add_notice(user_id, "security", "A recovery code was used to sign in",
+                  f"{left} recovery code{'' if left == 1 else 's'} left. Add a new passkey and, if few are left, make new codes under Account.")
+    return {"status": "success", "token": _new_session(user_id, request), "user": _public_user(db.get_user(user_id)),
+            "recovery_codes_left": left}
+
+
+class TwoStepRequest(BaseModel):
+    ticket: str = Field(..., min_length=8, max_length=100)
+    code: str = Field(..., min_length=6, max_length=40)
+
+
+@app.post("/api/auth/mfa")
+def finish_two_step(req: TwoStepRequest, request: Request):
+    """The second step after GitHub, Google or an e-mailed code: a code from the authenticator app, or a recovery code."""
+    _limit(request, "mfa", 20, 300)
+    try:
+        user_id = two_factor.redeem_ticket(db, DATA_DIR, req.ticket, req.code)
+    except two_factor.TwoFactorError as e:
+        raise HTTPException(status_code=e.status, detail=str(e))
+    return {"status": "success", "token": _new_session(user_id, request), "user": _public_user(db.get_user(user_id))}
+
+
+class GuestRequest(BaseModel):
+    pow: Optional[Dict[str, Any]] = None
+
+
+@app.post("/api/auth/guest")
+def start_guest_session(req: GuestRequest, request: Request):
+    """A one-day guest session on the shared sample library (OMNIDOC_DEMO=1): read and ask, change nothing."""
+    if not accounts.demo_enabled():
+        raise HTTPException(status_code=404, detail="The demo is not available on this server.")
+    _limit(request, "guest", accounts.guest_limits()["guests_per_ip_per_day"], 86400)
+    _require_proof(req.pow)
+    for old in db.stale_guests(older_than_days=2):
+        db.delete_user(old)  # guests own conversations only; the sample library is shared
+    user_id = f"gst_{uuid.uuid4().hex[:12]}"
+    user = db.create_user(user_id, "Guest", "guest", kind="guest")
+    token = db.create_session(user_id, ttl_days=accounts.GUEST_SESSION_DAYS,
+                              user_agent=request.headers.get("user-agent", ""), ip=_client_ip(request))
+    return {"status": "success", "token": token, "user": _public_user(user)}
 
 
 @app.get("/api/auth/me")
@@ -466,7 +738,7 @@ def get_current_user(authorization: Optional[str] = Header(None), x_omnidoc_toke
     if user_id:
         user = db.get_user(user_id)
         if user:
-            return {"user": user}
+            return {"user": _public_user(user)}
     raise HTTPException(status_code=401, detail="Session expired. Sign in again.")
 
 
@@ -483,11 +755,262 @@ def logout(authorization: Optional[str] = Header(None), x_omnidoc_token: Optiona
 # ---------------------------------------------------------------------------
 @app.get("/api/account")
 def account_overview(user_id: str = Depends(current_user_id)):
-    """The signed-in account, today's usage and its limits."""
+    """The signed-in account, how it signs in, today's usage and its limits."""
     user = db.get_user(user_id) or {"id": user_id}
-    used = db.storage_used(library_owner(user_id))
-    return {"user": user, "accounts": accounts_on(), "admin": is_admin(user_id), "usage": db.usage_today(user_id),
-            "storage_bytes": used, "limits": accounts.limits() if accounts_on() and not is_admin(user_id) else None}
+    guest = accounts_on() and is_guest(user_id)
+    used = 0 if guest else db.storage_used(library_owner(user_id))
+    if not accounts_on() or is_admin(user_id):
+        limits = None
+    elif guest:
+        limits = {"questions_per_day": accounts.guest_limits()["questions_per_day"], "uploads_per_day": 0, "storage_mb": 0}
+    else:
+        limits = accounts.limits()
+    return {"user": _public_user(user), "accounts": accounts_on(), "admin": is_admin(user_id), "guest": guest,
+            "usage": db.usage_today(user_id), "storage_bytes": used, "limits": limits,
+            "security": {"passkeys": len(db.list_passkeys(user_id)), "totp": bool(user.get("totp_enabled")),
+                         "recovery_codes_left": db.recovery_codes_left(user_id), "email": user.get("email") or ""}}
+
+
+# ---------------------------------------------------------------------------
+# Account security: passkeys, authenticator app, recovery codes, devices, linked sign-in, export
+# ---------------------------------------------------------------------------
+def account_user(user_id: str = Depends(current_user_id)) -> str:
+    if not accounts_on():
+        raise HTTPException(status_code=404, detail="A local install has no account settings.")
+    if is_guest(user_id):
+        raise HTTPException(status_code=403, detail="Sign in to manage an account.")
+    return user_id
+
+
+def _ways_in(user_id: str, without_passkey: Optional[str] = None) -> int:
+    """How many independent ways the account can sign in: its passkeys, plus a linked address when a provider is on."""
+    keys = [k for k in db.list_passkeys(user_id) if k["id"] != without_passkey]
+    methods = accounts.methods()
+    linked = bool((db.get_user(user_id) or {}).get("email")) and (methods["github"] or methods["google"] or methods["email"])
+    return len(keys) + (1 if linked else 0)
+
+
+@app.get("/api/account/passkeys")
+def list_passkeys(user_id: str = Depends(account_user)):
+    return {"passkeys": db.list_passkeys(user_id)}
+
+
+@app.post("/api/account/passkeys/options")
+def add_passkey_options(user_id: str = Depends(account_user)):
+    _passkeys_on()
+    user = db.get_user(user_id) or {}
+    handle = user.get("webauthn_handle")
+    if not handle:
+        from webauthn.helpers import bytes_to_base64url
+        handle = bytes_to_base64url(passkeys.new_user_handle())
+        db.set_webauthn_handle(user_id, handle)
+    from webauthn.helpers import base64url_to_bytes
+    name = user.get("email") or user.get("name") or "OmniDoc account"
+    challenge_id, options = passkeys.registration_options(
+        db, "add", base64url_to_bytes(handle), name, user_id=user_id, exclude=[k["id"] for k in db.list_passkeys(user_id)])
+    return {"challenge_id": challenge_id, "options": options}
+
+
+@app.post("/api/account/passkeys/verify")
+def add_passkey_verify(req: PasskeyVerifyRequest, request: Request, user_id: str = Depends(account_user)):
+    _passkeys_on()
+    try:
+        reg = passkeys.verify_registration(db, req.challenge_id, "add", req.credential)
+    except passkeys.PasskeyError as e:
+        raise HTTPException(status_code=e.status, detail=str(e))
+    if reg["user_id"] != user_id:
+        raise HTTPException(status_code=400, detail="This request expired. Try again.")
+    if db.get_passkey(reg["credential_id"]):
+        raise HTTPException(status_code=409, detail="This passkey is already registered.")
+    label = _passkey_label(req.label, request)
+    db.add_passkey(reg["credential_id"], user_id, reg["public_key"], reg["sign_count"], reg["transports"], label)
+    db.add_notice(user_id, "security", f"Passkey added: {label}", "")
+    codes = two_factor.new_recovery_codes(db, DATA_DIR, user_id) if not db.recovery_codes_left(user_id) else None
+    return {"status": "success", "passkeys": db.list_passkeys(user_id), "recovery_codes": codes}
+
+
+@app.delete("/api/account/passkeys/{credential_id}")
+def remove_passkey(credential_id: str, user_id: str = Depends(account_user)):
+    if not any(k["id"] == credential_id for k in db.list_passkeys(user_id)):
+        raise HTTPException(status_code=404, detail="Passkey not found")
+    if _ways_in(user_id, without_passkey=credential_id) < 1:
+        raise HTTPException(status_code=409, detail="This is your only way to sign in. Add another passkey or link GitHub first.")
+    db.delete_passkey(user_id, credential_id)
+    db.add_notice(user_id, "security", "A passkey was removed", "")
+    return {"status": "success", "passkeys": db.list_passkeys(user_id)}
+
+
+@app.post("/api/account/totp/setup")
+def totp_setup(user_id: str = Depends(account_user)):
+    """A new authenticator-app secret and its QR code; it takes effect once a code from the app is confirmed."""
+    user = db.get_user(user_id) or {}
+    secret = two_factor.new_secret()
+    uri = two_factor.provisioning_uri(secret, user.get("email") or user.get("name") or user_id)
+    challenge_id = secrets.token_urlsafe(18)
+    db.put_challenge(challenge_id, "totp", "-", user_id, json.dumps({"secret": accounts.encrypt(DATA_DIR, secret)}))
+    return {"challenge_id": challenge_id, "secret": secret, "uri": uri, "qr_svg": two_factor.qr_svg(uri)}
+
+
+class TotpEnableRequest(BaseModel):
+    challenge_id: str = Field(..., min_length=8, max_length=64)
+    code: str = Field(..., min_length=6, max_length=12)
+
+
+@app.post("/api/account/totp/enable")
+def totp_enable(req: TotpEnableRequest, user_id: str = Depends(account_user)):
+    row = db.take_challenge(req.challenge_id, "totp", 900)
+    if not row or row.get("user_id") != user_id:
+        raise HTTPException(status_code=400, detail="The setup expired. Start again.")
+    sealed = json.loads(row.get("data") or "{}").get("secret", "")
+    secret = accounts.decrypt(DATA_DIR, sealed)
+    step = two_factor.check_totp(secret, req.code, 0) if secret else None
+    if step is None:
+        # The setup stays usable for another try.
+        db.put_challenge(req.challenge_id, "totp", "-", user_id, row.get("data") or "{}")
+        raise HTTPException(status_code=400, detail="That code is not right. Check the app's clock and try the newest code.")
+    db.set_totp(user_id, sealed, True, step)
+    db.add_notice(user_id, "security", "Two-step sign-in turned on", "Signing in with GitHub, Google or an e-mailed code now also asks for a code from your authenticator app.")
+    codes = two_factor.new_recovery_codes(db, DATA_DIR, user_id) if not db.recovery_codes_left(user_id) else None
+    return {"status": "success", "recovery_codes": codes}
+
+
+class CodeCheckRequest(BaseModel):
+    code: str = Field(..., min_length=6, max_length=40)
+
+
+def _check_second_factor(user_id: str, code: str) -> None:
+    user = db.get_user(user_id) or {}
+    secret = accounts.decrypt(DATA_DIR, user.get("totp_secret") or "")
+    step = two_factor.check_totp(secret, code, int(user.get("totp_last_step") or 0)) if secret else None
+    if step is not None:
+        db.set_totp_step(user_id, step)
+        return
+    if not two_factor.use_recovery_code(db, DATA_DIR, code, user_id=user_id):
+        raise HTTPException(status_code=400, detail="That code is not right.")
+
+
+@app.post("/api/account/totp/disable")
+def totp_disable(req: CodeCheckRequest, user_id: str = Depends(account_user)):
+    if not (db.get_user(user_id) or {}).get("totp_enabled"):
+        return {"status": "success"}
+    _check_second_factor(user_id, req.code)
+    db.set_totp(user_id, None, False)
+    db.add_notice(user_id, "security", "Two-step sign-in turned off", "")
+    return {"status": "success"}
+
+
+@app.post("/api/account/recovery-codes")
+def new_recovery_codes(user_id: str = Depends(account_user)):
+    """Ten new recovery codes; the old ones stop working."""
+    codes = two_factor.new_recovery_codes(db, DATA_DIR, user_id)
+    db.add_notice(user_id, "security", "New recovery codes were made", "The previous codes no longer work.")
+    return {"recovery_codes": codes}
+
+
+@app.get("/api/account/sessions")
+def list_sessions(user_id: str = Depends(account_user), authorization: Optional[str] = Header(None),
+                  x_omnidoc_token: Optional[str] = Header(None)):
+    current = db.session_id(_bearer(authorization, x_omnidoc_token) or "")
+    return {"sessions": [{**s, "device": accounts.device_label(s["user_agent"]), "current": s["id"] == current}
+                         for s in db.list_sessions(user_id)]}
+
+
+@app.delete("/api/account/sessions/{session_id}")
+def end_session(session_id: str, user_id: str = Depends(account_user)):
+    if not db.delete_session_by_id(user_id, session_id):
+        raise HTTPException(status_code=404, detail="Device not found")
+    return {"status": "success"}
+
+
+@app.post("/api/account/sessions/sign-out-others")
+def end_other_sessions(user_id: str = Depends(account_user), authorization: Optional[str] = Header(None),
+                       x_omnidoc_token: Optional[str] = Header(None)):
+    ended = db.delete_other_sessions(user_id, _bearer(authorization, x_omnidoc_token) or "")
+    return {"status": "success", "signed_out": ended}
+
+
+@app.post("/api/account/link/{provider}")
+def link_provider(provider: str, user_id: str = Depends(account_user)):
+    """The consent page that adds GitHub or Google (its verified address) as another way into this account."""
+    try:
+        return {"url": accounts.authorize_url(db, DATA_DIR, provider, link_user_id=user_id)}
+    except accounts.CodeError as e:
+        raise HTTPException(status_code=e.status, detail=str(e))
+
+
+def _slug(text: str) -> str:
+    return re.sub(r"[^A-Za-z0-9]+", "-", text or "").strip("-")[:60] or "untitled"
+
+
+@app.get("/api/account/export")
+def export_account(user_id: str = Depends(account_user)):
+    """Everything the account holds, as a zip: the original documents, every conversation and the account record."""
+    user = _public_user(db.get_user(user_id))
+    spool = tempfile.SpooledTemporaryFile(max_size=32 * 1024 * 1024)
+    with zipfile.ZipFile(spool, "w", zipfile.ZIP_DEFLATED) as z:
+        z.writestr("README.txt", "Your OmniDoc data, exported on " + time.strftime("%Y-%m-%d %H:%M UTC", time.gmtime()) + ".\n\n"
+                   "account.json        the account, its passkeys and signed-in devices\n"
+                   "documents/          the files you uploaded, as uploaded\n"
+                   "conversations/      each conversation as Markdown and as JSON (with its sources)\n")
+        z.writestr("account.json", json.dumps({
+            "user": user, "passkeys": db.list_passkeys(user_id),
+            "devices": [{"device": accounts.device_label(s["user_agent"]), "created_at": s["created_at"],
+                         "last_used_at": s["last_used_at"]} for s in db.list_sessions(user_id)],
+            "usage_today": db.usage_today(user_id)}, indent=2, default=str))
+        documents = []
+        for doc in db.get_all_documents(owner_id=user_id):
+            try:
+                _, path = _stored_document(doc["id"], user_id)
+            except HTTPException:
+                continue
+            name = f"documents/{doc['id']}-{Path(doc['filename']).name}"
+            z.write(path, name)
+            documents.append({"id": doc["id"], "filename": doc["filename"], "file": name, "uploaded": doc.get("upload_date"),
+                              "size_bytes": doc.get("size_bytes")})
+        z.writestr("documents/index.json", json.dumps(documents, indent=2, default=str))
+        for n, chat in enumerate(db.list_chats(user_id), start=1):
+            messages = db.get_messages(chat["id"])
+            base = f"conversations/{n:03d}-{_slug(chat.get('title') or '')}"
+            z.writestr(base + ".json", json.dumps({"chat": chat, "messages": messages}, indent=2, default=str))
+            lines = [f"# {chat.get('title') or 'Conversation'}", ""]
+            for m in messages:
+                lines += [f"**{'You' if m['role'] == 'user' else 'OmniDoc'}** · {m.get('timestamp') or ''}", "", m.get("content") or "", ""]
+            z.writestr(base + ".md", "\n".join(lines))
+    size = spool.tell()
+    spool.seek(0)
+
+    def chunks():
+        try:
+            while True:
+                block = spool.read(1024 * 1024)
+                if not block:
+                    break
+                yield block
+        finally:
+            spool.close()
+
+    stamp = time.strftime("%Y%m%d", time.gmtime())
+    return StreamingResponse(chunks(), media_type="application/zip", headers={
+        "Content-Disposition": f'attachment; filename="omnidoc-export-{stamp}.zip"', "Content-Length": str(size)})
+
+
+# ---------------------------------------------------------------------------
+# Notices: security events for the account and announcements (What's new)
+# ---------------------------------------------------------------------------
+@app.get("/api/notices")
+def list_notices(user_id: str = Depends(current_user_id)):
+    notices = db.list_notices(user_id)
+    return {"notices": notices, "unread": sum(1 for n in notices if not n["read"])}
+
+
+class NoticesReadRequest(BaseModel):
+    ids: Optional[List[int]] = Field(None, max_length=500)
+
+
+@app.post("/api/notices/read")
+def read_notices(req: NoticesReadRequest, user_id: str = Depends(current_user_id)):
+    db.mark_notices_read(user_id, req.ids)
+    return {"status": "success"}
 
 
 @app.delete("/api/account")
@@ -540,8 +1063,7 @@ def list_models():
 
 @app.put("/api/models/current")
 def set_model(req: ModelRequest, user_id: str = Depends(current_user_id)):
-    if accounts_on() and not is_admin(user_id):
-        raise HTTPException(status_code=403, detail="Only an administrator can change the server's model.")
+    require_admin(user_id)
     names = {m["name"] for m in available_models()}
     if req.model not in names:
         raise HTTPException(status_code=404, detail=f"Model {req.model} is not available (configure its API key or install it in Ollama)")
@@ -972,7 +1494,7 @@ def _ingest_bytes(contents: bytes, original_name: str, ext: str, user_id: str = 
     if existing:
         return {"status": "success", "doc_id": existing["id"], "filename": existing["filename"],
                 "chunk_count": existing.get("chunk_count") or 0, "duplicate": True}
-    if accounts_on() and not is_admin(user_id):
+    if accounts_on() and not is_admin(user_id) and user_id != accounts.DEMO_OWNER:
         check_quota(user_id, "uploads")
         cap = accounts.limits()["storage_mb"] * 1024 * 1024
         if db.storage_used(owner) + len(contents) > cap:
@@ -1056,6 +1578,26 @@ def import_url(req: ImportUrlRequest, user_id: str = Depends(current_user_id)):
     return {**_ingest_bytes(body, f"{safe_title}.html", "html", user_id), "url": final_url}
 
 
+DEMO_DIR = Path(os.environ.get("OMNIDOC_DEMO_DIR") or DATA_DIR / "demo")
+
+
+def _seed_demo_library() -> None:
+    """Adds each file in the demo folder (once) to the shared sample library that guests read."""
+    if not DEMO_DIR.is_dir():
+        logger.info(f"Demo on, but {DEMO_DIR} has no files yet: guests will see an empty library.")
+        return
+    for path in sorted(DEMO_DIR.iterdir()):
+        ext = path.suffix.lower().lstrip(".")
+        if not path.is_file() or ext not in ALLOWED_EXTENSIONS:
+            continue
+        try:
+            result = _ingest_bytes(path.read_bytes(), path.name, ext, accounts.DEMO_OWNER)
+            if not result.get("duplicate"):
+                logger.info(f"Demo library: added {path.name}")
+        except Exception as e:
+            logger.warning(f"Demo library: could not add {path.name}: {getattr(e, 'detail', e)}")
+
+
 def _remove_document(doc_id: str) -> None:
     """Removes a document from SQLite, LanceDB, the knowledge graph, the record tables and disk."""
     get_pipeline().delete_document(doc_id)
@@ -1090,7 +1632,7 @@ def summarize_documents(req: Optional[SummariesRequest] = None, user_id: str = D
     """Writes summaries, in the background, for documents (all by default) that have none yet."""
     doc_ids = [d for d in (req.document_ids or []) if DOC_ID_RE.match(d)] if req and req.document_ids else None
     if accounts_on():
-        mine = set(db.document_ids(user_id))
+        mine = set(db.document_ids(library_owner(user_id)))
         doc_ids = [d for d in (doc_ids or mine) if d in mine] or [NO_DOCUMENTS]
     queued = get_pipeline().summarize_missing(doc_ids)
     return {"status": "success", "queued": queued}
@@ -1533,7 +2075,7 @@ def extract_stream(req: ExtractRequest, user_id: str = Depends(current_user_id))
 # ---------------------------------------------------------------------------
 @app.get("/api/graph")
 def get_knowledge_graph(limit: int = 2000, user_id: str = Depends(current_user_id)):
-    scope = db.document_ids(user_id) if accounts_on() else None
+    scope = db.document_ids(library_owner(user_id)) if accounts_on() else None
     data = get_pipeline().graph_store.get_all_graph(limit=limit, doc_ids=scope)
     # Graphs built by older versions stored the internal file name as the title.
     titles = _doc_titles()
@@ -1545,7 +2087,7 @@ def get_knowledge_graph(limit: int = 2000, user_id: str = Depends(current_user_i
 @app.get("/api/graph/node/{node_id}")
 def get_node_details(node_id: str, user_id: str = Depends(current_user_id)):
     found = get_pipeline().graph_store.get_node(node_id)
-    if found and accounts_on() and found["node"].get("doc_id") not in set(db.document_ids(user_id)):
+    if found and accounts_on() and found["node"].get("doc_id") not in set(db.document_ids(library_owner(user_id))):
         found = None
     if not found:
         raise HTTPException(status_code=404, detail="Entity not found")
