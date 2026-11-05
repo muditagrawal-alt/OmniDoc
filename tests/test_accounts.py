@@ -17,7 +17,7 @@ import pytest  # noqa: E402
 from fastapi.testclient import TestClient  # noqa: E402
 
 import server  # noqa: E402
-from core import accounts, chat_memory  # noqa: E402
+from core import abuse, accounts, chat_memory  # noqa: E402
 
 client = TestClient(server.app)
 
@@ -29,6 +29,7 @@ def hosted(monkeypatch):
     monkeypatch.setenv("OMNIDOC_ACCOUNTS", "1")
     monkeypatch.setenv("OMNIDOC_OTP_LOG", "1")
     monkeypatch.setattr(accounts, "send_code_email", lambda to, code: sent.__setitem__(to, code))
+    abuse.limiter.reset()
     return sent
 
 
