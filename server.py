@@ -119,7 +119,7 @@ app.add_middleware(
     allow_origins=CORS_ORIGINS,
     allow_credentials=False,
     allow_methods=["GET", "POST", "PATCH", "PUT", "DELETE", "OPTIONS"],
-    allow_headers=["Authorization", "X-OmniDoc-Token", "Content-Type", "Accept"],
+    allow_headers=["Authorization", "X-OmniDoc-Token", "X-OmniDoc-Keys", "Content-Type", "Accept"],
 )
 
 # Optional password gate for deployments: OMNIDOC_AUTH="user:password" asks every visitor for it
@@ -158,7 +158,7 @@ API_PER_MINUTE = int(os.environ.get("OMNIDOC_API_PER_MINUTE", "240"))
 # Besides reading, a guest (the demo) may ask, compare, search, extract and keep conversations; nothing else.
 _GUEST_WRITES = (
     re.compile(r"^/api/chats(/[^/]+(/query(/stream)?)?)?$"),
-    re.compile(r"^/api/(query|compare|search|extract/stream|documents/summaries|auth/logout|notices/read|export/(pdf|docx))$"),
+    re.compile(r"^/api/(query|compare|search|extract/stream|documents/summaries|auth/logout|notices/read|keys/check|export/(pdf|docx))$"),
     re.compile(r"^/api/documents/[^/]+/(locate|redact)$"),
 )
 
@@ -186,10 +186,38 @@ def _guest_may(method: str, path: str) -> bool:
     return any(rule.match(path) for rule in _GUEST_WRITES)
 
 
+def _header_keys(request: Request) -> Optional[Dict[str, str]]:
+    """Keys the browser keeps for the user (X-OmniDoc-Keys: base64url of {"provider": "key"}); never stored here."""
+    raw = request.headers.get("x-omnidoc-keys", "").strip()
+    if not raw or len(raw) > 4096:
+        return None
+    try:
+        import base64
+        data = json.loads(base64.urlsafe_b64decode(raw + "=" * (-len(raw) % 4)).decode("utf-8"))
+        return llm_providers.clean_keys(data) if isinstance(data, dict) else None
+    except Exception:
+        return None
+
+
+def _stored_keys(user_id: Optional[str]) -> Dict[str, str]:
+    if not user_id or not accounts_on():
+        return {}
+    out = {}
+    for row in db.user_keys(user_id):
+        key = accounts.decrypt(DATA_DIR, row["key_enc"])
+        if key:
+            out[row["provider"]] = key
+    return out
+
+
 @app.middleware("http")
 async def require_session(request, call_next):
     path = request.url.path
-    if request.method == "OPTIONS" or not path.startswith("/api/") or not accounts_on():
+    if request.method == "OPTIONS" or not path.startswith("/api/"):
+        return await call_next(request)
+    if not accounts_on():
+        # A local install answers with the server's keys, or the ones the browser brings.
+        llm_providers.use_keys(_header_keys(request))
         return await call_next(request)
     ip = _client_ip(request)
     request.state.client_ip = ip
@@ -198,14 +226,18 @@ async def require_session(request, call_next):
         return JSONResponse({"detail": "Too many requests. Wait a moment and try again."}, status_code=429,
                             headers={"Retry-After": str(int(wait))})
     if path.startswith(_OPEN_API):
+        llm_providers.use_keys(None)
         return await call_next(request)
     token = _bearer(request.headers.get("authorization"), request.headers.get("x-omnidoc-token"))
-    user_id = db.get_session_user_id(token, ip) if token else None
+    user_id = db.get_session_user_id(token, touch=True) if token else None
     if not user_id:
         return JSONResponse({"detail": "Sign in to continue."}, status_code=401)
     if is_guest(user_id) and not _guest_may(request.method, path):
         return JSONResponse({"detail": "The demo is read-only. Sign in to add documents and keep your own library."},
                             status_code=403)
+    # The user's own keys (kept on the server if they chose, overridden by the browser's) answer for them.
+    keys = {**_stored_keys(user_id), **(_header_keys(request) or {})}
+    llm_providers.use_keys(keys or None)
     return await call_next(request)
 
 
@@ -397,6 +429,33 @@ def check_quota(user_id: str, kind: str) -> None:
         raise HTTPException(status_code=429, detail=f"You have reached today's limit of {limit} {what}. It resets at midnight UTC.")
 
 
+def _answer_gate(user_id: str, request: Request) -> None:
+    """
+    Before a model answers: the daily limit, then the free trial. Without their own key an account
+    (or guest) gets OMNIDOC_TRIAL_ANSWERS answers on the server's keys; after that the reply is 402
+    and the app asks for the user's own free key.
+    """
+    check_quota(user_id, "questions")
+    if not accounts_on() or is_admin(user_id) or llm_providers.current_keys():
+        return
+    limit = accounts.trial_answers()
+    if db.trial_used(user_id) >= limit:
+        raise HTTPException(status_code=402, headers={"X-OmniDoc-Need": "api-key"}, detail=(
+            f"You have used your {limit} free answers. Add your own free API key to keep going: it takes a minute."))
+    if abuse.limiter.hit(f"trial:{_client_ip(request)}", accounts.trial_per_ip(), 86400):
+        raise HTTPException(status_code=402, headers={"X-OmniDoc-Need": "api-key"}, detail=(
+            "Today's free answers for your network are used up. Add your own free API key to keep going."))
+
+
+def _charge(user_id: str) -> None:
+    """Counts an answer: toward the daily limit, and toward the free trial when the server's keys wrote it."""
+    if not accounts_on():
+        return
+    db.count_usage(user_id, "questions")
+    if not is_admin(user_id) and not llm_providers.current_keys():
+        db.add_trial_use(user_id)
+
+
 def scoped_ids(doc_ids: Optional[List[str]], user_id: str) -> List[str]:
     """
     The documents a question may read. Locally: the selected ones (none selected: the whole library).
@@ -461,13 +520,20 @@ def _public_user(user: Optional[Dict[str, Any]]) -> Dict[str, Any]:
     return user
 
 
+def _device(stored: Optional[str]) -> str:
+    """The device label kept with a session (older sessions kept the raw User-Agent)."""
+    stored = stored or ""
+    return accounts.device_label(stored) if "Mozilla/" in stored or not stored else stored
+
+
 def _new_session(user_id: str, request: Optional[Request], days: Optional[float] = None) -> str:
-    """A session for a signed-in user; a sign-in from a kind of device the account has not used before leaves a notice."""
-    ua = request.headers.get("user-agent", "") if request is not None else ""
-    seen = {accounts.device_label(s["user_agent"]) for s in db.list_sessions(user_id)}
-    token = db.create_session(user_id, ttl_days=days or accounts.SESSION_DAYS, user_agent=ua,
-                              ip=_client_ip(request) if request is not None else None)
-    label = accounts.device_label(ua)
+    """
+    A session for a signed-in user. Only a device label ("Chrome on macOS") is kept with it, no IP
+    address; a sign-in from a kind of device the account has not used before leaves a notice.
+    """
+    label = accounts.device_label(request.headers.get("user-agent", "") if request is not None else "")
+    seen = {_device(s["user_agent"]) for s in db.list_sessions(user_id)}
+    token = db.create_session(user_id, ttl_days=days or accounts.SESSION_DAYS, device=label)
     if seen and label not in seen:
         db.add_notice(user_id, "security", f"New sign-in: {label}",
                       "If this was not you, sign that device out under Account, Devices.")
@@ -725,7 +791,7 @@ def start_guest_session(req: GuestRequest, request: Request):
     user_id = f"gst_{uuid.uuid4().hex[:12]}"
     user = db.create_user(user_id, "Guest", "guest", kind="guest")
     token = db.create_session(user_id, ttl_days=accounts.GUEST_SESSION_DAYS,
-                              user_agent=request.headers.get("user-agent", ""), ip=_client_ip(request))
+                              device=accounts.device_label(request.headers.get("user-agent", "")))
     return {"status": "success", "token": token, "user": _public_user(user)}
 
 
@@ -765,8 +831,12 @@ def account_overview(user_id: str = Depends(current_user_id)):
         limits = {"questions_per_day": accounts.guest_limits()["questions_per_day"], "uploads_per_day": 0, "storage_mb": 0}
     else:
         limits = accounts.limits()
+    trial = ({"limit": accounts.trial_answers(), "used": db.trial_used(user_id)}
+             if accounts_on() and not is_admin(user_id) else None)
     return {"user": _public_user(user), "accounts": accounts_on(), "admin": is_admin(user_id), "guest": guest,
-            "usage": db.usage_today(user_id), "storage_bytes": used, "limits": limits,
+            "usage": db.usage_today(user_id), "storage_bytes": used, "limits": limits, "trial": trial,
+            "own_keys": {"server": [r["provider"] for r in db.user_keys(user_id)] if accounts_on() and not guest else [],
+                         "in_use": sorted(llm_providers.current_keys() or {})},
             "security": {"passkeys": len(db.list_passkeys(user_id)), "totp": bool(user.get("totp_enabled")),
                          "recovery_codes_left": db.recovery_codes_left(user_id), "email": user.get("email") or ""}}
 
@@ -911,7 +981,8 @@ def new_recovery_codes(user_id: str = Depends(account_user)):
 def list_sessions(user_id: str = Depends(account_user), authorization: Optional[str] = Header(None),
                   x_omnidoc_token: Optional[str] = Header(None)):
     current = db.session_id(_bearer(authorization, x_omnidoc_token) or "")
-    return {"sessions": [{**s, "device": accounts.device_label(s["user_agent"]), "current": s["id"] == current}
+    return {"sessions": [{"id": s["id"], "device": _device(s["user_agent"]), "created_at": s["created_at"],
+                          "last_used_at": s["last_used_at"], "current": s["id"] == current}
                          for s in db.list_sessions(user_id)]}
 
 
@@ -954,7 +1025,7 @@ def export_account(user_id: str = Depends(account_user)):
                    "conversations/      each conversation as Markdown and as JSON (with its sources)\n")
         z.writestr("account.json", json.dumps({
             "user": user, "passkeys": db.list_passkeys(user_id),
-            "devices": [{"device": accounts.device_label(s["user_agent"]), "created_at": s["created_at"],
+            "devices": [{"device": _device(s["user_agent"]), "created_at": s["created_at"],
                          "last_used_at": s["last_used_at"]} for s in db.list_sessions(user_id)],
             "usage_today": db.usage_today(user_id)}, indent=2, default=str))
         documents = []
@@ -992,6 +1063,71 @@ def export_account(user_id: str = Depends(account_user)):
     stamp = time.strftime("%Y%m%d", time.gmtime())
     return StreamingResponse(chunks(), media_type="application/zip", headers={
         "Content-Disposition": f'attachment; filename="omnidoc-export-{stamp}.zip"', "Content-Length": str(size)})
+
+
+# ---------------------------------------------------------------------------
+# Bring your own key: after the free answers, users answer with their own free model key. By default
+# the browser keeps it and sends it with each request (X-OmniDoc-Keys); it is stored here, encrypted,
+# only if the user asks, so it works on their other devices.
+# ---------------------------------------------------------------------------
+@app.get("/api/keys/providers")
+def own_key_providers():
+    """The providers a user can bring a free key for, where to get one, and the free answers before that."""
+    providers = []
+    for name in llm_providers.BYOK_PROVIDERS:
+        p = llm_providers.REGISTRY[name]
+        providers.append({"name": name, "label": p.label, "sign_up": p.sign_up, "free_note": p.free_note, "model": p.model})
+    return {"providers": providers, "trial_answers": accounts.trial_answers()}
+
+
+class KeyCheckRequest(BaseModel):
+    provider: str = Field(..., min_length=2, max_length=40)
+    key: str = Field(..., min_length=8, max_length=400)
+
+
+@app.post("/api/keys/check")
+def check_own_key(req: KeyCheckRequest, request: Request):
+    """Tries a key with one tiny request to its provider. Nothing is stored."""
+    _limit(request, "keycheck", 20, 3600)
+    ok, why = llm_providers.check_key(req.provider, req.key)
+    return {"ok": ok, "reason": why}
+
+
+class OwnKeyRequest(BaseModel):
+    key: str = Field(..., min_length=8, max_length=400)
+
+
+def _own_keys_list(user_id: str) -> List[Dict[str, Any]]:
+    return [{"provider": r["provider"], "last4": r["last4"], "added_at": r["added_at"]} for r in db.user_keys(user_id)]
+
+
+@app.get("/api/account/keys")
+def list_own_keys(user_id: str = Depends(account_user)):
+    """Keys this account keeps on the server (only the last four characters are shown)."""
+    return {"keys": _own_keys_list(user_id)}
+
+
+@app.put("/api/account/keys/{provider}")
+def save_own_key(provider: str, req: OwnKeyRequest, request: Request, user_id: str = Depends(account_user)):
+    """Checks a key, then keeps it encrypted on the server so the account can use it from any device."""
+    if provider not in llm_providers.BYOK_PROVIDERS:
+        raise HTTPException(status_code=404, detail="Unknown provider")
+    _limit(request, "keycheck", 20, 3600)
+    ok, why = llm_providers.check_key(provider, req.key)
+    if not ok:
+        raise HTTPException(status_code=400, detail=why)
+    key = req.key.strip()
+    db.put_user_key(user_id, provider, accounts.encrypt(DATA_DIR, key), key[-4:])
+    label = llm_providers.REGISTRY[provider].label
+    db.add_notice(user_id, "security", f"{label} key saved on the server", "It is stored encrypted and used only for your answers.")
+    return {"keys": _own_keys_list(user_id)}
+
+
+@app.delete("/api/account/keys/{provider}")
+def delete_own_key(provider: str, user_id: str = Depends(account_user)):
+    if not db.delete_user_key(user_id, provider):
+        raise HTTPException(status_code=404, detail="No key saved for this provider")
+    return {"keys": _own_keys_list(user_id)}
 
 
 # ---------------------------------------------------------------------------
@@ -1308,8 +1444,7 @@ def _summarize_for_memory(prompt: str) -> str:
 
 def _after_turn(chat_id: str, user_id: str) -> None:
     """Counts the question and brings the chat's memory up to date in the background."""
-    if accounts_on():
-        db.count_usage(user_id, "questions")
+    _charge(user_id)
     chat_memory.update_in_background(chat_id, db.get_messages, db.get_chat, db.set_chat_memory, _summarize_for_memory)
     memory.release()
 
@@ -1331,10 +1466,10 @@ def _persist_turn(chat: Dict[str, Any], query: str, payload: Dict[str, Any], fir
 
 
 @app.post("/api/chats/{chat_id}/query")
-def execute_chat_query(chat_id: str, req: QueryRequest, user_id: str = Depends(current_user_id)):
+def execute_chat_query(chat_id: str, req: QueryRequest, request: Request, user_id: str = Depends(current_user_id)):
     """Runs the agent pipeline and returns the complete answer."""
     chat = owned_chat(chat_id, user_id)
-    check_quota(user_id, "questions")
+    _answer_gate(user_id, request)
     history, doc_ids, query_text, selected = _query_inputs(chat, req, user_id)
     first_turn = not chat.get("memory_upto") and not db.get_messages(chat_id)
     started = time.perf_counter()
@@ -1363,10 +1498,10 @@ def _sse(event: str, data: Any) -> str:
 
 
 @app.post("/api/chats/{chat_id}/query/stream")
-def stream_chat_query(chat_id: str, req: QueryRequest, user_id: str = Depends(current_user_id)):
+def stream_chat_query(chat_id: str, req: QueryRequest, request: Request, user_id: str = Depends(current_user_id)):
     """Runs the agent pipeline, streaming one `step` event per agent and a final `result`."""
     chat = owned_chat(chat_id, user_id)
-    check_quota(user_id, "questions")
+    _answer_gate(user_id, request)
     history, doc_ids, query_text, selected = _query_inputs(chat, req, user_id)
     first_turn = not chat.get("memory_upto") and not db.get_messages(chat_id)
 
@@ -1408,9 +1543,9 @@ def stream_chat_query(chat_id: str, req: QueryRequest, user_id: str = Depends(cu
 
 
 @app.post("/api/query")
-def standalone_query(req: QueryRequest, user_id: str = Depends(current_user_id)):
+def standalone_query(req: QueryRequest, request: Request, user_id: str = Depends(current_user_id)):
     """One-off agentic query without a stored conversation (used by scripts and evals)."""
-    check_quota(user_id, "questions")
+    _answer_gate(user_id, request)
     started = time.perf_counter()
     doc_ids = scoped_ids(req.document_ids, user_id)
     steps: List[Dict[str, Any]] = []
@@ -1424,8 +1559,7 @@ def standalone_query(req: QueryRequest, user_id: str = Depends(current_user_id))
             steps.append(data)
         elif kind == "result":
             state = data
-    if accounts_on():
-        db.count_usage(user_id, "questions")
+    _charge(user_id)
     return {"status": "success", **build_answer(state, steps, doc_ids, int((time.perf_counter() - started) * 1000))}
 
 
@@ -1939,9 +2073,11 @@ class CompareRequest(BaseModel):
 
 
 @app.post("/api/compare")
-def compare_documents(req: CompareRequest, user_id: str = Depends(current_user_id)):
+def compare_documents(req: CompareRequest, request: Request, user_id: str = Depends(current_user_id)):
     """Sentence-level comparison of two documents (modified, added, removed, changed figures); optional summary."""
     from agents.compare_agent import compare, summarize
+    if req.summarize:
+        _answer_gate(user_id, request)  # the comparison itself needs no model; its summary does
     doc_a, _ = _stored_document(req.a, user_id)
     doc_b, _ = _stored_document(req.b, user_id)
     store = get_pipeline().lance_store
@@ -1951,6 +2087,7 @@ def compare_documents(req: CompareRequest, user_id: str = Depends(current_user_i
     if req.summarize and result["changes"]:
         try:
             result["summary"] = summarize(current_model(), result["a"]["title"], result["b"]["title"], result["changes"])
+            _charge(user_id)
         except Exception as e:
             logger.warning(f"Change summary failed: {e}")
             result["summary_error"] = "The summary could not be written (no model answered)."
@@ -2018,7 +2155,7 @@ def extract_presets():
 
 
 @app.post("/api/extract/stream")
-def extract_stream(req: ExtractRequest, user_id: str = Depends(current_user_id)):
+def extract_stream(req: ExtractRequest, request: Request, user_id: str = Depends(current_user_id)):
     """
     Fills the fields from each document, streaming `start`, then per document `doc_start`,
     `progress` and `doc_result` (or `doc_error`), and finally `done` with CSV rows.
@@ -2027,6 +2164,8 @@ def extract_stream(req: ExtractRequest, user_id: str = Depends(current_user_id))
     fields = normalise_fields(req.fields or (PRESETS.get(req.preset or "") or {}).get("fields") or [])
     if not fields:
         raise HTTPException(status_code=400, detail="Add at least one field to extract")
+    _answer_gate(user_id, request)
+    _charge(user_id)  # one extraction run counts as one answer
     titles = _doc_titles()
     mine = set(db.document_ids(library_owner(user_id)))
     doc_ids = [d for d in dict.fromkeys(req.document_ids) if DOC_ID_RE.match(d) and d in titles and d in mine]
@@ -2054,7 +2193,7 @@ def extract_stream(req: ExtractRequest, user_id: str = Depends(current_user_id))
         for i, doc_id in enumerate(doc_ids, 1):
             yield _sse("doc_start", {"doc_id": doc_id, "title": titles[doc_id], "index": i, "total": len(doc_ids)})
             updates: "queue.Queue" = queue.Queue()
-            threading.Thread(target=run_one, args=(doc_id, updates), name=f"extract-{doc_id}", daemon=True).start()
+            threading.Thread(target=llm_providers.carry(run_one), args=(doc_id, updates), name=f"extract-{doc_id}", daemon=True).start()
             while True:
                 try:
                     kind, data = updates.get(timeout=15)
