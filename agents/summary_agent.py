@@ -153,8 +153,10 @@ class DocumentSummarizer:
                                          num_predict=700)
                 except Exception as e:
                     logger.warning(f"Document summary failed for {doc_id}: {e}")
+            if not isinstance(overview, dict):
+                overview = {}  # a model that answered with a list or plain text: fall back to the sections
             key_points = []
-            for point in (overview.get("key_points") or [] if isinstance(overview, dict) else []):
+            for point in overview.get("key_points") or []:
                 text = str(point).strip()
                 refs = [int(n) for n in re.findall(r"S(\d+)", text)]
                 text = re.sub(r"\s*\((?:S\d+[,;\s]*)+\)\s*$", "", text).strip()
