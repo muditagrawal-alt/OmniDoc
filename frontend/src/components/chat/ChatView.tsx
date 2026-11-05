@@ -25,6 +25,9 @@ interface ChatViewProps extends Omit<ComposerProps, 'variant' | 'autoFocus' | 'd
   onViewOnGlobe: (names: string[]) => void;
   onNavigate: (view: 'library' | 'knowledge') => void;
   user: User | null;
+  /** Free answers left on the server's keys; null when they do not apply (own key, admin, local install). */
+  freeAnswers?: { left: number; limit: number } | null;
+  onAddKey?: () => void;
 }
 
 function heading(user: User | null, documents: number): string {
@@ -48,6 +51,21 @@ function suggestionsFor(documents: DocumentItem[]): Array<{ label: string; promp
   return out.slice(0, 4);
 }
 
+/** "2 of 3 free answers left · Use your own key": the trial on the server's keys, and the way past it. */
+function FreeAnswers({ left, limit, onAddKey }: { left: number; limit: number; onAddKey?: () => void }) {
+  return (
+    <p className={styles.freeAnswers} data-empty={left === 0 || undefined}>
+      {left > 0 ? `${left} of ${limit} free answers left` : 'Free answers used up'}
+      {onAddKey && (
+        <>
+          {' · '}
+          <button type="button" onClick={onAddKey}>{left > 0 ? 'Use your own free key' : 'Add your own free key to keep going'}</button>
+        </>
+      )}
+    </p>
+  );
+}
+
 export function ChatView(props: ChatViewProps) {
   const {
     chat,
@@ -63,6 +81,8 @@ export function ChatView(props: ChatViewProps) {
     onViewOnGlobe,
     onNavigate,
     user,
+    freeAnswers,
+    onAddKey,
     ...composer
   } = props;
   // The side panel shows a chart at full size or a cited passage in its document.
@@ -156,6 +176,7 @@ export function ChatView(props: ChatViewProps) {
                   : 'Add PDFs, scans, slides, spreadsheets, e-mails or recordings, then ask about them in plain language.'}
               </p>
               <Composer {...composer} variant="hero" autoFocus draft={draft} />
+              {freeAnswers && <FreeAnswers {...freeAnswers} onAddKey={onAddKey} />}
               <div className={styles.suggestions}>
                 {suggestions.map((s) => (
                   <button key={s.label} type="button" className="chip" onClick={() => setDraft({ text: s.prompt, nonce: Date.now() })}>
@@ -221,7 +242,11 @@ export function ChatView(props: ChatViewProps) {
             )}
             <div className={styles.dock}>
               <Composer {...composer} variant="dock" draft={draft} />
-              <p className={styles.disclaimer}>Answers can contain mistakes. Every claim links to its source so you can check it.</p>
+              {freeAnswers ? (
+                <FreeAnswers {...freeAnswers} onAddKey={onAddKey} />
+              ) : (
+                <p className={styles.disclaimer}>Answers can contain mistakes. Every claim links to its source so you can check it.</p>
+              )}
             </div>
           </>
         )}
