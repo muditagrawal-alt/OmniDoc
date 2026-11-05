@@ -39,6 +39,24 @@ export interface AccountInfo {
   storage_bytes: number;
   limits: { questions_per_day: number; uploads_per_day: number; storage_mb: number } | null;
   security?: { passkeys: number; totp: boolean; recovery_codes_left: number; email: string };
+  /** Free answers on the server's keys (null: no trial applies, e.g. an administrator) */
+  trial?: { limit: number; used: number } | null;
+  /** Providers with a key kept on the server, and the providers whose own key answered this request */
+  own_keys?: { server: string[]; in_use: string[] };
+}
+
+export interface KeyProvider {
+  name: string;
+  label: string;
+  sign_up: string;
+  free_note: string;
+  model: string;
+}
+
+export interface ServerKey {
+  provider: string;
+  last4: string;
+  added_at: number;
 }
 
 export interface Passkey {
@@ -528,6 +546,24 @@ export interface Health {
 
 const API_BASE: string = (import.meta.env.VITE_API_BASE as string | undefined) ?? '';
 const TOKEN_KEY = 'omnidoc_token';
+/** The user's own model keys, kept only in this browser and sent with each request (never stored by the server). */
+const OWN_KEYS = 'omnidoc_own_keys';
+
+function readOwnKeys(): Record<string, string> {
+  try {
+    const parsed = JSON.parse(localStorage.getItem(OWN_KEYS) || '{}');
+    return parsed && typeof parsed === 'object' ? parsed : {};
+  } catch {
+    return {};
+  }
+}
+
+function encodeKeys(keys: Record<string, string>): string {
+  const bytes = new TextEncoder().encode(JSON.stringify(keys));
+  let bin = '';
+  bytes.forEach((b) => (bin += String.fromCharCode(b)));
+  return btoa(bin).replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, '');
+}
 
 export class ApiError extends Error {
   status: number;
@@ -602,7 +638,20 @@ class OmniDocApiClient {
     if (json) h['Content-Type'] = 'application/json';
     // Not Authorization: a deployment's password gate (HTTP basic auth) uses that header.
     if (this.token) h['X-OmniDoc-Token'] = this.token;
+    const keys = readOwnKeys();
+    if (Object.keys(keys).length) h['X-OmniDoc-Keys'] = encodeKeys(keys);
     return h;
+  }
+
+  /** The error for a failed response; a 401 ends the session, a 402 asks for the user's own key. */
+  private async failed(res: Response, fallback: string): Promise<ApiError> {
+    if (res.status === 401 && this.token && this.onUnauthorized) {
+      this.setToken(null);
+      this.onUnauthorized();
+    }
+    const err = await readError(res, fallback);
+    if (res.status === 402) this.onKeyRequired?.(err.message);
+    return err;
   }
 
   private async request<T>(path: string, init: RequestInit = {}, fallback = 'Request failed'): Promise<T> {
@@ -615,19 +664,15 @@ class OmniDocApiClient {
     } catch {
       throw new ApiError('Cannot reach the OmniDoc server. Is it running on port 8000?', 0);
     }
-    if (!res.ok) {
-      if (res.status === 401 && this.token && this.onUnauthorized) {
-        this.setToken(null);
-        this.onUnauthorized();
-      }
-      throw await readError(res, fallback);
-    }
+    if (!res.ok) throw await this.failed(res, fallback);
     return res.json() as Promise<T>;
   }
 
   // ---- Accounts (hosted servers) --------------------------------------------
   /** Called when the server answers 401 (the session ended): the app shows the sign-in page. */
   onUnauthorized: (() => void) | null = null;
+  /** Called when the server answers 402: the free answers are used up and the user's own key is needed. */
+  onKeyRequired: ((message: string) => void) | null = null;
 
   async authMethods(): Promise<AuthMethods> {
     try {
@@ -801,7 +846,7 @@ class OmniDocApiClient {
     } catch {
       throw new ApiError('Cannot reach the OmniDoc server.', 0);
     }
-    if (!res.ok) throw await readError(res, 'Could not export your data');
+    if (!res.ok) throw await this.failed(res, 'Could not export your data');
     const blob = await res.blob();
     const name = /filename="([^"]+)"/.exec(res.headers.get('content-disposition') || '')?.[1] || 'omnidoc-export.zip';
     const url = URL.createObjectURL(blob);
@@ -810,6 +855,47 @@ class OmniDocApiClient {
     a.download = name;
     a.click();
     window.setTimeout(() => URL.revokeObjectURL(url), 10_000);
+  }
+
+  // ---- Bring your own key ----------------------------------------------------
+  async keyProviders(): Promise<{ providers: KeyProvider[]; trial_answers: number }> {
+    return this.request('/api/keys/providers', {}, 'Could not load the providers');
+  }
+
+  /** Tries a key with one tiny request to its provider; nothing is stored. */
+  checkKey(provider: string, key: string): Promise<{ ok: boolean; reason: string }> {
+    return this.request('/api/keys/check', { method: 'POST', body: JSON.stringify({ provider, key }) }, 'Could not check the key');
+  }
+
+  /** Keys kept in this browser only: provider to last four characters. */
+  deviceKeys(): Record<string, string> {
+    return Object.fromEntries(Object.entries(readOwnKeys()).map(([p, k]) => [p, k.slice(-4)]));
+  }
+
+  setDeviceKey(provider: string, key: string | null): void {
+    const keys = readOwnKeys();
+    if (key) keys[provider] = key;
+    else delete keys[provider];
+    try {
+      if (Object.keys(keys).length) localStorage.setItem(OWN_KEYS, JSON.stringify(keys));
+      else localStorage.removeItem(OWN_KEYS);
+    } catch {
+      throw new ApiError('This browser does not allow saving the key. Keep it on the server instead.', 0);
+    }
+  }
+
+  async serverKeys(): Promise<ServerKey[]> {
+    return (await this.request<{ keys: ServerKey[] }>('/api/account/keys')).keys;
+  }
+
+  async saveServerKey(provider: string, key: string): Promise<ServerKey[]> {
+    return (await this.request<{ keys: ServerKey[] }>(`/api/account/keys/${encodeURIComponent(provider)}`,
+      { method: 'PUT', body: JSON.stringify({ key }) }, 'Could not save the key')).keys;
+  }
+
+  async deleteServerKey(provider: string): Promise<ServerKey[]> {
+    return (await this.request<{ keys: ServerKey[] }>(`/api/account/keys/${encodeURIComponent(provider)}`,
+      { method: 'DELETE' }, 'Could not remove the key')).keys;
   }
 
   // ---- Notices (security events, What's new) --------------------------------
@@ -917,7 +1003,7 @@ class OmniDocApiClient {
       if ((err as Error).name === 'AbortError') throw err;
       throw new ApiError('Cannot reach the OmniDoc server. Is it running on port 8000?', 0);
     }
-    if (!res.ok || !res.body) throw await readError(res, 'The query failed');
+    if (!res.ok || !res.body) throw await this.failed(res, 'The query failed');
 
     let result: QueryResponse | null = null;
     await readEvents(res, (event, data) => {
@@ -1032,7 +1118,7 @@ class OmniDocApiClient {
     } catch {
       throw new ApiError('Cannot reach the OmniDoc server.', 0);
     }
-    if (!res.ok) throw await readError(res, 'Could not create the redacted copy');
+    if (!res.ok) throw await this.failed(res, 'Could not create the redacted copy');
     const disposition = res.headers.get('content-disposition') || '';
     const star = /filename\*=UTF-8''([^;]+)/i.exec(disposition);
     const plain = /filename="([^"]+)"/i.exec(disposition);
@@ -1067,7 +1153,7 @@ class OmniDocApiClient {
       if ((err as Error).name === 'AbortError') throw err;
       throw new ApiError('Cannot reach the OmniDoc server. Is it running on port 8000?', 0);
     }
-    if (!res.ok || !res.body) throw await readError(res, 'Extraction failed');
+    if (!res.ok || !res.body) throw await this.failed(res, 'Extraction failed');
     let csv: string[][] | null = null;
     await readEvents(res, (event, data) => {
       if (event === 'doc_start') handlers.onDocStart?.(data as never);
@@ -1097,7 +1183,7 @@ class OmniDocApiClient {
     } catch {
       throw new ApiError('Cannot reach the OmniDoc server.', 0);
     }
-    if (!res.ok) throw await readError(res, `Could not export ${format.toUpperCase()}`);
+    if (!res.ok) throw await this.failed(res, `Could not export ${format.toUpperCase()}`);
     return res.blob();
   }
 }
