@@ -52,6 +52,7 @@ from agents.web_search_agent import WebSearchAgent
 from agents.validation import validate
 from agents import llm_providers
 from retrieval.records import LibraryRecords
+from core import memory
 from core.workflow import OmniDocWorkflow
 
 logger = logging.getLogger("OmniDoc.Pipeline")
@@ -543,6 +544,8 @@ class AgenticGraphRAGPipeline:
         except Exception as e:
             logger.error(f"Background processing of {doc_id} failed: {e}", exc_info=True)
             job["status"] = "failed"
+        finally:
+            memory.release()
 
     def summarize_missing(self, doc_ids: Optional[List[str]] = None) -> List[str]:
         """
