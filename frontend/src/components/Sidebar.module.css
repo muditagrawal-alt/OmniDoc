@@ -321,3 +321,40 @@
 .profileIcon {
   color: var(--text-3);
 }
+
+.avatar {
+  position: relative;
+}
+
+.avatar[data-unread]::after {
+  content: '';
+  position: absolute;
+  top: -2px;
+  right: -2px;
+  width: 9px;
+  height: 9px;
+  border-radius: 50%;
+  background: var(--accent);
+  box-shadow: 0 0 0 2px var(--bg-sunken);
+}
+
+.demoCard {
+  display: grid;
+  gap: var(--space-1);
+  margin: 0 var(--space-2) var(--space-2);
+  padding: var(--space-3);
+  border-radius: var(--radius-md);
+  background: var(--accent-soft);
+  font-size: var(--text-sm);
+}
+
+.demoCard span {
+  color: var(--text-2);
+  font-size: var(--text-xs);
+  line-height: var(--leading-snug);
+}
+
+.demoCard :global(.btn) {
+  justify-self: start;
+  margin-top: var(--space-2);
+}
