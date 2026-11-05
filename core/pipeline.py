@@ -369,7 +369,7 @@ class AgenticGraphRAGPipeline:
         if background_graph:
             self.graph_jobs[doc_id] = {"status": "queued", "stage": "summary", "processed": 0, "total": 0}
             threading.Thread(
-                target=self._post_ingest, args=(doc_id, display_title, list(parsed_doc.chunks)),
+                target=llm_providers.carry(self._post_ingest), args=(doc_id, display_title, list(parsed_doc.chunks)),
                 name=f"ingest-{doc_id}", daemon=True,
             ).start()
         else:
@@ -565,7 +565,7 @@ class AgenticGraphRAGPipeline:
             for doc_id in queued:
                 self._summarize_one(doc_id, titles[doc_id], previous.get(doc_id))
 
-        threading.Thread(target=work, name="summaries", daemon=True).start()
+        threading.Thread(target=llm_providers.carry(work), name="summaries", daemon=True).start()
         return queued
 
     def _summarize_one(self, doc_id: str, title: str, previous_job: Optional[Dict[str, Any]]) -> None:
