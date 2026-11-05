@@ -78,6 +78,32 @@
   text-align: center;
 }
 
+.freeAnswers {
+  margin-top: var(--space-2);
+  color: var(--text-3);
+  font-size: var(--text-xs);
+  text-align: center;
+  font-variant-numeric: tabular-nums;
+}
+
+.freeAnswers[data-empty] {
+  color: var(--text-2);
+}
+
+.freeAnswers button {
+  padding: 0;
+  border: 0;
+  background: none;
+  color: var(--accent-ink);
+  font: inherit;
+  font-weight: 550;
+  cursor: pointer;
+}
+
+.freeAnswers button:hover {
+  text-decoration: underline;
+}
+
 .jump {
   position: absolute;
   left: 50%;
