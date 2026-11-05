@@ -142,6 +142,8 @@ class OmniDocDB:
             "ALTER TABLE sessions ADD COLUMN ip TEXT",
             "ALTER TABLE sessions ADD COLUMN last_used_at REAL",
             "ALTER TABLE oauth_states ADD COLUMN user_id TEXT",
+            # Free answers on the server's keys, over the account's lifetime (then the user's own key).
+            "ALTER TABLE users ADD COLUMN trial_used INTEGER DEFAULT 0",
         ):
             try:
                 cursor.execute(statement)
@@ -208,6 +210,19 @@ class OmniDocDB:
                 attempts INTEGER DEFAULT 0
             )
         """)
+        # API keys a user chose to keep on the server (encrypted); the default is to keep them on the device only.
+        cursor.execute("""
+            CREATE TABLE IF NOT EXISTS user_keys (
+                user_id TEXT NOT NULL,
+                provider TEXT NOT NULL,
+                key_enc TEXT NOT NULL,
+                last4 TEXT,
+                added_at REAL NOT NULL,
+                PRIMARY KEY (user_id, provider)
+            )
+        """)
+        # Data kept to the minimum: sessions record a device label, never an IP address.
+        cursor.execute("UPDATE sessions SET ip = NULL WHERE ip IS NOT NULL")
         # Notices: security events for one account (user_id set) or announcements for everyone (NULL).
         cursor.execute("""
             CREATE TABLE IF NOT EXISTS notices (
@@ -355,19 +370,18 @@ class OmniDocDB:
         digest = stored[7:] if stored.startswith("sha256:") else hashlib.sha256(stored.encode("utf-8")).hexdigest()
         return digest[:16]
 
-    def create_session(self, user_id: str, ttl_days: Optional[float] = None, user_agent: Optional[str] = None,
-                       ip: Optional[str] = None) -> str:
+    def create_session(self, user_id: str, ttl_days: Optional[float] = None, device: Optional[str] = None) -> str:
         """Issue an opaque random session token for a user (expiring after ttl_days when given)."""
         token = "sess_" + secrets.token_urlsafe(32)
         expires = time.time() + ttl_days * 86400 if ttl_days else None
-        self.conn.execute("INSERT INTO sessions (token, user_id, expires_at, user_agent, ip, last_used_at) VALUES (?, ?, ?, ?, ?, ?)",
-                          (self._token_key(token), user_id, expires, (user_agent or "")[:300] or None, ip, time.time()))
+        self.conn.execute("INSERT INTO sessions (token, user_id, expires_at, user_agent, last_used_at) VALUES (?, ?, ?, ?, ?)",
+                          (self._token_key(token), user_id, expires, (device or "")[:80] or None, time.time()))
         if ttl_days:
             self.conn.execute("UPDATE users SET last_login_at = CURRENT_TIMESTAMP WHERE id = ?", (user_id,))
         self.conn.commit()
         return token
 
-    def get_session_user_id(self, token: str, ip: Optional[str] = None) -> Optional[str]:
+    def get_session_user_id(self, token: str, touch: bool = False) -> Optional[str]:
         cursor = self.conn.cursor()
         # Sessions issued before tokens were hashed are still found by their plain value.
         cursor.execute("SELECT token, user_id, expires_at, last_used_at FROM sessions WHERE token IN (?, ?)",
@@ -379,8 +393,8 @@ class OmniDocDB:
         if row["expires_at"] and row["expires_at"] < now:
             self.delete_session(token)
             return None
-        if ip and now - (row["last_used_at"] or 0) > 300:  # "last active" for the devices list, at most every 5 minutes
-            self.conn.execute("UPDATE sessions SET last_used_at = ?, ip = ? WHERE token = ?", (now, ip, row["token"]))
+        if touch and now - (row["last_used_at"] or 0) > 300:  # "last active" for the devices list, at most every 5 minutes
+            self.conn.execute("UPDATE sessions SET last_used_at = ? WHERE token = ?", (now, row["token"]))
             self.conn.commit()
         return row["user_id"]
 
@@ -390,10 +404,10 @@ class OmniDocDB:
     def list_sessions(self, user_id: str) -> List[Dict[str, Any]]:
         now = time.time()
         rows = self.conn.execute("""
-            SELECT token, user_agent, ip, created_at, last_used_at, expires_at FROM sessions
+            SELECT token, user_agent, created_at, last_used_at, expires_at FROM sessions
             WHERE user_id = ? ORDER BY COALESCE(last_used_at, 0) DESC
         """, (user_id,)).fetchall()
-        return [{"id": self._session_id(r["token"]), "user_agent": r["user_agent"] or "", "ip": r["ip"] or "",
+        return [{"id": self._session_id(r["token"]), "user_agent": r["user_agent"] or "",
                  "created_at": r["created_at"], "last_used_at": r["last_used_at"]}
                 for r in rows if not r["expires_at"] or r["expires_at"] >= now]
 
@@ -578,7 +592,35 @@ class OmniDocDB:
             INSERT INTO usage (user_id, day, {kind}) VALUES (?, ?, 1)
             ON CONFLICT(user_id, day) DO UPDATE SET {kind} = {kind} + 1
         """, (user_id, day))
+        # Only today's counts matter for limits: older rows are not kept beyond 40 days.
+        self.conn.execute("DELETE FROM usage WHERE day < ?", (time.strftime("%Y-%m-%d", time.gmtime(time.time() - 40 * 86400)),))
         self.conn.commit()
+
+    def trial_used(self, user_id: str) -> int:
+        row = self.conn.execute("SELECT trial_used FROM users WHERE id = ?", (user_id,)).fetchone()
+        return int((row[0] if row else 0) or 0)
+
+    def add_trial_use(self, user_id: str) -> None:
+        self.conn.execute("UPDATE users SET trial_used = COALESCE(trial_used, 0) + 1 WHERE id = ?", (user_id,))
+        self.conn.commit()
+
+    # -------------------------------------------------------------- own API keys
+    def put_user_key(self, user_id: str, provider: str, key_enc: str, last4: str) -> None:
+        self.conn.execute("""
+            INSERT INTO user_keys (user_id, provider, key_enc, last4, added_at) VALUES (?, ?, ?, ?, ?)
+            ON CONFLICT(user_id, provider) DO UPDATE SET key_enc = excluded.key_enc, last4 = excluded.last4, added_at = excluded.added_at
+        """, (user_id, provider, key_enc, last4, time.time()))
+        self.conn.commit()
+
+    def user_keys(self, user_id: str) -> List[Dict[str, Any]]:
+        rows = self.conn.execute("SELECT provider, key_enc, last4, added_at FROM user_keys WHERE user_id = ? ORDER BY provider",
+                                 (user_id,)).fetchall()
+        return [dict(r) for r in rows]
+
+    def delete_user_key(self, user_id: str, provider: str) -> bool:
+        cur = self.conn.execute("DELETE FROM user_keys WHERE user_id = ? AND provider = ?", (user_id, provider))
+        self.conn.commit()
+        return cur.rowcount > 0
 
     # ------------------------------------------------------------------ chats
     def create_chat(self, chat_id: str, document_id: Optional[str] = None, title: str = "New conversation", user_id: str = LOCAL_USER_ID):
@@ -742,7 +784,7 @@ class OmniDocDB:
         cur.execute("DELETE FROM chats WHERE user_id = ?", (user_id,))
         cur.execute("DELETE FROM sessions WHERE user_id = ?", (user_id,))
         cur.execute("DELETE FROM usage WHERE user_id = ?", (user_id,))
-        for table in ("passkeys", "recovery_codes", "mfa_tickets", "notices", "notice_reads", "auth_challenges"):
+        for table in ("passkeys", "recovery_codes", "mfa_tickets", "notices", "notice_reads", "auth_challenges", "user_keys"):
             cur.execute(f"DELETE FROM {table} WHERE user_id = ?", (user_id,))
         if user and user.get("email"):
             cur.execute("DELETE FROM otp_codes WHERE email = ?", (user["email"],))
