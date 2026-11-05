@@ -48,7 +48,8 @@ jobs:
       - name: System packages (OCR, PDF reports)
         run: |
           sudo apt-get update
-          sudo apt-get install -y --no-install-recommends tesseract-ocr libpango-1.0-0 libpangoft2-1.0-0
+          sudo apt-get install -y --no-install-recommends tesseract-ocr tesseract-ocr-osd tesseract-ocr-eng \
+            fonts-dejavu-core libpango-1.0-0 libpangoft2-1.0-0
       - run: pip install -r requirements-slim.txt pytest cbor2 psutil
       - uses: actions/cache@v4
         with:
