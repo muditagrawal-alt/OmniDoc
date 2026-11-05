@@ -226,7 +226,7 @@ class VisionAgent:
 
         chosen = figures[: self.max_figures]
         with ThreadPoolExecutor(max_workers=max(1, len(chosen))) as pool:
-            analyses = list(pool.map(lambda fig: self._analyze(model, fig, query), chosen))
+            analyses = list(pool.map(llm_providers.carry(lambda fig: self._analyze(model, fig, query)), chosen))
         findings = [{**{k: v for k, v in fig.items() if k != "render"}, "analysis": a, "model": model}
                     for fig, a in zip(chosen, analyses) if a]
         kind = "pages" if any("render" in f for f in chosen) else "figures"
