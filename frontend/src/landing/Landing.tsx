@@ -282,7 +282,9 @@ export default function Landing({ methods, onSignIn, onTryDemo, demoBusy, demoEr
         <section className={styles.final} aria-labelledby="final-title">
           <h2 id="final-title" className={styles.h2}>See it on a real library.</h2>
           <p className={styles.sectionLede}>
-            {methods.demo ? 'The demo opens a sample library of annual reports, papers and scans. No account needed.' : 'Create an account and add your first document.'}
+            {methods.demo
+              ? 'The demo opens a sample library: two annual reports, a contract, a scanned invoice and a summary in Hindi, from a fictional company. No account needed.'
+              : 'Create an account and add your first document.'}
           </p>
           <div className={styles.ctas}>
             {primary}
