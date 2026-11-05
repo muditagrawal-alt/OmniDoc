@@ -220,7 +220,7 @@ class GraphExtractor:
         failed: List[List[Any]] = []
         # The model calls run in parallel; the graph is written here, batch by batch in document order.
         with ThreadPoolExecutor(max_workers=1 if local else max(1, GRAPH_WORKERS)) as pool:
-            asked = [pool.submit(self._ask_complete, doc_id, batch) for batch in batches]
+            asked = [pool.submit(llm_providers.carry(self._ask_complete), doc_id, batch) for batch in batches]
             for batch, future in zip(batches, asked):
                 results = future.result()
                 if not any(results.values()):
