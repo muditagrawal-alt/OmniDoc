@@ -13,6 +13,7 @@ import { ProfileDialog } from './components/ProfileDialog';
 import { SignIn } from './components/SignIn';
 import { AccountDialog } from './components/AccountDialog';
 import { NoticesDialog } from './components/NoticesDialog';
+import { KeysDialog } from './components/KeysDialog';
 import { ToastProvider, useToast } from './components/ui/Toast';
 import styles from './App.module.css';
 
@@ -60,6 +61,9 @@ function Shell() {
   const [accountOpen, setAccountOpen] = useState(false);
   const [noticesOpen, setNoticesOpen] = useState(false);
   const [unread, setUnread] = useState(0);
+  const [keysOpen, setKeysOpen] = useState(false);
+  const [keysReason, setKeysReason] = useState<string | null>(null);
+  const [freeAnswers, setFreeAnswers] = useState<{ left: number; limit: number } | null>(null);
 
   const [chats, setChats] = useState<ChatSession[]>([]);
   const [chatsLoading, setChatsLoading] = useState(true);
@@ -168,6 +172,11 @@ function Shell() {
       }
     })();
     api.onUnauthorized = () => setUser(null);
+    // The free answers are used up: ask for the user's own key, right where they are.
+    api.onKeyRequired = (message) => {
+      setKeysReason(message);
+      setKeysOpen(true);
+    };
     return () => {
       cancelled = true;
     };
@@ -185,6 +194,17 @@ function Shell() {
     return () => window.clearInterval(t);
   }, [accountsOn, signedInId, guestSession]);
   const clearUnread = useCallback(() => setUnread(0), []);
+
+  // Free answers left on the server's keys (none shown once the user's own key answers).
+  const refreshFreeAnswers = useCallback(() => {
+    if (!accountsOn || !signedInId) return;
+    api.getAccount()
+      .then((a) => setFreeAnswers(a.trial && !a.own_keys?.in_use.length ? { left: Math.max(0, a.trial.limit - a.trial.used), limit: a.trial.limit } : null))
+      .catch(() => undefined);
+  }, [accountsOn, signedInId]);
+  useEffect(() => {
+    refreshFreeAnswers();
+  }, [refreshFreeAnswers]);
 
   // Poll while summaries or knowledge-graph extraction run in the background
   const extracting = documents.some((d) => d.graph_status && ['queued', 'running'].includes(d.graph_status.status));
@@ -358,9 +378,10 @@ function Shell() {
       } finally {
         inflightRef.current = null;
         setInflight(null);
+        refreshFreeAnswers();
       }
     },
-    [language, loadChats, selectedDocIds, toast, webMode],
+    [language, loadChats, selectedDocIds, toast, webMode, refreshFreeAnswers],
   );
 
   const stop = () => inflightRef.current?.controller.abort();
@@ -530,6 +551,7 @@ function Shell() {
         onOpenAccount={() => setAccountOpen(true)}
         unreadNotices={unread}
         onOpenNotices={() => setNoticesOpen(true)}
+        onOpenKeys={() => { setKeysReason(null); setKeysOpen(true); }}
         documentCount={documents.length}
       />
       <div className={styles.main}>
@@ -564,6 +586,8 @@ function Shell() {
             onLanguageChange={setLanguage}
             webMode={webMode}
             onWebModeChange={setWebMode}
+            freeAnswers={freeAnswers}
+            onAddKey={() => { setKeysReason(null); setKeysOpen(true); }}
           />
         )}
         {view === 'library' && (
@@ -629,6 +653,9 @@ function Shell() {
           toast('Your account and its data were deleted', 'good');
         }}
       />
+      <KeysDialog key={keysOpen ? 'keys-open' : 'keys-closed'} open={keysOpen} reason={keysReason}
+        canStoreOnServer={!!methods.accounts && user?.kind !== 'guest'}
+        onClose={() => setKeysOpen(false)} onSaved={refreshFreeAnswers} />
       <NoticesDialog key={noticesOpen ? 'open' : 'closed'} open={noticesOpen} onClose={() => setNoticesOpen(false)} onRead={clearUnread} />
       <ProfileDialog
         open={profileOpen}
