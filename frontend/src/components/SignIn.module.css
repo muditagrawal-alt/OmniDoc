@@ -29,6 +29,21 @@
   letter-spacing: var(--tracking-snug);
 }
 
+.brandLink {
+  padding: 0;
+  border: 0;
+  background: none;
+  color: inherit;
+  font: inherit;
+  font-size: var(--text-md);
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.brandLink:hover span {
+  text-decoration: underline;
+}
+
 .title {
   font-size: var(--text-xl);
   font-weight: 600;
