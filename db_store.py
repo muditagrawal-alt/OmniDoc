@@ -114,6 +114,14 @@ class OmniDocDB:
             )
         """)
 
+        cursor.execute("""
+            CREATE TABLE IF NOT EXISTS oauth_states (
+                state_hash TEXT PRIMARY KEY,
+                provider TEXT NOT NULL,
+                created_at REAL NOT NULL
+            )
+        """)
+
         # Additive migrations for databases created by earlier versions
         for statement in (
             "ALTER TABLE messages ADD COLUMN metadata TEXT",
@@ -124,6 +132,16 @@ class OmniDocDB:
             "ALTER TABLE chats ADD COLUMN memory_upto INTEGER DEFAULT 0",
             "ALTER TABLE sessions ADD COLUMN expires_at REAL",
             "ALTER TABLE users ADD COLUMN last_login_at TIMESTAMP",
+            # Accounts without e-mail (passkeys, guests), two-step sign-in, and the devices list.
+            "ALTER TABLE users ADD COLUMN kind TEXT DEFAULT 'user'",
+            "ALTER TABLE users ADD COLUMN webauthn_handle TEXT",
+            "ALTER TABLE users ADD COLUMN totp_secret TEXT",
+            "ALTER TABLE users ADD COLUMN totp_enabled INTEGER DEFAULT 0",
+            "ALTER TABLE users ADD COLUMN totp_last_step INTEGER DEFAULT 0",
+            "ALTER TABLE sessions ADD COLUMN user_agent TEXT",
+            "ALTER TABLE sessions ADD COLUMN ip TEXT",
+            "ALTER TABLE sessions ADD COLUMN last_used_at REAL",
+            "ALTER TABLE oauth_states ADD COLUMN user_id TEXT",
         ):
             try:
                 cursor.execute(statement)
@@ -142,19 +160,72 @@ class OmniDocDB:
             )
         """)
         cursor.execute("""
-            CREATE TABLE IF NOT EXISTS oauth_states (
-                state_hash TEXT PRIMARY KEY,
-                provider TEXT NOT NULL,
-                created_at REAL NOT NULL
-            )
-        """)
-        cursor.execute("""
             CREATE TABLE IF NOT EXISTS usage (
                 user_id TEXT NOT NULL,
                 day TEXT NOT NULL,
                 questions INTEGER DEFAULT 0,
                 uploads INTEGER DEFAULT 0,
                 PRIMARY KEY (user_id, day)
+            )
+        """)
+        cursor.execute("""
+            CREATE TABLE IF NOT EXISTS passkeys (
+                id TEXT PRIMARY KEY,
+                user_id TEXT NOT NULL,
+                public_key TEXT NOT NULL,
+                sign_count INTEGER DEFAULT 0,
+                transports TEXT,
+                label TEXT,
+                created_at REAL NOT NULL,
+                last_used_at REAL
+            )
+        """)
+        cursor.execute("CREATE INDEX IF NOT EXISTS idx_passkeys_user ON passkeys(user_id)")
+        cursor.execute("""
+            CREATE TABLE IF NOT EXISTS auth_challenges (
+                id TEXT PRIMARY KEY,
+                purpose TEXT NOT NULL,
+                challenge TEXT NOT NULL,
+                user_id TEXT,
+                data TEXT,
+                created_at REAL NOT NULL
+            )
+        """)
+        cursor.execute("""
+            CREATE TABLE IF NOT EXISTS recovery_codes (
+                code_hash TEXT PRIMARY KEY,
+                user_id TEXT NOT NULL,
+                used_at REAL
+            )
+        """)
+        cursor.execute("CREATE INDEX IF NOT EXISTS idx_recovery_user ON recovery_codes(user_id)")
+        cursor.execute("""
+            CREATE TABLE IF NOT EXISTS mfa_tickets (
+                ticket_hash TEXT PRIMARY KEY,
+                user_id TEXT NOT NULL,
+                method TEXT,
+                created_at REAL NOT NULL,
+                attempts INTEGER DEFAULT 0
+            )
+        """)
+        # Notices: security events for one account (user_id set) or announcements for everyone (NULL).
+        cursor.execute("""
+            CREATE TABLE IF NOT EXISTS notices (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                user_id TEXT,
+                kind TEXT NOT NULL,
+                title TEXT NOT NULL,
+                body TEXT,
+                url TEXT,
+                created_at REAL NOT NULL
+            )
+        """)
+        cursor.execute("CREATE INDEX IF NOT EXISTS idx_notices_user ON notices(user_id, created_at)")
+        cursor.execute("""
+            CREATE TABLE IF NOT EXISTS notice_reads (
+                user_id TEXT NOT NULL,
+                notice_id INTEGER NOT NULL,
+                PRIMARY KEY (user_id, notice_id)
             )
         """)
         # Older builds stored anonymous chats under 'usr_default'
@@ -233,6 +304,39 @@ class OmniDocDB:
         row = cursor.fetchone()
         return dict(row) if row else None
 
+    def create_user(self, user_id: str, name: str, provider: str, kind: str = "user", email: Optional[str] = None,
+                    webauthn_handle: Optional[str] = None) -> Dict[str, Any]:
+        """A new account; passkey accounts and guests have no e-mail address."""
+        self.conn.execute("""
+            INSERT INTO users (id, email, name, provider, avatar_url, kind, webauthn_handle)
+            VALUES (?, ?, ?, ?, '', ?, ?)
+        """, (user_id, email, name, provider, kind, webauthn_handle))
+        self.conn.commit()
+        return self.get_user(user_id)
+
+    def set_user_email(self, user_id: str, email: str, avatar_url: str = "") -> None:
+        self.conn.execute("UPDATE users SET email = ?, avatar_url = CASE WHEN COALESCE(avatar_url, '') = '' THEN ? ELSE avatar_url END WHERE id = ?",
+                          (email, avatar_url, user_id))
+        self.conn.commit()
+
+    def set_webauthn_handle(self, user_id: str, handle: str) -> None:
+        self.conn.execute("UPDATE users SET webauthn_handle = ? WHERE id = ?", (handle, user_id))
+        self.conn.commit()
+
+    def set_totp(self, user_id: str, secret: Optional[str], enabled: bool, step: int = 0) -> None:
+        self.conn.execute("UPDATE users SET totp_secret = ?, totp_enabled = ?, totp_last_step = ? WHERE id = ?",
+                          (secret, 1 if enabled else 0, step, user_id))
+        self.conn.commit()
+
+    def set_totp_step(self, user_id: str, step: int) -> None:
+        self.conn.execute("UPDATE users SET totp_last_step = ? WHERE id = ?", (step, user_id))
+        self.conn.commit()
+
+    def stale_guests(self, older_than_days: float) -> List[str]:
+        rows = self.conn.execute("SELECT id FROM users WHERE kind = 'guest' AND created_at < datetime('now', ?)",
+                                 (f"-{older_than_days} days",)).fetchall()
+        return [r[0] for r in rows]
+
     def get_user_by_email(self, email: str) -> Optional[Dict[str, Any]]:
         cursor = self.conn.cursor()
         cursor.execute("SELECT * FROM users WHERE email = ?", (email,))
@@ -245,28 +349,67 @@ class OmniDocDB:
         # Only a hash of each session token is stored: a copy of the database cannot be used to sign in.
         return "sha256:" + hashlib.sha256(token.encode("utf-8")).hexdigest()
 
-    def create_session(self, user_id: str, ttl_days: Optional[float] = None) -> str:
+    @staticmethod
+    def _session_id(stored: str) -> str:
+        # A short public id for the devices list, derived from the stored hash (never the token).
+        digest = stored[7:] if stored.startswith("sha256:") else hashlib.sha256(stored.encode("utf-8")).hexdigest()
+        return digest[:16]
+
+    def create_session(self, user_id: str, ttl_days: Optional[float] = None, user_agent: Optional[str] = None,
+                       ip: Optional[str] = None) -> str:
         """Issue an opaque random session token for a user (expiring after ttl_days when given)."""
         token = "sess_" + secrets.token_urlsafe(32)
         expires = time.time() + ttl_days * 86400 if ttl_days else None
-        self.conn.execute("INSERT INTO sessions (token, user_id, expires_at) VALUES (?, ?, ?)",
-                          (self._token_key(token), user_id, expires))
+        self.conn.execute("INSERT INTO sessions (token, user_id, expires_at, user_agent, ip, last_used_at) VALUES (?, ?, ?, ?, ?, ?)",
+                          (self._token_key(token), user_id, expires, (user_agent or "")[:300] or None, ip, time.time()))
         if ttl_days:
             self.conn.execute("UPDATE users SET last_login_at = CURRENT_TIMESTAMP WHERE id = ?", (user_id,))
         self.conn.commit()
         return token
 
-    def get_session_user_id(self, token: str) -> Optional[str]:
+    def get_session_user_id(self, token: str, ip: Optional[str] = None) -> Optional[str]:
         cursor = self.conn.cursor()
         # Sessions issued before tokens were hashed are still found by their plain value.
-        cursor.execute("SELECT user_id, expires_at FROM sessions WHERE token IN (?, ?)", (self._token_key(token), token))
+        cursor.execute("SELECT token, user_id, expires_at, last_used_at FROM sessions WHERE token IN (?, ?)",
+                       (self._token_key(token), token))
         row = cursor.fetchone()
         if not row:
             return None
-        if row["expires_at"] and row["expires_at"] < time.time():
+        now = time.time()
+        if row["expires_at"] and row["expires_at"] < now:
             self.delete_session(token)
             return None
+        if ip and now - (row["last_used_at"] or 0) > 300:  # "last active" for the devices list, at most every 5 minutes
+            self.conn.execute("UPDATE sessions SET last_used_at = ?, ip = ? WHERE token = ?", (now, ip, row["token"]))
+            self.conn.commit()
         return row["user_id"]
+
+    def session_id(self, token: str) -> str:
+        return self._session_id(self._token_key(token))
+
+    def list_sessions(self, user_id: str) -> List[Dict[str, Any]]:
+        now = time.time()
+        rows = self.conn.execute("""
+            SELECT token, user_agent, ip, created_at, last_used_at, expires_at FROM sessions
+            WHERE user_id = ? ORDER BY COALESCE(last_used_at, 0) DESC
+        """, (user_id,)).fetchall()
+        return [{"id": self._session_id(r["token"]), "user_agent": r["user_agent"] or "", "ip": r["ip"] or "",
+                 "created_at": r["created_at"], "last_used_at": r["last_used_at"]}
+                for r in rows if not r["expires_at"] or r["expires_at"] >= now]
+
+    def delete_session_by_id(self, user_id: str, session_id: str) -> bool:
+        rows = self.conn.execute("SELECT token FROM sessions WHERE user_id = ?", (user_id,)).fetchall()
+        doomed = [r["token"] for r in rows if self._session_id(r["token"]) == session_id]
+        for stored in doomed:
+            self.conn.execute("DELETE FROM sessions WHERE token = ?", (stored,))
+        self.conn.commit()
+        return bool(doomed)
+
+    def delete_other_sessions(self, user_id: str, keep_token: str) -> int:
+        cur = self.conn.execute("DELETE FROM sessions WHERE user_id = ? AND token NOT IN (?, ?)",
+                                (user_id, self._token_key(keep_token), keep_token))
+        self.conn.commit()
+        return cur.rowcount
 
     def delete_session(self, token: str):
         self.conn.execute("DELETE FROM sessions WHERE token IN (?, ?)", (self._token_key(token), token))
@@ -300,18 +443,126 @@ class OmniDocDB:
         self.conn.commit()
 
     # ------------------------------------------------------------- OAuth states
-    def put_oauth_state(self, state_hash: str, provider: str) -> None:
+    def put_oauth_state(self, state_hash: str, provider: str, user_id: Optional[str] = None) -> None:
         now = time.time()
         self.conn.execute("DELETE FROM oauth_states WHERE created_at < ?", (now - 900,))
-        self.conn.execute("INSERT INTO oauth_states (state_hash, provider, created_at) VALUES (?, ?, ?)", (state_hash, provider, now))
+        self.conn.execute("INSERT INTO oauth_states (state_hash, provider, created_at, user_id) VALUES (?, ?, ?, ?)",
+                          (state_hash, provider, now, user_id))
         self.conn.commit()
 
-    def take_oauth_state(self, state_hash: str, provider: str, max_age: float = 600) -> bool:
+    def take_oauth_state(self, state_hash: str, provider: str, max_age: float = 600) -> Optional[Dict[str, Any]]:
         """Consumes a state issued for this provider in the last max_age seconds (each state works once)."""
-        row = self.conn.execute("SELECT provider, created_at FROM oauth_states WHERE state_hash = ?", (state_hash,)).fetchone()
+        row = self.conn.execute("SELECT provider, created_at, user_id FROM oauth_states WHERE state_hash = ?", (state_hash,)).fetchone()
         self.conn.execute("DELETE FROM oauth_states WHERE state_hash = ?", (state_hash,))
         self.conn.commit()
-        return bool(row) and row["provider"] == provider and time.time() - row["created_at"] <= max_age
+        if row and row["provider"] == provider and time.time() - row["created_at"] <= max_age:
+            return {"provider": row["provider"], "user_id": row["user_id"]}
+        return None
+
+    # ------------------------------------------------------- passkey ceremonies
+    def put_challenge(self, challenge_id: str, purpose: str, challenge: str, user_id: Optional[str], data: str) -> None:
+        now = time.time()
+        self.conn.execute("DELETE FROM auth_challenges WHERE created_at < ?", (now - 900,))
+        self.conn.execute("INSERT INTO auth_challenges (id, purpose, challenge, user_id, data, created_at) VALUES (?, ?, ?, ?, ?, ?)",
+                          (challenge_id, purpose, challenge, user_id, data, now))
+        self.conn.commit()
+
+    def take_challenge(self, challenge_id: str, purpose: str, max_age: float) -> Optional[Dict[str, Any]]:
+        """Consumes a challenge (each works once) issued for this purpose in the last max_age seconds."""
+        row = self.conn.execute("SELECT * FROM auth_challenges WHERE id = ?", (challenge_id,)).fetchone()
+        self.conn.execute("DELETE FROM auth_challenges WHERE id = ?", (challenge_id,))
+        self.conn.commit()
+        if row and row["purpose"] == purpose and time.time() - row["created_at"] <= max_age:
+            return dict(row)
+        return None
+
+    # ----------------------------------------------------------------- passkeys
+    def add_passkey(self, credential_id: str, user_id: str, public_key: str, sign_count: int, transports: str, label: str) -> None:
+        self.conn.execute("""
+            INSERT INTO passkeys (id, user_id, public_key, sign_count, transports, label, created_at)
+            VALUES (?, ?, ?, ?, ?, ?, ?)
+        """, (credential_id, user_id, public_key, sign_count, transports, label, time.time()))
+        self.conn.commit()
+
+    def get_passkey(self, credential_id: str) -> Optional[Dict[str, Any]]:
+        row = self.conn.execute("SELECT * FROM passkeys WHERE id = ?", (credential_id,)).fetchone()
+        return dict(row) if row else None
+
+    def passkey_used(self, credential_id: str, sign_count: int, when: float) -> None:
+        self.conn.execute("UPDATE passkeys SET sign_count = ?, last_used_at = ? WHERE id = ?", (sign_count, when, credential_id))
+        self.conn.commit()
+
+    def list_passkeys(self, user_id: str) -> List[Dict[str, Any]]:
+        rows = self.conn.execute("SELECT id, label, transports, created_at, last_used_at FROM passkeys WHERE user_id = ? ORDER BY created_at",
+                                 (user_id,)).fetchall()
+        return [dict(r) for r in rows]
+
+    def delete_passkey(self, user_id: str, credential_id: str) -> bool:
+        cur = self.conn.execute("DELETE FROM passkeys WHERE user_id = ? AND id = ?", (user_id, credential_id))
+        self.conn.commit()
+        return cur.rowcount > 0
+
+    # ------------------------------------------------------------ recovery codes
+    def replace_recovery_codes(self, user_id: str, hashes: List[str]) -> None:
+        self.conn.execute("DELETE FROM recovery_codes WHERE user_id = ?", (user_id,))
+        self.conn.executemany("INSERT INTO recovery_codes (code_hash, user_id) VALUES (?, ?)", [(h, user_id) for h in hashes])
+        self.conn.commit()
+
+    def spend_recovery_code(self, code_hash: str, user_id: Optional[str], when: float) -> Optional[str]:
+        row = self.conn.execute("SELECT user_id FROM recovery_codes WHERE code_hash = ? AND used_at IS NULL", (code_hash,)).fetchone()
+        if not row or (user_id and row["user_id"] != user_id):
+            return None
+        cur = self.conn.execute("UPDATE recovery_codes SET used_at = ? WHERE code_hash = ? AND used_at IS NULL", (when, code_hash))
+        self.conn.commit()
+        return row["user_id"] if cur.rowcount else None
+
+    def recovery_codes_left(self, user_id: str) -> int:
+        row = self.conn.execute("SELECT COUNT(*) FROM recovery_codes WHERE user_id = ? AND used_at IS NULL", (user_id,)).fetchone()
+        return int(row[0])
+
+    # ---------------------------------------------------- two-step sign-in tickets
+    def put_mfa_ticket(self, ticket_hash: str, user_id: str, method: str) -> None:
+        now = time.time()
+        self.conn.execute("DELETE FROM mfa_tickets WHERE created_at < ?", (now - 3600,))
+        self.conn.execute("INSERT INTO mfa_tickets (ticket_hash, user_id, method, created_at) VALUES (?, ?, ?, ?)",
+                          (ticket_hash, user_id, method, now))
+        self.conn.commit()
+
+    def get_mfa_ticket(self, ticket_hash: str) -> Optional[Dict[str, Any]]:
+        row = self.conn.execute("SELECT * FROM mfa_tickets WHERE ticket_hash = ?", (ticket_hash,)).fetchone()
+        return dict(row) if row else None
+
+    def mfa_attempt(self, ticket_hash: str) -> None:
+        self.conn.execute("UPDATE mfa_tickets SET attempts = attempts + 1 WHERE ticket_hash = ?", (ticket_hash,))
+        self.conn.commit()
+
+    def delete_mfa_ticket(self, ticket_hash: str) -> None:
+        self.conn.execute("DELETE FROM mfa_tickets WHERE ticket_hash = ?", (ticket_hash,))
+        self.conn.commit()
+
+    # ------------------------------------------------------------------ notices
+    def add_notice(self, user_id: Optional[str], kind: str, title: str, body: str = "", url: Optional[str] = None) -> int:
+        cur = self.conn.execute("INSERT INTO notices (user_id, kind, title, body, url, created_at) VALUES (?, ?, ?, ?, ?, ?)",
+                                (user_id, kind, title, body, url, time.time()))
+        self.conn.commit()
+        return cur.lastrowid
+
+    def list_notices(self, user_id: str, limit: int = 50) -> List[Dict[str, Any]]:
+        """The account's own notices and every announcement, newest first, each with read: true/false."""
+        rows = self.conn.execute("""
+            SELECT n.*, (r.notice_id IS NOT NULL) AS read FROM notices n
+            LEFT JOIN notice_reads r ON r.notice_id = n.id AND r.user_id = ?
+            WHERE n.user_id = ? OR n.user_id IS NULL
+            ORDER BY n.created_at DESC, n.id DESC LIMIT ?
+        """, (user_id, user_id, limit)).fetchall()
+        return [{**dict(r), "read": bool(r["read"])} for r in rows]
+
+    def mark_notices_read(self, user_id: str, notice_ids: Optional[List[int]] = None) -> None:
+        if notice_ids is None:
+            notice_ids = [n["id"] for n in self.list_notices(user_id, limit=500) if not n["read"]]
+        self.conn.executemany("INSERT OR IGNORE INTO notice_reads (user_id, notice_id) VALUES (?, ?)",
+                              [(user_id, int(i)) for i in notice_ids])
+        self.conn.commit()
 
     # -------------------------------------------------------------------- usage
     def usage_today(self, user_id: str) -> Dict[str, int]:
@@ -484,13 +735,15 @@ class OmniDocDB:
         return int(row[0] or 0)
 
     def delete_user(self, user_id: str) -> None:
-        """Removes a user with their chats, messages, sessions, codes and usage (documents are removed by the caller)."""
+        """Removes a user with their chats, messages, sessions, passkeys, codes, notices and usage (the caller removes documents)."""
         user = self.get_user(user_id)
         cur = self.conn.cursor()
         cur.execute("DELETE FROM messages WHERE chat_id IN (SELECT id FROM chats WHERE user_id = ?)", (user_id,))
         cur.execute("DELETE FROM chats WHERE user_id = ?", (user_id,))
         cur.execute("DELETE FROM sessions WHERE user_id = ?", (user_id,))
         cur.execute("DELETE FROM usage WHERE user_id = ?", (user_id,))
+        for table in ("passkeys", "recovery_codes", "mfa_tickets", "notices", "notice_reads", "auth_challenges"):
+            cur.execute(f"DELETE FROM {table} WHERE user_id = ?", (user_id,))
         if user and user.get("email"):
             cur.execute("DELETE FROM otp_codes WHERE email = ?", (user["email"],))
         cur.execute("DELETE FROM documents WHERE owner_id = ?", (user_id,))
