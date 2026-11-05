@@ -25,6 +25,9 @@ or bring-your-own-key), never "upgrade".
 | Conversation memory (rolling summary of older turns) | Done |
 | Sign-in without e-mail: passkeys, recovery codes, authenticator apps, devices, linking GitHub/Google, data export, notices | Done (code), not yet live |
 | Guest demo on a read-only sample library; proof-of-work check and per-address rate limits | Done (code), not yet live |
+| Free trial (3 answers), then bring your own key (browser or encrypted on the server); data minimised | Done (code), not yet live |
+| Product page (React Bits) before sign-in; fictional sample library for the demo | Done (code), not yet live |
+| Slim image for 1 GB hosts (ONNX, no PyTorch), CI with tests, a memory budget and GHCR publishing | Done |
 | One-command deployment, HTTPS, nightly backups, security headers | Done (code), not yet live |
 | Everything in the phases below | Planned |
 
@@ -32,8 +35,8 @@ or bring-your-own-key), never "upgrade".
 
 | Need | Free resource | Limit that matters |
 |---|---|---|
-| Server | Oracle Cloud Always Free, Ampere A1 VM | 2 OCPUs, 12 GB, 200 GB disk; reclaimed if idle (<20% CPU, network and memory) for 7 days |
-| HTTPS and address | Caddy + `<ip>.sslip.io` | No custom name until a domain is added |
+| Server | ClawCloud Run free plan ($5 credit a month for GitHub accounts over 180 days) | 0.5 vCPU and 1 GB always on; the slim image peaks near 790 MB |
+| HTTPS and address | ClawCloud's `*.clawcloudrun.com` address | No custom name until a domain is added |
 | Domain | None: `<ip>.sslip.io` (decided). If a nicer name is ever wanted at no cost: an is-a.dev subdomain (free, via a GitHub pull request) | Without a domain, Cloudflare's proxy and branded e-mail are not available |
 | Edge protection | Caddy plus rate limits in the app (Cloudflare's proxy needs a domain) | Per-IP and per-account limits enforced by OmniDoc |
 | Bot protection | Cloudflare Turnstile (a free Cloudflare account, no domain on Cloudflare) | Verify that it accepts the sslip.io hostname; otherwise a self-hosted proof-of-work challenge |
@@ -56,7 +59,9 @@ or bring-your-own-key), never "upgrade".
 
 ## Phase 0: go live
 
-1. Oracle VM, `oracle-setup.sh`, HTTPS on `<ip>.sslip.io`.
+1. Host (decided 2026-11-05): **ClawCloud Run's free plan** (0.5 vCPU, 1 GB, HTTPS, persistent disk),
+   with the slim image CI publishes; see `deploy/CLAWCLOUD.md`. The owner's Oracle, Vercel and Render
+   accounts already hold other projects.
 2. Accounts on: a GitHub OAuth app, and a Google OAuth client if Google accepts the sslip.io address.
    Passkeys (Phase 1) let people without GitHub or Google sign up: an account is a display name plus a
    passkey, with recovery codes shown once at sign-up.
