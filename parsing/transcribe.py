@@ -43,6 +43,12 @@ def _segments(data: Dict[str, Any]) -> List[Dict[str, Any]]:
 
 def transcribe(path: str) -> Dict[str, Any]:
     """{"segments": [{start, end, text}], "language", "duration", "engine"}; raises TranscriptionUnavailable."""
+    from agents.llm_providers import server_keys
+    with server_keys():  # transcription is part of indexing an upload, like embeddings
+        return _transcribe(path)
+
+
+def _transcribe(path: str) -> Dict[str, Any]:
     from agents.llm_providers import REGISTRY, Provider, openai_transcribe
     ext = os.path.splitext(path)[1].lower()
     groq = REGISTRY.get("groq")
