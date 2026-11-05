@@ -13,6 +13,7 @@ fast model; if that is not possible, the earlier questions are kept verbatim ins
 import logging
 import threading
 from typing import Any, Callable, Dict, List, Optional
+from agents import llm_providers
 
 logger = logging.getLogger("OmniDoc.ChatMemory")
 
@@ -89,4 +90,5 @@ def update(chat_id: str, get_messages: Callable[[str], List[Dict[str, Any]]], ge
 
 
 def update_in_background(*args: Any) -> None:
-    threading.Thread(target=update, args=args, name="chat-memory", daemon=True).start()
+    # carry: the summary uses the same keys as the conversation (the user's own, when they brought one).
+    threading.Thread(target=llm_providers.carry(update), args=args, name="chat-memory", daemon=True).start()
