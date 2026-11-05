@@ -47,7 +47,7 @@ from fastapi.responses import StreamingResponse, FileResponse, RedirectResponse,
 from db_store import OmniDocDB, LOCAL_USER_ID, DATA_DIR
 from export.report_compiler import ReportCompiler
 from core.pipeline import AgenticGraphRAGPipeline
-from core import accounts, chat_memory, abuse, passkeys, two_factor
+from core import accounts, chat_memory, abuse, memory, passkeys, two_factor
 from agents import llm_providers
 
 logging.basicConfig(level=logging.INFO, format="%(asctime)s [%(levelname)s] %(name)s: %(message)s")
@@ -1049,6 +1049,7 @@ def health_check():
         "ollama": ollama_models(timeout=1.0) is not None,
         "providers": [p.name for p in llm_providers.chat_providers()],
         "stores": stores,
+        "memory_mb": round(memory.rss_mb()),
         "timestamp": time.time(),
     }
 
@@ -1310,6 +1311,7 @@ def _after_turn(chat_id: str, user_id: str) -> None:
     if accounts_on():
         db.count_usage(user_id, "questions")
     chat_memory.update_in_background(chat_id, db.get_messages, db.get_chat, db.set_chat_memory, _summarize_for_memory)
+    memory.release()
 
 
 def _persist_turn(chat: Dict[str, Any], query: str, payload: Dict[str, Any], first_turn: bool) -> int:
@@ -1527,6 +1529,7 @@ def _ingest_bytes(contents: bytes, original_name: str, ext: str, user_id: str = 
     if accounts_on():
         db.count_usage(user_id, "uploads")
     get_pipeline().refresh_records()
+    memory.release()
     result = {"status": "success", "doc_id": doc_id, "filename": original_name,
               "chunk_count": chunk_count, "duplicate": False,
               "visual_element_count": len(getattr(parsed, "visual_elements", []) or []),
