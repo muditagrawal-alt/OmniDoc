@@ -21,6 +21,8 @@ const MOBILE_QUERY = '(max-width: 900px)';
 
 // The globe pulls in three.js; load it only when the knowledge view opens.
 const KnowledgeView = lazy(() => import('./components/knowledge/KnowledgeView').then((m) => ({ default: m.KnowledgeView })));
+// The product page is its own chunk: people using the app never download it.
+const Landing = lazy(() => import('./landing/Landing'));
 const VIEWS: View[] = ['chat', 'library', 'extract', 'compare', 'knowledge'];
 
 function viewFromHash(): View {
@@ -61,6 +63,11 @@ function Shell() {
   const [accountOpen, setAccountOpen] = useState(false);
   const [noticesOpen, setNoticesOpen] = useState(false);
   const [unread, setUnread] = useState(0);
+  // Signed-out visitors see the product page; "Sign in" or "Create a free account" opens sign-in.
+  const [signInStep, setSignInStep] = useState<'start' | 'signup' | null>(() =>
+    window.location.pathname.startsWith('/signin') ? 'start' : null);
+  const [demoBusy, setDemoBusy] = useState(false);
+  const [demoError, setDemoError] = useState<string | null>(null);
   const [keysOpen, setKeysOpen] = useState(false);
   const [keysReason, setKeysReason] = useState<string | null>(null);
   const [freeAnswers, setFreeAnswers] = useState<{ left: number; limit: number } | null>(null);
@@ -157,6 +164,7 @@ function Shell() {
         const back = api.takeRedirect(); // back from Google or GitHub sign-in, or from linking one
         if (back.error) setAuthError(back.error);
         if (back.mfa) setAuthTicket(back.mfa);
+        if (back.error || back.mfa) setSignInStep('start');
         if (back.linked) {
           toast(`${back.linked === 'github' ? 'GitHub' : 'Google'} is now linked to your account`, 'good');
           setAccountOpen(true);
@@ -194,6 +202,13 @@ function Shell() {
     return () => window.clearInterval(t);
   }, [accountsOn, signedInId, guestSession]);
   const clearUnread = useCallback(() => setUnread(0), []);
+
+  // The browser's back button moves between the product page and sign-in.
+  useEffect(() => {
+    const onPop = () => setSignInStep(window.location.pathname.startsWith('/signin') ? 'start' : null);
+    window.addEventListener('popstate', onPop);
+    return () => window.removeEventListener('popstate', onPop);
+  }, []);
 
   // Free answers left on the server's keys (none shown once the user's own key answers).
   const refreshFreeAnswers = useCallback(() => {
@@ -501,27 +516,64 @@ function Shell() {
   const liveSteps = inflight && inflight.chatId === activeChatId ? inflight.steps : [];
 
   if (!methods) return <div className={styles.app} aria-busy="true" />;
+  const enterApp = (u: User) => {
+    setUser(u);
+    setAuthError(null);
+    setAuthTicket(null);
+    setSignInStep(null);
+    setActiveChatId(null);
+    if (window.location.pathname !== '/') window.history.replaceState(null, '', '/');
+    loadChats();
+    loadDocuments();
+  };
+
+  if (methods.accounts && !user && signInStep === null) {
+    const tryDemo = async () => {
+      setDemoBusy(true);
+      setDemoError(null);
+      try {
+        const result = await api.startGuest();
+        if ('user' in result) enterApp(result.user);
+      } catch (e) {
+        setDemoError((e as Error).message);
+      } finally {
+        setDemoBusy(false);
+      }
+    };
+    return (
+      <Suspense fallback={<div className={styles.app} aria-busy="true" />}>
+        <Landing methods={methods} demoBusy={demoBusy} demoError={demoError} onTryDemo={tryDemo}
+          onSignIn={(step) => {
+            setSignInStep(step);
+            window.history.pushState(null, '', '/signin');
+          }} />
+      </Suspense>
+    );
+  }
   if (methods.accounts && !user) {
     return (
       <SignIn
         methods={methods}
         initialError={authError}
         initialTicket={authTicket}
-        onSignedIn={(u) => {
-          setUser(u);
+        initialStep={signInStep ?? 'start'}
+        onBack={() => {
+          setSignInStep(null);
           setAuthError(null);
-          setAuthTicket(null);
-          setActiveChatId(null);
-          loadChats();
-          loadDocuments();
+          window.history.pushState(null, '', '/');
         }}
+        onSignedIn={enterApp}
       />
     );
   }
 
   const signOut = async () => {
+    const wasGuest = user?.kind === 'guest';
     await api.logout();
     setUser(null);
+    // Leaving the demo goes straight to sign-in; signing out returns to the product page.
+    setSignInStep(wasGuest ? 'start' : null);
+    window.history.replaceState(null, '', wasGuest ? '/signin' : '/');
     setAccountOpen(false);
     setActiveChatId(null);
     setChats([]);
