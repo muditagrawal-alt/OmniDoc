@@ -14,13 +14,21 @@ SQL, checking) and a "fast" model (understanding a question, background summarie
 
 Usage per question (calls, tokens, providers) is recorded under the run id set by the
 workflow, so the execution budget and the answer footer can report it.
+
+Bring your own key: a request can carry the user's own keys (``use_keys``). While they are set,
+providers answer with those keys only, never the server's, and rate-limit pacing is kept per key.
+They live in a context variable, so they follow the request into the threads that ``carry`` starts.
 """
 import os
 import re
 import json
 import time
+import hashlib
 import logging
+import functools
+import contextlib
 import threading
+import contextvars
 from dataclasses import dataclass, field
 from typing import Any, Callable, Dict, Iterator, List, Optional, Tuple
 
@@ -58,6 +66,9 @@ class Provider:
 
     @property
     def api_key(self) -> str:
+        mine = _user_keys.get()
+        if mine is not None:  # the user's own keys replace the server's entirely
+            return mine.get(self.name, "")
         for env in (self.key_env,) + self.key_aliases:
             value = (os.getenv(env) or "").strip()
             if value:
@@ -67,6 +78,56 @@ class Provider:
     @property
     def configured(self) -> bool:
         return bool(self.api_key and self.base_url)
+
+
+# ------------------------------------------------------------------ the user's own keys
+_user_keys: "contextvars.ContextVar[Optional[Dict[str, str]]]" = contextvars.ContextVar("omnidoc_user_keys", default=None)
+# Providers a user can bring a key for (the custom endpoint and embedding-only services are the server's).
+BYOK_PROVIDERS = ("gemini", "groq", "nvidia", "openrouter", "mistral", "cerebras", "github")
+
+
+def clean_keys(keys: Optional[Dict[str, Any]]) -> Optional[Dict[str, str]]:
+    """Known providers with a plausible key; None when nothing usable is left."""
+    out = {name: str(value).strip() for name, value in (keys or {}).items()
+           if name in BYOK_PROVIDERS and isinstance(value, str) and 8 <= len(value.strip()) <= 400}
+    return out or None
+
+
+def use_keys(keys: Optional[Dict[str, Any]]) -> None:
+    """Answers in this context (a request and the threads it carries) use these keys, not the server's."""
+    _user_keys.set(clean_keys(keys))
+
+
+def current_keys() -> Optional[Dict[str, str]]:
+    return _user_keys.get()
+
+
+@contextlib.contextmanager
+def server_keys() -> Iterator[None]:
+    """The server's own keys, whatever the request brought: for infrastructure such as embeddings."""
+    token = _user_keys.set(None)
+    try:
+        yield
+    finally:
+        _user_keys.reset(token)
+
+
+def carry(fn: Callable) -> Callable:
+    """fn, run with the caller's context (and so the user's keys) in whatever thread calls it."""
+    ctx = contextvars.copy_context()
+
+    @functools.wraps(fn)
+    def run(*args: Any, **kwargs: Any) -> Any:
+        return ctx.copy().run(fn, *args, **kwargs)
+    return run
+
+
+def _bucket(p: "Provider") -> str:
+    """Pacing and cool-down are per key: one user's rate limit must not slow everyone else."""
+    mine = _user_keys.get()
+    if mine is None:
+        return p.name
+    return f"{p.name}:{hashlib.sha256(mine.get(p.name, '').encode()).hexdigest()[:12]}"
 
 
 def _env(name: str, default: str) -> str:
@@ -212,13 +273,14 @@ class ProviderError(Exception):
 
 def _available(p: Provider, est_tokens: int) -> Tuple[bool, str]:
     now = time.time()
-    if _cooldown.get(p.name, 0) > now:
-        return False, f"cooling down for {int(_cooldown[p.name] - now)}s"
+    bucket = _bucket(p)
+    if _cooldown.get(bucket, 0) > now:
+        return False, f"cooling down for {int(_cooldown[bucket] - now)}s"
     if p.tpm and est_tokens > 0.9 * p.tpm:
         return False, f"request (~{est_tokens} tokens) exceeds its {p.tpm} tokens/min limit"
     with _pace_lock:
-        window = [t for t in _recent.get(p.name, []) if now - t < 60]
-        _recent[p.name] = window
+        window = [t for t in _recent.get(bucket, []) if now - t < 60]
+        _recent[bucket] = window
         if len(window) >= p.rpm:
             return False, f"{p.rpm} requests/min reached"
     return True, ""
@@ -229,9 +291,10 @@ def wait_seconds(p: Provider, est_tokens: int) -> Optional[float]:
     now = time.time()
     if p.tpm and est_tokens > 0.9 * p.tpm:
         return None
-    wait = max(0.0, _cooldown.get(p.name, 0) - now)
+    bucket = _bucket(p)
+    wait = max(0.0, _cooldown.get(bucket, 0) - now)
     with _pace_lock:
-        window = sorted(t for t in _recent.get(p.name, []) if now - t < 60)
+        window = sorted(t for t in _recent.get(bucket, []) if now - t < 60)
         if len(window) >= p.rpm:
             wait = max(wait, 60 - (now - window[len(window) - p.rpm]))
     return wait
@@ -239,11 +302,11 @@ def wait_seconds(p: Provider, est_tokens: int) -> Optional[float]:
 
 def _mark_used(p: Provider) -> None:
     with _pace_lock:
-        _recent.setdefault(p.name, []).append(time.time())
+        _recent.setdefault(_bucket(p), []).append(time.time())
 
 
 def _cool(p: Provider, seconds: float, reason: str) -> None:
-    _cooldown[p.name] = time.time() + seconds
+    _cooldown[_bucket(p)] = time.time() + seconds
     logger.warning(f"{p.label}: {reason}; skipping it for {int(seconds)}s.")
 
 
@@ -564,3 +627,25 @@ def default_spec() -> str:
 
 def is_available(p: Provider, est_tokens: int) -> Tuple[bool, str]:
     return _available(p, est_tokens)
+
+
+def check_key(provider: str, key: str) -> Tuple[bool, str]:
+    """Whether a user's key works: one tiny request to the provider's fast model. (ok, reason)."""
+    p = REGISTRY.get(provider)
+    if p is None or provider not in BYOK_PROVIDERS:
+        return False, "Unknown provider."
+    token = _user_keys.set({provider: key.strip()})
+    try:
+        openai_chat(p, p.fast_model or p.model, [{"role": "user", "content": "Reply with OK."}], max_tokens=4, fast=True)
+        return True, ""
+    except ProviderError as e:
+        status = getattr(e, "status", 0)
+        if status in (401, 403):
+            return False, f"{p.label} did not accept this key."
+        if status == 429:
+            return True, ""  # the key is valid; it is only busy right now
+        return False, f"{p.label} could not be reached with this key ({str(e)[:120]})."
+    except Exception as e:
+        return False, f"{p.label} could not be reached with this key ({str(e)[:120]})."
+    finally:
+        _user_keys.reset(token)
