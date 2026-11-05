@@ -227,10 +227,14 @@ def _text_image(path, rotate=0):
     from PIL import Image, ImageDraw, ImageFont
     img = Image.new("RGB", (1400, 500), "white")
     draw = ImageDraw.Draw(img)
-    try:
-        font = ImageFont.truetype("/System/Library/Fonts/Supplemental/Arial.ttf", 44)
-    except OSError:
-        font = ImageFont.load_default()
+    font = None
+    for face in ("/System/Library/Fonts/Supplemental/Arial.ttf", "/usr/share/fonts/truetype/dejavu/DejaVuSans.ttf"):
+        try:
+            font = ImageFont.truetype(face, 44)
+            break
+        except OSError:
+            continue
+    font = font or ImageFont.load_default(size=44)  # never the 10 px bitmap font: OCR cannot read it
     for i, line in enumerate(["Invoice No: NW-2026-0419", "Total Due: INR 991,200", "Payment within 30 days"]):
         draw.text((60, 60 + i * 120), line, fill="black", font=font)
     if rotate:
