@@ -4,13 +4,19 @@
  * In development Vite proxies /api to the FastAPI server (see vite.config.ts),
  * so the default base is same-origin. Set VITE_API_BASE to point elsewhere.
  */
+import { createPasskey, signWithPasskey } from './lib/webauthn';
+import { solvePow } from './lib/pow';
+import type { PowChallenge } from './lib/pow';
 
 export interface User {
   id: string;
+  /** Empty for accounts made with a passkey until they link GitHub or Google */
   email: string;
   name: string;
   provider: string;
   avatar_url?: string;
+  kind?: 'user' | 'guest';
+  totp_enabled?: boolean;
 }
 
 export interface AuthMethods {
@@ -19,16 +25,57 @@ export interface AuthMethods {
   email: boolean;
   google: boolean;
   github: boolean;
+  passkey?: boolean;
+  /** "Try it without signing in": a read-only guest session on the sample library */
+  demo?: boolean;
 }
 
 export interface AccountInfo {
   user: User;
   accounts: boolean;
   admin: boolean;
+  guest?: boolean;
   usage: { questions: number; uploads: number };
   storage_bytes: number;
   limits: { questions_per_day: number; uploads_per_day: number; storage_mb: number } | null;
+  security?: { passkeys: number; totp: boolean; recovery_codes_left: number; email: string };
 }
+
+export interface Passkey {
+  id: string;
+  label: string;
+  created_at: number;
+  last_used_at: number | null;
+}
+
+export interface DeviceSession {
+  id: string;
+  device: string;
+  ip: string;
+  created_at: string;
+  last_used_at: number | null;
+  current: boolean;
+}
+
+export interface Notice {
+  id: number;
+  kind: 'security' | 'release' | string;
+  title: string;
+  body?: string;
+  url?: string | null;
+  created_at: number;
+  read: boolean;
+}
+
+export interface TotpSetup {
+  challenge_id: string;
+  secret: string;
+  uri: string;
+  qr_svg: string;
+}
+
+/** Sign-in either finishes (a user) or, for an account with an authenticator app, asks for a code. */
+export type SignInResult = { user: User; recoveryCodes?: string[] } | { mfa: string };
 
 export interface ChatSession {
   id: string;
@@ -594,14 +641,72 @@ class OmniDocApiClient {
     await this.request('/api/auth/code/request', { method: 'POST', body: JSON.stringify({ email }) }, 'Could not send the code');
   }
 
-  async verifyCode(email: string, code: string, name?: string): Promise<User> {
-    const data = await this.request<{ user: User; token: string }>(
+  async verifyCode(email: string, code: string, name?: string): Promise<SignInResult> {
+    const data = await this.request<{ user?: User; token?: string; mfa?: string }>(
       '/api/auth/code/verify',
       { method: 'POST', body: JSON.stringify({ email, code, name }) },
       'Could not verify the code',
     );
-    this.setToken(data.token);
-    return data.user;
+    return this.finish(data);
+  }
+
+  private finish(data: { user?: User; token?: string; mfa?: string; recovery_codes?: string[] }): SignInResult {
+    if (data.mfa) return { mfa: data.mfa };
+    this.setToken(data.token ?? null);
+    return { user: data.user as User, recoveryCodes: data.recovery_codes };
+  }
+
+  /** Solves the server's proof-of-work check (sign-up, the demo, recovery codes). */
+  private async proof() {
+    const challenge = await this.request<PowChallenge>('/api/auth/challenge', {}, 'Could not start the browser check');
+    return solvePow(challenge);
+  }
+
+  /** Creates an account with a passkey (no e-mail); returns the user and their recovery codes. */
+  async signUpWithPasskey(name: string): Promise<SignInResult> {
+    const pow = await this.proof();
+    const start = await this.request<{ challenge_id: string; options: Record<string, unknown> }>(
+      '/api/auth/passkey/signup/options', { method: 'POST', body: JSON.stringify({ name, pow }) }, 'Could not start sign-up');
+    const credential = await createPasskey(start.options);
+    const data = await this.request<{ user: User; token: string; recovery_codes: string[] }>(
+      '/api/auth/passkey/signup/verify',
+      { method: 'POST', body: JSON.stringify({ challenge_id: start.challenge_id, credential }) },
+      'Could not create the account',
+    );
+    return this.finish(data);
+  }
+
+  async signInWithPasskey(): Promise<SignInResult> {
+    const start = await this.request<{ challenge_id: string; options: Record<string, unknown> }>(
+      '/api/auth/passkey/signin/options', { method: 'POST' }, 'Could not start sign-in');
+    const credential = await signWithPasskey(start.options);
+    const data = await this.request<{ user: User; token: string }>(
+      '/api/auth/passkey/signin/verify',
+      { method: 'POST', body: JSON.stringify({ challenge_id: start.challenge_id, credential }) },
+      'Could not sign in',
+    );
+    return this.finish(data);
+  }
+
+  async signInWithRecoveryCode(code: string): Promise<SignInResult> {
+    const pow = await this.proof();
+    const data = await this.request<{ user: User; token: string }>(
+      '/api/auth/recovery', { method: 'POST', body: JSON.stringify({ code, pow }) }, 'Could not sign in');
+    return this.finish(data);
+  }
+
+  /** The second step: a code from the authenticator app, or a recovery code. */
+  async finishTwoStep(ticket: string, code: string): Promise<SignInResult> {
+    const data = await this.request<{ user: User; token: string }>(
+      '/api/auth/mfa', { method: 'POST', body: JSON.stringify({ ticket, code }) }, 'Could not verify the code');
+    return this.finish(data);
+  }
+
+  async startGuest(): Promise<SignInResult> {
+    const pow = await this.proof();
+    const data = await this.request<{ user: User; token: string }>(
+      '/api/auth/guest', { method: 'POST', body: JSON.stringify({ pow }) }, 'Could not open the demo');
+    return this.finish(data);
   }
 
   /** Google and GitHub sign-in leave the app and come back with the session in the address fragment. */
@@ -609,21 +714,111 @@ class OmniDocApiClient {
     return `${API_BASE}/api/auth/oauth/${provider}/start`;
   }
 
-  /** Takes a session (or an error) handed back by Google or GitHub sign-in, and clears it from the address. */
-  takeRedirect(): { error?: string } {
+  /**
+   * Takes what Google or GitHub sign-in handed back in the address (a session, a two-step ticket,
+   * a linked account or an error) and clears it from the address bar.
+   */
+  takeRedirect(): { error?: string; mfa?: string; linked?: string } {
     const hash = window.location.hash;
-    if (!hash.startsWith('#auth=') && !hash.startsWith('#auth_error=')) return {};
-    const value = decodeURIComponent(hash.slice(hash.indexOf('=') + 1));
+    const match = /^#(auth|auth_error|mfa|linked)=(.*)$/.exec(hash);
+    if (!match) return {};
+    const value = decodeURIComponent(match[2]);
     window.history.replaceState(null, '', window.location.pathname + window.location.search);
-    if (hash.startsWith('#auth=')) {
+    if (match[1] === 'auth') {
       this.setToken(value);
       return {};
     }
+    if (match[1] === 'mfa') return { mfa: value };
+    if (match[1] === 'linked') return { linked: value };
     return { error: value };
   }
 
   getAccount(): Promise<AccountInfo> {
     return this.request<AccountInfo>('/api/account');
+  }
+
+  // ---- Account security -----------------------------------------------------
+  async listPasskeys(): Promise<Passkey[]> {
+    return (await this.request<{ passkeys: Passkey[] }>('/api/account/passkeys')).passkeys;
+  }
+
+  /** Adds a passkey on this device; returns the list and, if the account had none left, new recovery codes. */
+  async addPasskey(): Promise<{ passkeys: Passkey[]; recovery_codes: string[] | null }> {
+    const start = await this.request<{ challenge_id: string; options: Record<string, unknown> }>(
+      '/api/account/passkeys/options', { method: 'POST' }, 'Could not start adding a passkey');
+    const credential = await createPasskey(start.options);
+    return this.request('/api/account/passkeys/verify',
+      { method: 'POST', body: JSON.stringify({ challenge_id: start.challenge_id, credential }) }, 'Could not add the passkey');
+  }
+
+  async removePasskey(id: string): Promise<Passkey[]> {
+    const data = await this.request<{ passkeys: Passkey[] }>(
+      `/api/account/passkeys/${encodeURIComponent(id)}`, { method: 'DELETE' }, 'Could not remove the passkey');
+    return data.passkeys;
+  }
+
+  totpSetup(): Promise<TotpSetup> {
+    return this.request<TotpSetup>('/api/account/totp/setup', { method: 'POST' }, 'Could not start the setup');
+  }
+
+  totpEnable(challengeId: string, code: string): Promise<{ recovery_codes: string[] | null }> {
+    return this.request('/api/account/totp/enable',
+      { method: 'POST', body: JSON.stringify({ challenge_id: challengeId, code }) }, 'Could not turn on two-step sign-in');
+  }
+
+  async totpDisable(code: string): Promise<void> {
+    await this.request('/api/account/totp/disable', { method: 'POST', body: JSON.stringify({ code }) }, 'Could not turn it off');
+  }
+
+  async newRecoveryCodes(): Promise<string[]> {
+    return (await this.request<{ recovery_codes: string[] }>('/api/account/recovery-codes', { method: 'POST' },
+      'Could not make new codes')).recovery_codes;
+  }
+
+  async listSessions(): Promise<DeviceSession[]> {
+    return (await this.request<{ sessions: DeviceSession[] }>('/api/account/sessions')).sessions;
+  }
+
+  async endSession(id: string): Promise<void> {
+    await this.request(`/api/account/sessions/${encodeURIComponent(id)}`, { method: 'DELETE' }, 'Could not sign that device out');
+  }
+
+  async endOtherSessions(): Promise<number> {
+    return (await this.request<{ signed_out: number }>('/api/account/sessions/sign-out-others', { method: 'POST' },
+      'Could not sign the other devices out')).signed_out;
+  }
+
+  /** The consent page that adds GitHub or Google as another way into this account. */
+  async linkUrl(provider: 'google' | 'github'): Promise<string> {
+    return (await this.request<{ url: string }>(`/api/account/link/${provider}`, { method: 'POST' }, 'Could not start linking')).url;
+  }
+
+  /** Downloads everything the account holds as a zip. */
+  async exportAccount(): Promise<void> {
+    let res: Response;
+    try {
+      res = await fetch(`${API_BASE}/api/account/export`, { headers: this.headers(false) });
+    } catch {
+      throw new ApiError('Cannot reach the OmniDoc server.', 0);
+    }
+    if (!res.ok) throw await readError(res, 'Could not export your data');
+    const blob = await res.blob();
+    const name = /filename="([^"]+)"/.exec(res.headers.get('content-disposition') || '')?.[1] || 'omnidoc-export.zip';
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = name;
+    a.click();
+    window.setTimeout(() => URL.revokeObjectURL(url), 10_000);
+  }
+
+  // ---- Notices (security events, What's new) --------------------------------
+  listNotices(): Promise<{ notices: Notice[]; unread: number }> {
+    return this.request('/api/notices');
+  }
+
+  async readNotices(ids?: number[]): Promise<void> {
+    await this.request('/api/notices/read', { method: 'POST', body: JSON.stringify({ ids: ids ?? null }) });
   }
 
   async deleteAccount(): Promise<void> {
