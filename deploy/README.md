@@ -55,11 +55,21 @@ volume (`docker run --rm -v omnidoc_omnidoc-data:/data -v $PWD:/b alpine tar czf
 ## Accounts: sign-in for everyone you share it with
 
 With `OMNIDOC_ACCOUNTS=1` every visitor signs in, and each account has its own private library,
-conversations, knowledge graph and record tables. Nothing about a user is stored except the e-mail
-address, a name and their own documents and chats, all on your server: no third-party account service
-is needed. Sign-in uses GitHub, Google or one-time codes, so OmniDoc stores no passwords; sessions
-last 30 days and only their hashes are kept. Turn on at least one method. GitHub alone is enough and
-needs no e-mail service; it also accepts the free `<ip>.sslip.io` address, which Google may refuse:
+conversations, knowledge graph and record tables. Nothing about a user is stored except a name, how
+they sign in (an e-mail address for GitHub, Google or codes; only a public key for a passkey) and
+their own documents and chats, all on your server: no third-party account service is needed. OmniDoc
+stores no passwords; sessions last 30 days and only their hashes are kept.
+
+**Passkeys need no setup and no e-mail.** Anyone can create an account with Face ID, Touch ID,
+Windows Hello or a phone, and gets ten one-time recovery codes. Passkeys need HTTPS (Caddy provides
+it) and work on the free `<ip>.sslip.io` address. Accounts can also turn on an authenticator app
+(Google or Microsoft Authenticator, 1Password...) as a second step after GitHub, Google or e-mail
+sign-in, see and sign out their devices, link GitHub or Google as a second way in, and download all
+their data as a zip, under *Settings → Account and security*. Administrators must use a passkey or an
+authenticator app before they can change server settings.
+
+GitHub sign-in is optional, needs no e-mail service and accepts the sslip.io address (Google may
+refuse it):
 
 | Method | Free service | Setup |
 |---|---|---|
@@ -72,7 +82,19 @@ Every account gets daily limits (40 questions, 20 uploads) and a 200 MB library 
 (`OMNIDOC_DAILY_QUESTIONS`, `OMNIDOC_DAILY_UPLOADS`, `OMNIDOC_STORAGE_MB`) so that free model quotas
 and the disk are shared fairly; administrators have none. `OMNIDOC_ALLOWED_EMAILS` restricts sign-in
 to listed addresses or `@domains`. Users can see their usage and delete their account, with all their
-data, from *Settings → Account and usage*.
+data, from *Settings → Account and security*.
+
+**A guest demo** for visitors who will not sign up: set `OMNIDOC_DEMO=1` and copy a few public
+documents into the data volume's `demo` folder
+(`docker compose cp ./samples/. omnidoc:/data/demo/`, then restart). They are indexed once into a
+shared library. "Try the demo" on the sign-in page opens a one-day guest session that can ask,
+compare, search and extract on it (8 questions by default, `OMNIDOC_GUEST_QUESTIONS`) but cannot
+upload, delete or see any account.
+
+**Abuse limits, with no third-party service.** Creating an account, opening the demo and using a
+recovery code first make the browser solve a small proof-of-work puzzle (about a second for a person,
+expensive for a bot at scale). Each address is limited to 240 API requests a minute and to a few
+sign-up, demo and recovery attempts an hour; behind Caddy the visitor's real address is used.
 
 With 200 GB of disk and 200 MB per account, the server holds the libraries of about 900 users;
 conversations are stored compressed and take a few kilobytes per answer.
