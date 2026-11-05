@@ -3,13 +3,16 @@ Neural Cross-Encoder Reranker for OmniDoc.
 Refines candidate chunks from hybrid search to maximize NDCG and eliminate distractor noise.
 
 The cross-encoder is loaded once per process (module-level cache) no matter how many
-ChunkReranker instances are created. Scores are calibrated relevance probabilities in
+ChunkReranker instances are created. "onnx:<model>" runs the same model as int8 ONNX on ONNX
+Runtime (no PyTorch: the slim image for 1 GB servers, see retrieval/onnx_models.py), and is the
+default when sentence-transformers is not installed. Scores are calibrated relevance probabilities in
 [0, 1] (sigmoid of the cross-encoder logit), so they can be shown to users and compared
 across chunks and graph triples.
 """
 import os
 import re
 import math
+import importlib.util
 import logging
 import threading
 from typing import Dict, List, Optional, Sequence
@@ -18,7 +21,9 @@ from core.state import RetrievedChunk
 
 logger = logging.getLogger("OmniDoc.Reranker")
 
-DEFAULT_RERANKER_MODEL = os.getenv("OMNIDOC_RERANKER_MODEL", "cross-encoder/ms-marco-MiniLM-L-6-v2")
+DEFAULT_RERANKER_MODEL = os.getenv("OMNIDOC_RERANKER_MODEL") or (
+    "cross-encoder/ms-marco-MiniLM-L-6-v2" if importlib.util.find_spec("sentence_transformers")
+    else "onnx:Xenova/ms-marco-MiniLM-L-6-v2")
 
 _MODEL_CACHE: Dict[str, object] = {}
 _FAILED_MODELS: Dict[str, str] = {}
@@ -55,6 +60,11 @@ def _load_cross_encoder(model_name: str):
         if model_name in _MODEL_CACHE:
             return _MODEL_CACHE[model_name]
         try:
+            if model_name.startswith("onnx:"):
+                from retrieval import onnx_models
+                model = onnx_models.load("rerank", model_name[len("onnx:"):])
+                _MODEL_CACHE[model_name] = model
+                return model
             from sentence_transformers import CrossEncoder
             device = _device()
             try:
