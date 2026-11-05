@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import {
+  Bell,
   Check,
   GitCompareArrows,
   Globe2,
@@ -53,6 +54,9 @@ interface SidebarProps {
   /** A hosted server with accounts: the menu opens the account dialog instead of local profiles. */
   accountsMode?: boolean;
   onOpenAccount?: () => void;
+  /** Unread security notices and announcements (accounts only). */
+  unreadNotices?: number;
+  onOpenNotices?: () => void;
   documentCount: number;
 }
 
@@ -201,7 +205,15 @@ export function Sidebar(props: SidebarProps) {
           </div>
         </div>
 
-        <SettingsFooter user={user} onOpenProfile={onOpenProfile} onSignOut={onSignOut} accountsMode={accountsMode} onOpenAccount={onOpenAccount} />
+        {user?.kind === 'guest' && (
+          <div className={styles.demoCard}>
+            <strong>You are exploring the demo</strong>
+            <span>A shared, read-only sample library. Sign in to upload your own documents.</span>
+            <button type="button" className="btn btn-primary btn-sm" onClick={onSignOut}>Sign in</button>
+          </div>
+        )}
+        <SettingsFooter user={user} onOpenProfile={onOpenProfile} onSignOut={onSignOut} accountsMode={accountsMode}
+          onOpenAccount={onOpenAccount} unreadNotices={props.unreadNotices ?? 0} onOpenNotices={props.onOpenNotices} />
       </aside>
     </>
   );
@@ -275,8 +287,9 @@ const THEMES: Array<{ key: ThemePreference; label: string; icon: typeof Sun }> =
   { key: 'dark', label: 'Dark', icon: Moon },
 ];
 
-function SettingsFooter({ user, onOpenProfile, onSignOut, accountsMode = false, onOpenAccount }: {
+function SettingsFooter({ user, onOpenProfile, onSignOut, accountsMode = false, onOpenAccount, unreadNotices = 0, onOpenNotices }: {
   user: User | null; onOpenProfile: () => void; onSignOut: () => void; accountsMode?: boolean; onOpenAccount?: () => void;
+  unreadNotices?: number; onOpenNotices?: () => void;
 }) {
   const { preference, setPreference } = useTheme();
   const toast = useToast();
@@ -318,7 +331,7 @@ function SettingsFooter({ user, onOpenProfile, onSignOut, accountsMode = false, 
         align="start"
         trigger={(p) => (
           <button type="button" className={styles.profileButton} {...p} onClick={() => { loadModels(); p.onClick(); }}>
-            <span className={styles.avatar} aria-hidden="true">{initials}</span>
+            <span className={styles.avatar} aria-hidden="true" data-unread={unreadNotices > 0 || undefined}>{initials}</span>
             <span className={styles.profileText}>
               <span className={styles.profileName}>{user?.name || 'Local profile'}</span>
               <span className={styles.profileMeta}>{current ? current.split(':').slice(-1)[0].split('/').slice(-1)[0] : 'Settings'}</span>
@@ -372,12 +385,18 @@ function SettingsFooter({ user, onOpenProfile, onSignOut, accountsMode = false, 
             <div className="menu-sep" />
             {accountsMode && (
               <button type="button" role="menuitem" className="menu-item" onClick={() => { close(); onOpenAccount?.(); }}>
-                <UserRound size={15} strokeWidth={1.75} /> Account and usage…
+                <UserRound size={15} strokeWidth={1.75} /> {user?.kind === 'guest' ? 'About the demo…' : 'Account and security…'}
+              </button>
+            )}
+            {accountsMode && user?.kind !== 'guest' && (
+              <button type="button" role="menuitem" className="menu-item" onClick={() => { close(); onOpenNotices?.(); }}>
+                <Bell size={15} strokeWidth={1.75} /> Notifications
+                {unreadNotices > 0 && <span className="menu-hint">{unreadNotices} new</span>}
               </button>
             )}
             {user ? (
               <button type="button" role="menuitem" className="menu-item" onClick={() => { close(); onSignOut(); }}>
-                <LogOut size={15} strokeWidth={1.75} /> Sign out of {user.email}
+                <LogOut size={15} strokeWidth={1.75} /> {user.kind === 'guest' ? 'Leave the demo' : `Sign out of ${user.email || user.name}`}
               </button>
             ) : (
               <button type="button" role="menuitem" className="menu-item" onClick={() => { close(); onOpenProfile(); }}>
