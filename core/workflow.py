@@ -583,7 +583,7 @@ class OmniDocWorkflow:
             except Exception as e:  # surfaced to the caller below
                 events.put(("_error", e))
 
-        worker = threading.Thread(target=work, name=f"workflow-{run_id}", daemon=True)
+        worker = threading.Thread(target=llm_providers.carry(work), name=f"workflow-{run_id}", daemon=True)
         worker.start()
         try:
             while True:
