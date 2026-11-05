@@ -16,6 +16,8 @@ Turned on with OMNIDOC_ACCOUNTS=1. Without it OmniDoc stays a single-user app on
 * Optional allow-list (OMNIDOC_ALLOWED_EMAILS: addresses or @domains) and admins
   (OMNIDOC_ADMIN_EMAILS), who have no limits and may change the server's model.
 * Daily limits per account on questions and uploads, and a storage cap.
+* A free trial: OMNIDOC_TRIAL_ANSWERS (3) answers on the server's model keys, then the user adds
+  their own free key (kept on their device, or encrypted on the server if they choose).
 * Guest demo (OMNIDOC_DEMO=1): "Try it without signing in" gives a one-day guest session that can
   read and ask about a shared sample library (files placed in <data>/demo) but change nothing.
 """
@@ -72,8 +74,18 @@ def demo_enabled() -> bool:
 
 
 def guest_limits() -> Dict[str, int]:
-    return {"questions_per_day": int(os.getenv("OMNIDOC_GUEST_QUESTIONS", "8")),
+    return {"questions_per_day": int(os.getenv("OMNIDOC_GUEST_QUESTIONS", "20")),
             "guests_per_ip_per_day": int(os.getenv("OMNIDOC_GUESTS_PER_IP", "4"))}
+
+
+def trial_answers() -> int:
+    """Answers each account (and each guest) gets on the server's keys before it needs its own key."""
+    return max(0, int(os.getenv("OMNIDOC_TRIAL_ANSWERS", "3")))
+
+
+def trial_per_ip() -> int:
+    """Answers on the server's keys per network address per day, across accounts (stops sign-up farming)."""
+    return max(1, int(os.getenv("OMNIDOC_TRIAL_PER_IP", "9")))
 
 
 def is_admin(email: Optional[str]) -> bool:
