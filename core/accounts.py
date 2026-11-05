@@ -1,6 +1,6 @@
 """
-Accounts for a hosted OmniDoc: sign-in with an e-mailed one-time code, Google or GitHub, and the
-limits that keep free model quotas and the server's disk shared fairly.
+Accounts for a hosted OmniDoc: sign-in with a passkey, GitHub, Google or an e-mailed one-time code,
+a guest demo, and the limits that keep free model quotas and the server's disk shared fairly.
 
 Turned on with OMNIDOC_ACCOUNTS=1. Without it OmniDoc stays a single-user app on your machine
 (every request acts as the local profile), exactly as before.
@@ -11,14 +11,19 @@ Turned on with OMNIDOC_ACCOUNTS=1. Without it OmniDoc stays a single-user app on
   never says whether an address has an account.
 * Google and GitHub: the standard OAuth 2.0 authorization-code flow with a one-time state. Only
   a verified e-mail address signs in; the same address is the same account whichever way it signs in.
+* Passkeys (core/passkeys.py) need no e-mail at all; an account made with one has a name but no
+  address until it links GitHub or Google. Two-step sign-in and recovery codes: core/two_factor.py.
 * Optional allow-list (OMNIDOC_ALLOWED_EMAILS: addresses or @domains) and admins
   (OMNIDOC_ADMIN_EMAILS), who have no limits and may change the server's model.
 * Daily limits per account on questions and uploads, and a storage cap.
+* Guest demo (OMNIDOC_DEMO=1): "Try it without signing in" gives a one-day guest session that can
+  read and ask about a shared sample library (files placed in <data>/demo) but change nothing.
 """
 import os
 import re
 import hmac
 import time
+import base64
 import secrets
 import hashlib
 import logging
@@ -36,6 +41,8 @@ CODE_TRIES = 5
 CODE_GAP_S = 60
 CODES_PER_HOUR = 6
 SESSION_DAYS = float(os.getenv("OMNIDOC_SESSION_DAYS", "30"))
+GUEST_SESSION_DAYS = 1
+DEMO_OWNER = "usr_demo"  # owns the shared sample library that guests read
 
 
 def enabled() -> bool:
@@ -58,6 +65,15 @@ def limits() -> Dict[str, int]:
         "uploads_per_day": int(os.getenv("OMNIDOC_DAILY_UPLOADS", "20")),
         "storage_mb": int(os.getenv("OMNIDOC_STORAGE_MB", "200")),
     }
+
+
+def demo_enabled() -> bool:
+    return enabled() and os.getenv("OMNIDOC_DEMO", "0") == "1"
+
+
+def guest_limits() -> Dict[str, int]:
+    return {"questions_per_day": int(os.getenv("OMNIDOC_GUEST_QUESTIONS", "8")),
+            "guests_per_ip_per_day": int(os.getenv("OMNIDOC_GUESTS_PER_IP", "4"))}
 
 
 def is_admin(email: Optional[str]) -> bool:
@@ -95,6 +111,42 @@ def _secret(data_dir: Path) -> bytes:
 
 def keyed_hash(data_dir: Path, *parts: str) -> str:
     return hmac.new(_secret(data_dir), "\x00".join(parts).encode("utf-8"), hashlib.sha256).hexdigest()
+
+
+def derived_key(data_dir: Path, purpose: str) -> bytes:
+    return hmac.new(_secret(data_dir), f"omnidoc:{purpose}".encode("utf-8"), hashlib.sha256).digest()
+
+
+def encrypt(data_dir: Path, text: str) -> str:
+    """AES-256-GCM with a key derived from the server secret, for secrets kept in the database."""
+    from cryptography.hazmat.primitives.ciphers.aead import AESGCM
+    nonce = secrets.token_bytes(12)
+    sealed = AESGCM(derived_key(data_dir, "encryption")).encrypt(nonce, text.encode("utf-8"), None)
+    return "g1:" + base64.urlsafe_b64encode(nonce + sealed).decode("ascii")
+
+
+def decrypt(data_dir: Path, token: str) -> str:
+    """The plain text of encrypt()'s output ("" for empty or unreadable input)."""
+    if not token or not token.startswith("g1:"):
+        return ""
+    from cryptography.hazmat.primitives.ciphers.aead import AESGCM
+    try:
+        raw = base64.urlsafe_b64decode(token[3:].encode("ascii"))
+        return AESGCM(derived_key(data_dir, "encryption")).decrypt(raw[:12], raw[12:], None).decode("utf-8")
+    except Exception:
+        return ""
+
+
+def device_label(user_agent: Optional[str]) -> str:
+    """"Chrome on macOS" from a User-Agent header (enough to recognise one's own devices)."""
+    ua = user_agent or ""
+    browser = next((name for token, name in (("Edg/", "Edge"), ("OPR/", "Opera"), ("Firefox/", "Firefox"),
+                                             ("CriOS", "Chrome"), ("Chrome/", "Chrome"), ("Safari/", "Safari"))
+                    if token in ua), "A browser")
+    system = next((name for token, name in (("iPhone", "iPhone"), ("iPad", "iPad"), ("Android", "Android"),
+                                            ("Windows", "Windows"), ("Mac OS X", "macOS"), ("CrOS", "ChromeOS"),
+                                            ("Linux", "Linux")) if token in ua), "")
+    return f"{browser} on {system}" if system else browser
 
 
 # --------------------------------------------------------------- e-mail codes
@@ -205,17 +257,20 @@ def redirect_uri(provider: str) -> str:
 
 
 def methods() -> Dict[str, Any]:
+    from core import passkeys
     return {"accounts": enabled(), "email": enabled() and email_configured(),
             "google": enabled() and bool(oauth_credentials("google")),
-            "github": enabled() and bool(oauth_credentials("github"))}
+            "github": enabled() and bool(oauth_credentials("github")),
+            "passkey": passkeys.enabled(), "demo": demo_enabled()}
 
 
-def authorize_url(db: Any, data_dir: Path, provider: str) -> str:
+def authorize_url(db: Any, data_dir: Path, provider: str, link_user_id: Optional[str] = None) -> str:
+    """The provider's consent page. With link_user_id the verified address is added to that account instead."""
     creds = oauth_credentials(provider)
     if not creds:
         raise CodeError("This sign-in method is not configured.", 404)
     state = secrets.token_urlsafe(24)
-    db.put_oauth_state(keyed_hash(data_dir, "oauth", state), provider)
+    db.put_oauth_state(keyed_hash(data_dir, "oauth", state), provider, link_user_id)
     params = {"client_id": creds["id"], "redirect_uri": redirect_uri(provider), "scope": PROVIDERS[provider]["scope"],
               "state": state, "response_type": "code"}
     if provider == "google":
@@ -224,13 +279,15 @@ def authorize_url(db: Any, data_dir: Path, provider: str) -> str:
 
 
 def oauth_identity(db: Any, data_dir: Path, provider: str, code: str, state: str) -> Dict[str, str]:
-    """Exchanges the authorization code and returns the verified e-mail, name and avatar."""
+    """Exchanges the authorization code and returns the verified e-mail, name and avatar (and link_user_id when linking)."""
     import httpx
     creds = oauth_credentials(provider)
     if not creds:
         raise CodeError("This sign-in method is not configured.", 404)
-    if not state or not db.take_oauth_state(keyed_hash(data_dir, "oauth", state), provider):
+    issued = db.take_oauth_state(keyed_hash(data_dir, "oauth", state), provider) if state else None
+    if not issued:
         raise CodeError("The sign-in link expired. Try again.")
+    link = {"link_user_id": issued["user_id"]} if issued.get("user_id") else {}
     token_resp = httpx.post(PROVIDERS[provider]["token"], headers={"Accept": "application/json"}, timeout=20, data={
         "client_id": creds["id"], "client_secret": creds["secret"], "code": code,
         "redirect_uri": redirect_uri(provider), "grant_type": "authorization_code"})
@@ -242,11 +299,11 @@ def oauth_identity(db: Any, data_dir: Path, provider: str, code: str, state: str
         info = httpx.get("https://openidconnect.googleapis.com/v1/userinfo", headers=headers, timeout=20).json()
         if not info.get("email") or not info.get("email_verified"):
             raise CodeError("Your Google account has no verified e-mail address.")
-        return {"email": info["email"], "name": info.get("name") or "", "avatar_url": info.get("picture") or ""}
+        return {"email": info["email"], "name": info.get("name") or "", "avatar_url": info.get("picture") or "", **link}
     user = httpx.get("https://api.github.com/user", headers=headers, timeout=20).json()
     emails = httpx.get("https://api.github.com/user/emails", headers=headers, timeout=20).json()
     verified = [e for e in emails if isinstance(e, dict) and e.get("verified") and e.get("email")] if isinstance(emails, list) else []
     primary = next((e["email"] for e in verified if e.get("primary")), verified[0]["email"] if verified else None)
     if not primary:
         raise CodeError("Your GitHub account has no verified e-mail address.")
-    return {"email": primary, "name": user.get("name") or user.get("login") or "", "avatar_url": user.get("avatar_url") or ""}
+    return {"email": primary, "name": user.get("name") or user.get("login") or "", "avatar_url": user.get("avatar_url") or "", **link}
