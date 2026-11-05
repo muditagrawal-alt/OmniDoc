@@ -127,10 +127,11 @@ class EmbeddingService:
             return self._embed_onnx(texts, kind)
         if backend == "ollama":
             return self._embed_ollama([self._prefix(t, kind) for t in texts])
-        from agents.llm_providers import REGISTRY, parse_spec, openai_embed
+        from agents.llm_providers import REGISTRY, parse_spec, openai_embed, server_keys
         provider, name = parse_spec(self.model_name)
         p = REGISTRY[provider]
-        return openai_embed(p, name or p.embed_model, [self._prefix(t, kind) for t in texts], kind=kind)
+        with server_keys():  # the index is the server's: never embedded with one user's own key
+            return openai_embed(p, name or p.embed_model, [self._prefix(t, kind) for t in texts], kind=kind)
 
     # -------------------------------------------------------------------- cache
     def _key(self, text: str, kind: str) -> str:
