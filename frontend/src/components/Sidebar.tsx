@@ -2,6 +2,7 @@ import { useEffect, useMemo, useRef, useState } from 'react';
 import {
   Bell,
   Check,
+  KeyRound,
   GitCompareArrows,
   Globe2,
   Library,
@@ -57,6 +58,8 @@ interface SidebarProps {
   /** Unread security notices and announcements (accounts only). */
   unreadNotices?: number;
   onOpenNotices?: () => void;
+  /** Opens "Your own model key" (bring your own free key after the free answers). */
+  onOpenKeys?: () => void;
   documentCount: number;
 }
 
@@ -213,7 +216,8 @@ export function Sidebar(props: SidebarProps) {
           </div>
         )}
         <SettingsFooter user={user} onOpenProfile={onOpenProfile} onSignOut={onSignOut} accountsMode={accountsMode}
-          onOpenAccount={onOpenAccount} unreadNotices={props.unreadNotices ?? 0} onOpenNotices={props.onOpenNotices} />
+          onOpenAccount={onOpenAccount} unreadNotices={props.unreadNotices ?? 0} onOpenNotices={props.onOpenNotices}
+          onOpenKeys={props.onOpenKeys} />
       </aside>
     </>
   );
@@ -287,9 +291,9 @@ const THEMES: Array<{ key: ThemePreference; label: string; icon: typeof Sun }> =
   { key: 'dark', label: 'Dark', icon: Moon },
 ];
 
-function SettingsFooter({ user, onOpenProfile, onSignOut, accountsMode = false, onOpenAccount, unreadNotices = 0, onOpenNotices }: {
+function SettingsFooter({ user, onOpenProfile, onSignOut, accountsMode = false, onOpenAccount, unreadNotices = 0, onOpenNotices, onOpenKeys }: {
   user: User | null; onOpenProfile: () => void; onSignOut: () => void; accountsMode?: boolean; onOpenAccount?: () => void;
-  unreadNotices?: number; onOpenNotices?: () => void;
+  unreadNotices?: number; onOpenNotices?: () => void; onOpenKeys?: () => void;
 }) {
   const { preference, setPreference } = useTheme();
   const toast = useToast();
@@ -379,9 +383,15 @@ function SettingsFooter({ user, onOpenProfile, onSignOut, accountsMode = false, 
                 </button>
               </div>
             ))}
-            <button type="button" role="menuitem" className="menu-item" onClick={() => { close(); setProvidersOpen(true); }}>
-              <Sparkles size={15} strokeWidth={1.75} /> Free model APIs and web search…
-            </button>
+            {accountsMode ? (
+              <button type="button" role="menuitem" className="menu-item" onClick={() => { close(); onOpenKeys?.(); }}>
+                <KeyRound size={15} strokeWidth={1.75} /> Your own model key…
+              </button>
+            ) : (
+              <button type="button" role="menuitem" className="menu-item" onClick={() => { close(); setProvidersOpen(true); }}>
+                <Sparkles size={15} strokeWidth={1.75} /> Free model APIs and web search…
+              </button>
+            )}
             <div className="menu-sep" />
             {accountsMode && (
               <button type="button" role="menuitem" className="menu-item" onClick={() => { close(); onOpenAccount?.(); }}>
