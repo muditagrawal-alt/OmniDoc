@@ -201,6 +201,10 @@ export function SettingsPanel(props: SettingsPanelProps) {
               <Segmented<Backdrop> stretch label="Chat background" value={s.backdrop} onChange={(v) => setSetting('backdrop', v)}
                 options={[{ value: 'animated', label: 'Moving' }, { value: 'still', label: 'Still' }, { value: 'off', label: 'Off' }]} />
             </Field>
+            <Field label="Background of the other tabs" hint="Clouds behind Search, Library, Tables and the rest; move the pointer to push them like wind.">
+              <Segmented<Backdrop> stretch label="Background of the other tabs" value={s.tabsBackdrop} onChange={(v) => setSetting('tabsBackdrop', v)}
+                options={[{ value: 'animated', label: 'Moving' }, { value: 'still', label: 'Still' }, { value: 'off', label: 'Off' }]} />
+            </Field>
             {!isMobile && (
               <Field label="Navigation" hint="The icon rail opens lists on hover; the full sidebar keeps your chats in view.">
                 <Segmented<Navigation> stretch label="Navigation" value={s.navigation} onChange={(v) => setSetting('navigation', v)}
