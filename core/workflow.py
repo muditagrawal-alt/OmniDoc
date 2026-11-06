@@ -26,7 +26,7 @@ from core.state import (
     QueryIntentType,
     QueryExecutionPlan,
 )
-from core import streaming
+from core import effort, streaming
 from agents import llm_providers
 from guardrails.input_guard import InputGuardrail
 from guardrails.output_guard import OutputGuardrail
@@ -311,7 +311,8 @@ class OmniDocWorkflow:
             "intent_result": intent_res,
             "intent": legacy,
             "memory_state": memory,
-            "needs": {**u["needs"], "web_mode": (state.get("needs") or {}).get("web_mode", "auto")},
+            "needs": {**u["needs"], "web_mode": (state.get("needs") or {}).get("web_mode", "auto"),
+                      "effort": effort.level(state)},
             "answer_language": langs["answer"],
             "time_filter": u.get("time_range"),
             "agent_traces": [trace("understanding", "completed", detail, started,
@@ -478,6 +479,7 @@ class OmniDocWorkflow:
         run_id: Optional[str] = None,
         web_mode: str = "auto",
         owner_id: Optional[str] = None,
+        effort_level: str = effort.DEFAULT,
     ) -> AgentWorkflowState:
         return {
             "session_id": session_id,
@@ -485,7 +487,8 @@ class OmniDocWorkflow:
             "run_id": run_id or f"run_{uuid.uuid4().hex[:12]}",
             "user_query": user_query,
             "document_ids": document_ids or [],
-            "needs": {"web_mode": web_mode if web_mode in ("auto", "on", "off") else "auto"},
+            "needs": {"web_mode": web_mode if web_mode in ("auto", "on", "off") else "auto",
+                      "effort": effort.clean(effort_level)},
             "answer_language": "en",
             "time_filter": None,
             "absent_terms": [],
@@ -546,6 +549,7 @@ class OmniDocWorkflow:
         conversation_history: list = None,
         web_mode: str = "auto",
         owner_id: Optional[str] = None,
+        effort_level: str = effort.DEFAULT,
     ) -> Iterator[Tuple[str, Dict[str, Any]]]:
         """
         Runs the workflow in a worker thread and yields events as they happen:
@@ -554,7 +558,7 @@ class OmniDocWorkflow:
         draft is replaced, and finally ("result", final_state) with "usage" (model calls, tokens).
         """
         initial_state = self._initial_state(user_query, document_ids, session_id, conversation_history, web_mode=web_mode,
-                                            owner_id=owner_id)
+                                            owner_id=owner_id, effort_level=effort_level)
         run_id = initial_state["run_id"]
         events: "queue.Queue[Tuple[str, Any]]" = queue.Queue()
         streaming.open_channel(run_id, lambda event, data: events.put((event, data)))
