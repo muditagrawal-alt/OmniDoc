@@ -1,8 +1,8 @@
 import { useEffect, useState } from 'react';
 import type { FormEvent } from 'react';
-import { Megaphone, RefreshCw, ShieldCheck } from 'lucide-react';
+import { Megaphone, RefreshCw, ShieldCheck, Trash2 } from 'lucide-react';
 import { api } from '../../api';
-import type { AdminOverview, User } from '../../api';
+import type { AdminOverview, FeedbackItem, User } from '../../api';
 import { ModelChoices } from '../ModelPicker';
 import { useToast } from '../ui/Toast';
 import { ViewFrame } from './ViewFrame';
@@ -93,6 +93,55 @@ function Announce() {
   );
 }
 
+/** Feedback sent from the product page, newest first; deleting one is final. */
+function FeedbackList({ nonce }: { nonce: number }) {
+  const [items, setItems] = useState<FeedbackItem[] | null>(null);
+  const [error, setError] = useState<string | null>(null);
+  const [removing, setRemoving] = useState<number | null>(null);
+
+  useEffect(() => {
+    let live = true;
+    api.adminFeedback().then((d) => live && setItems(d.feedback)).catch((e: Error) => live && setError(e.message));
+    return () => {
+      live = false;
+    };
+  }, [nonce]);
+
+  const remove = async (id: number) => {
+    setRemoving(id);
+    try {
+      await api.deleteFeedback(id);
+      setItems((list) => (list || []).filter((f) => f.id !== id));
+    } catch (e) {
+      setError((e as Error).message);
+    } finally {
+      setRemoving(null);
+    }
+  };
+
+  if (error) return <p role="alert" className={styles.error}>{error}</p>;
+  if (!items) return <p className={styles.note}>Loading…</p>;
+  if (!items.length) return <p className={styles.note}>Nothing yet. Visitors send it from the bottom of the product page.</p>;
+  return (
+    <ul className={styles.list} style={{ maxWidth: 760 }}>
+      {items.map((f) => (
+        <li key={f.id} className={styles.feedback}>
+          <div className={styles.feedbackHead}>
+            {f.rating ? <span className={styles.badge} data-tone={f.rating >= 4 ? 'good' : f.rating <= 2 ? 'bad' : 'muted'}>{f.rating} of 5</span> : null}
+            <span>{new Date(f.created_at * 1000).toLocaleString(undefined, { dateStyle: 'medium', timeStyle: 'short' })}</span>
+            {f.contact && <span>· reply to <strong>{f.contact}</strong></span>}
+            <button type="button" className="icon-btn icon-btn-sm" aria-label="Delete this feedback" disabled={removing === f.id}
+              onClick={() => void remove(f.id)}>
+              {removing === f.id ? <span className="spinner" /> : <Trash2 size={14} strokeWidth={1.75} />}
+            </button>
+          </div>
+          <p>{f.message}</p>
+        </li>
+      ))}
+    </ul>
+  );
+}
+
 /** The administrator's view of the server: usage, health, the default model and announcements. */
 export function AdminView({ user, accountsMode, sidebarOpen, onOpenSidebar, onBecameAdmin }: AdminViewProps) {
   const [data, setData] = useState<AdminOverview | null>(null);
@@ -147,6 +196,7 @@ export function AdminView({ user, accountsMode, sidebarOpen, onOpenSidebar, onBe
             <div className={styles.tile}><span>Questions today</span><strong>{s.questions_today}</strong><small>{s.questions_7d} in 7 days</small></div>
             <div className={styles.tile}><span>Questions, 30 days</span><strong>{s.questions_30d}</strong><small>{s.uploads_30d} uploads</small></div>
             <div className={styles.tile}><span>Documents</span><strong>{s.documents}</strong><small>{s.chats} conversations, {s.guests} demo visits</small></div>
+            <div className={styles.tile}><span>Feedback</span><strong>{s.feedback ?? 0}</strong><small>{s.rating ? `${s.rating.toFixed(1)} of 5 on average` : 'No ratings yet'}</small></div>
           </div>
 
           <section className={styles.section}>
@@ -198,6 +248,14 @@ export function AdminView({ user, accountsMode, sidebarOpen, onOpenSidebar, onBe
 
           {data.settings.accounts && (
             <section className={styles.section}>
+              <h2>Feedback</h2>
+              <p className={styles.note}>From the form at the bottom of the product page. No account or address is kept with it.</p>
+              <FeedbackList nonce={nonce} />
+            </section>
+          )}
+
+          {data.settings.accounts && (
+            <section className={styles.section}>
               <h2>Announce something</h2>
               <p className={styles.note}>It appears under Notifications for every account.</p>
               <Announce />
@@ -210,7 +268,7 @@ export function AdminView({ user, accountsMode, sidebarOpen, onOpenSidebar, onBe
               <ul className={styles.list} style={{ maxWidth: 560 }}>
                 {data.admins.map((a) => (
                   <li key={a.id} className={styles.row}>
-                    <span className={styles.rowMain}><strong>{a.name}</strong><span>{a.email || 'Passkey account'}</span></span>
+                    <span className={styles.rowMain}><strong>{a.name}</strong><span>{a.email || (a.username ? `@${a.username}` : 'Passkey account')}</span></span>
                     <span className={styles.badge} data-tone="accent">Setup code</span>
                   </li>
                 ))}
