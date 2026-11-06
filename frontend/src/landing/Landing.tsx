@@ -3,6 +3,8 @@ import { MotionConfig, motion, useInView, useMotionValueEvent, useReducedMotion,
 import { ArrowRight, Languages } from 'lucide-react';
 import type { AuthMethods } from '../api';
 import { useTheme } from '../lib/theme';
+import { useSettings } from '../lib/settings';
+import { ChromaWaves } from '../components/backgrounds/ChromaWaves';
 import { BrandMark } from '../components/BrandMark';
 import { ThemeSwitch } from '../components/ThemeSwitch';
 import LiquidChrome from '../components/reactbits/LiquidChrome';
@@ -96,6 +98,32 @@ const PRIVACY = [
   'The code is open source under the MIT licence, and you can run all of it on your own machine.',
 ];
 
+/**
+ * Waves of light behind everything after the hero (which has its own chrome background): faded in
+ * as the hero scrolls away, and not drawn at all while faded out.
+ */
+function Waves({ dark }: { dark: boolean }) {
+  const settings = useSettings();
+  const still = useReducedMotion();
+  const { scrollY } = useScroll();
+  const opacity = useTransform(scrollY, (y) => {
+    const vh = window.innerHeight || 800;
+    return Math.min(1, Math.max(0, (y - vh * 0.55) / (vh * 0.45)));
+  });
+  const [on, setOn] = useState(false);
+  useMotionValueEvent(opacity, 'change', (v) => setOn(v > 0.01));
+  return (
+    <motion.div className={styles.waves} style={{ opacity }} aria-hidden="true">
+      <ChromaWaves dark={dark} accent={settings.accent} still={!!still} active={on} />
+    </motion.div>
+  );
+}
+
+/** The logo's action on the product page: back to the top (smoothly, unless motion is reduced). */
+function toTop() {
+  window.scrollTo({ top: 0, behavior: window.matchMedia('(prefers-reduced-motion: reduce)').matches ? 'auto' : 'smooth' });
+}
+
 /** Which watched section is under the middle of the screen. */
 function useActiveSection(ids: string[]) {
   const [active, setActive] = useState<string | null>(null);
@@ -129,9 +157,9 @@ function Nav({ methods, onSignIn, onTryDemo, demoBusy }: Omit<LandingProps, 'dem
       initial={{ y: -80, opacity: 0 }} animate={{ y: hidden ? -96 : 0, opacity: 1 }}
       transition={{ duration: 0.45, ease: EASE }} onFocusCapture={() => setHidden(false)}>
       <div className={styles.navInner}>
-        <a className={styles.brand} href="#top" aria-label="OmniDoc home">
+        <button type="button" className={styles.brand} onClick={toTop} aria-label="OmniDoc, back to the top">
           <BrandMark size={24} /> OmniDoc
-        </a>
+        </button>
         <nav className={styles.links} aria-label="Sections">
           {NAV.map((link) => (
             <a key={link.id} href={`#${link.id}`} aria-current={active === link.id ? 'true' : undefined}>
@@ -390,6 +418,7 @@ export default function Landing({ methods, onSignIn, onTryDemo, demoBusy, demoEr
     <MotionConfig reducedMotion="user">
       <div className={styles.page}>
         <ScrollProgress />
+        <Waves dark={dark} />
         <a className={styles.skip} href="#main">Skip to content</a>
         <Nav methods={methods} onSignIn={onSignIn} onTryDemo={onTryDemo} demoBusy={demoBusy} />
 
@@ -416,12 +445,12 @@ export default function Landing({ methods, onSignIn, onTryDemo, demoBusy, demoEr
         </main>
 
         <footer className={styles.footer}>
-          <span className={styles.brand}><BrandMark size={18} /> OmniDoc</span>
+          <button type="button" className={styles.brand} onClick={toTop} aria-label="OmniDoc, back to the top">
+            <BrandMark size={18} /> OmniDoc
+          </button>
           <span>Open source under the MIT licence. Built by <a href="https://github.com/muditagrawal-alt" target="_blank" rel="noreferrer">Mudit Agrawal</a></span>
           <span className={styles.footLinks}>
             <a href={REPO} target="_blank" rel="noreferrer">GitHub</a>
-            <a href={`${REPO}/blob/main/docs/PRODUCT_PLAN.md`} target="_blank" rel="noreferrer">Roadmap</a>
-            <a href="https://reactbits.dev" target="_blank" rel="noreferrer">Animations: React Bits</a>
             <span className={styles.langNote}><Languages size={13} strokeWidth={1.75} /> English</span>
           </span>
         </footer>
