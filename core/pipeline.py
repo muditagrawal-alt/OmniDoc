@@ -642,6 +642,7 @@ class AgenticGraphRAGPipeline:
         web_mode: str = "auto",
         owner_id: Optional[str] = None,
         effort: str = "balanced",
+        model: Optional[str] = None,
     ) -> Iterator[Tuple[str, Dict[str, Any]]]:
         """Like query(), but yields events per agent, streamed answer text, and finally ("result", state)."""
         return self.workflow.execute_stream(
@@ -652,4 +653,5 @@ class AgenticGraphRAGPipeline:
             web_mode=web_mode,
             owner_id=owner_id,
             effort_level=effort,
+            answer_model=(self.model_name, model) if model else None,
         )
