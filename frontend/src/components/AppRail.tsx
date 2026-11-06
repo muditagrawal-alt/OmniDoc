@@ -1,12 +1,27 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import type { ComponentType, ReactNode } from 'react';
 import {
-  Bell, FileText, KeyRound, Library, LogIn, LogOut, MessageSquare, Plug, Search, Settings2, ShieldUser, SquarePen, UserRound,
+  Bell,
+  Compass,
+  FileText,
+  KeyRound,
+  Library,
+  LogIn,
+  LogOut,
+  MessageSquare,
+  Plug,
+  Search,
+  Settings2,
+  ShieldUser,
+  SquarePen,
+  UserRound,
 } from 'lucide-react';
 import type { ChatSession, DocumentItem, User } from '../api';
 import { dateGroup } from '../lib/format';
 import { isMac } from '../lib/settings';
+import { startTour } from '../lib/tour';
 import { BrandMark } from './BrandMark';
+import { Avatar } from './ui/Avatar';
 import { ChatRow, TOOL_VIEWS } from './Sidebar';
 import type { View } from './Sidebar';
 import styles from './AppRail.module.css';
@@ -26,10 +41,12 @@ interface RailItemProps {
   children?: ReactNode;
   shortcut?: ReactNode;
   anchor?: 'top' | 'bottom';
+  /** Marks the item for the guided tour (lib/tour.ts). */
+  tour?: string;
 }
 
 /** A rail button whose flyout opens on hover or keyboard focus and stays open while the pointer is over it. */
-function RailItem({ label, icon: Icon, glyph, active, pressed, onClick, badge, children, shortcut, anchor = 'top' }: RailItemProps) {
+function RailItem({ label, icon: Icon, glyph, active, pressed, onClick, badge, children, shortcut, anchor = 'top', tour }: RailItemProps) {
   const [open, setOpen] = useState(false);
   const timer = useRef(0);
   const schedule = (next: boolean, delay: number) => {
@@ -41,6 +58,7 @@ function RailItem({ label, icon: Icon, glyph, active, pressed, onClick, badge, c
   return (
     <div
       className={styles.item}
+      data-tour={tour}
       onPointerEnter={(e) => e.pointerType === 'mouse' && schedule(true, 90)}
       onPointerLeave={(e) => e.pointerType === 'mouse' && schedule(false, 200)}
       onFocus={() => {
@@ -204,7 +222,6 @@ export function AppRail(props: AppRailProps) {
   const { view, onNavigate, user, accountsMode, documents } = props;
   const mod = isMac ? '⌘' : 'Ctrl';
   const guest = user?.kind === 'guest';
-  const initials = (user?.name || 'Local').split(/\s+/).map((w) => w[0]).join('').slice(0, 2).toUpperCase();
 
   return (
     <nav className={styles.rail} aria-label="Main">
@@ -213,22 +230,22 @@ export function AppRail(props: AppRailProps) {
       </button>
 
       <div className={styles.group}>
-        <RailItem label="New chat" icon={SquarePen} onClick={props.onNewChat}
+        <RailItem label="New chat" icon={SquarePen} onClick={props.onNewChat} tour="new-chat"
           shortcut={<><kbd className="kbd">{mod}</kbd><kbd className="kbd">⇧</kbd><kbd className="kbd">O</kbd></>} />
-        <RailItem label="Chat" icon={MessageSquare} active={view === 'chat'} onClick={() => onNavigate('chat')}>
+        <RailItem label="Chat" icon={MessageSquare} active={view === 'chat'} onClick={() => onNavigate('chat')} tour="chats">
           <ChatsFlyout chats={props.chats} loading={props.chatsLoading} activeChatId={props.activeChatId} view={view}
             onSelectChat={props.onSelectChat} onNewChat={props.onNewChat} onRenameChat={props.onRenameChat}
             onDeleteChat={props.onDeleteChat} />
         </RailItem>
-        <RailItem label="Search" icon={Search} active={view === 'search'} onClick={() => onNavigate('search')}
+        <RailItem label="Search" icon={Search} active={view === 'search'} onClick={() => onNavigate('search')} tour="search"
           shortcut={<><kbd className="kbd">{mod}</kbd><kbd className="kbd">K</kbd></>} />
-        <RailItem label="Library" icon={Library} active={view === 'library'} onClick={() => onNavigate('library')}
+        <RailItem label="Library" icon={Library} active={view === 'library'} onClick={() => onNavigate('library')} tour="library"
           badge={documents.length ? <span className={styles.count}>{documents.length}</span> : null}>
           <LibraryFlyout documents={documents} onOpen={() => onNavigate('library')} />
         </RailItem>
       </div>
 
-      <div className={styles.group} role="group" aria-label="Tools">
+      <div className={styles.group} role="group" aria-label="Tools" data-tour="tools">
         {TOOL_VIEWS.map((t) => (
           <RailItem key={t.key} label={t.label} icon={t.icon} active={view === t.key} onClick={() => onNavigate(t.key)}>
             <ToolFlyout title={t.label} text={t.about} />
@@ -237,24 +254,24 @@ export function AppRail(props: AppRailProps) {
       </div>
 
       <div className={`${styles.group} ${styles.bottom}`}>
-        <RailItem label="Connect" icon={Plug} active={view === 'connect'} onClick={() => onNavigate('connect')}>
+        <RailItem label="Connect" icon={Plug} active={view === 'connect'} onClick={() => onNavigate('connect')} tour="connect">
           <ToolFlyout title="Connect" text="Use your library from Claude Code, Claude Desktop or Cursor through OmniDoc's MCP server." />
         </RailItem>
         {props.admin && (
-          <RailItem label="Admin" icon={ShieldUser} active={view === 'admin'} onClick={() => onNavigate('admin')}>
+          <RailItem label="Admin" icon={ShieldUser} active={view === 'admin'} onClick={() => onNavigate('admin')} tour="admin">
             <ToolFlyout title="Admin" text="Usage, server health and memory, the default model for everyone, and announcements." />
           </RailItem>
         )}
         {accountsMode && user && !guest && (
-          <RailItem label="Notifications" icon={Bell} onClick={props.onOpenNotices}
+          <RailItem label="Notifications" icon={Bell} onClick={props.onOpenNotices} tour="notices"
             badge={props.unreadNotices > 0 ? <span className={styles.dot} aria-label={`${props.unreadNotices} new`} /> : null} />
         )}
-        <RailItem label="Settings" icon={Settings2} pressed={props.settingsOpen} onClick={props.onOpenSettings}
+        <RailItem label="Settings" icon={Settings2} pressed={props.settingsOpen} onClick={props.onOpenSettings} tour="settings"
           shortcut={<><kbd className="kbd">{mod}</kbd><kbd className="kbd">,</kbd></>} />
-        <RailItem label={user?.name || 'Profile'} glyph={<span className={styles.avatar} aria-hidden="true">{initials}</span>} anchor="bottom">
+        <RailItem label={user?.name || 'Profile'} tour="account" glyph={<Avatar name={user?.name} src={user?.avatar_url} size={30} />} anchor="bottom">
           <div className={styles.panel}>
             <div className={styles.account}>
-              <span className={styles.avatarLarge} aria-hidden="true">{initials}</span>
+              <Avatar name={user?.name} src={user?.avatar_url} size={36} />
               <div>
                 <strong>{user?.name || 'Local profile'}</strong>
                 <span>{guest ? 'Exploring the demo, read-only' : user?.email || (user?.username ? `@${user.username}` : accountsMode ? 'Signed in' : 'This computer')}</span>
@@ -274,6 +291,9 @@ export function AppRail(props: AppRailProps) {
               </button>
               <button type="button" className="menu-item" onClick={props.onOpenSettings}>
                 <Settings2 size={15} strokeWidth={1.75} /> Settings
+              </button>
+              <button type="button" className="menu-item" onClick={startTour}>
+                <Compass size={15} strokeWidth={1.75} /> Take the tour
               </button>
               {user ? (
                 <button type="button" className="menu-item" onClick={props.onSignOut}>
