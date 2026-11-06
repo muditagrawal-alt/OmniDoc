@@ -1,0 +1,80 @@
+1
+00:00:06,297 --> 00:00:10,069
+OmniDoc answers questions about your PDFs, scans, contracts and spreadsheets.
+
+2
+00:00:10,319 --> 00:00:24,754
+Every claim cites the page it came from, and every sentence is checked against its source.
+
+3
+00:00:25,004 --> 00:00:34,588
+Extract fields, compare versions, find personal data and explore a knowledge graph.
+
+4
+00:00:34,838 --> 00:00:38,100
+Measured on public benchmarks, with answers from free models.
+
+5
+00:00:38,350 --> 00:00:43,371
+Built entirely on free tiers, and open source. Feedback reaches the author by e-mail.
+
+6
+00:00:43,621 --> 00:00:48,901
+Try it without an account: a sample library of five documents.
+
+7
+00:00:49,151 --> 00:00:57,160
+A short guided tour shows new users around the workspace.
+
+8
+00:00:57,410 --> 00:01:01,303
+Ask in plain words.
+
+9
+00:01:01,553 --> 00:01:03,735
+Agents retrieve passages, read the tables, look for conflicts and write the answer. (Sped up.)
+
+10
+00:01:03,985 --> 00:01:07,890
+Every figure is cited, and the table it came from is shown with the query that read it.
+
+11
+00:01:08,140 --> 00:01:13,441
+Click a citation: the page opens with the supporting sentence highlighted.
+
+12
+00:01:13,691 --> 00:01:18,063
+And each sentence of the answer is checked against the passages it cites.
+
+13
+00:01:18,313 --> 00:01:26,887
+Ask and get answers in ten languages.
+
+14
+00:01:27,137 --> 00:01:36,518
+Search every passage in the library, without a model call.
+
+15
+00:01:36,768 --> 00:01:40,058
+The library: every document with its pages, summary, tables and fields.
+
+16
+00:01:40,308 --> 00:01:46,031
+Every table found in the documents, as data you can open and download.
+
+17
+00:01:46,281 --> 00:01:51,479
+Every date in the library, in order, each linked to its page.
+
+18
+00:01:51,729 --> 00:01:58,338
+A privacy scan finds Aadhaar, PAN, card and phone numbers, and makes redacted copies.
+
+19
+00:01:58,588 --> 00:02:11,700
+People, companies and places linked across the library, on a globe you can search.
+
+20
+00:02:11,950 --> 00:02:22,070
+Make it yours: light, dark or system theme, accent colours, text size and motion.
+
