@@ -8,9 +8,15 @@
 
 .main {
   position: relative;
+  isolation: isolate;
   flex: 1;
   min-width: 0;
   height: 100%;
+}
+
+/* The cloud layer sits under the tab's content, which keeps its own surfaces. */
+.clouds {
+  z-index: -1;
 }
 
 .knowledge {
