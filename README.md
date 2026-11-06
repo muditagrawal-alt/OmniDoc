@@ -13,12 +13,12 @@ Every claim cites the page it came from, and every sentence is checked against i
 [![License: MIT](https://img.shields.io/badge/license-MIT-0f62fe)](LICENSE)
 [![Python](https://img.shields.io/badge/python-3.9%2B-0f62fe)](requirements.txt)
 [![React](https://img.shields.io/badge/react-19-0f62fe)](frontend/package.json)
-[![Tests](https://img.shields.io/badge/tests-139%20passing-198038)](#development)
+[![Tests](https://img.shields.io/badge/tests-196%20passing-198038)](#development)
 [![FinanceBench](https://img.shields.io/badge/FinanceBench-77.8%25-121620)](#benchmarks)
 [![MMLongBench-Doc](https://img.shields.io/badge/MMLongBench--Doc-71.7%25-121620)](#benchmarks)
 [![Docker](https://img.shields.io/badge/deploy-Docker-121620)](#deployment)
 
-[**Watch the demo**](docs/media/omnidoc-demo.mp4) · [Quick start](#quick-start) · [Features](#features) · [Benchmarks](#benchmarks) · [Architecture](#architecture) · [Deployment](#deployment)
+[**Try it live**](https://omnidoc-silk.vercel.app) · [Watch the demo](docs/media/omnidoc-demo.mp4) · [Quick start](#quick-start) · [Features](#features) · [Benchmarks](#benchmarks) · [Architecture](#architecture) · [Deployment](#deployment)
 
 <br>
 
