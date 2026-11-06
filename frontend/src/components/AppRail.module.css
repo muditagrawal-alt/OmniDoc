@@ -5,7 +5,7 @@
   flex: none;
   flex-direction: column;
   align-items: center;
-  gap: var(--space-4);
+  gap: var(--space-3);
   width: 64px;
   height: 100dvh;
   padding: var(--space-3) 0;
@@ -30,7 +30,13 @@
   display: flex;
   flex-direction: column;
   align-items: center;
-  gap: 4px;
+  gap: 2px;
+}
+
+/* A hairline between the groups of buttons. */
+.group + .group:not(.bottom) {
+  padding-top: var(--space-3);
+  border-top: 1px solid var(--border);
 }
 
 .bottom {
@@ -46,8 +52,8 @@
   position: relative;
   display: grid;
   place-items: center;
-  width: 40px;
-  height: 40px;
+  width: 38px;
+  height: 38px;
   border-radius: var(--radius-lg);
   color: var(--text-2);
   transition:
