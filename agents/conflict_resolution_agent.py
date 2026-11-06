@@ -11,7 +11,7 @@ evidence keys and quotes used for the audit.
 import re
 import time
 import logging
-from typing import Dict, Any, List, Optional, Tuple
+from typing import Callable, Dict, Any, List, Optional, Tuple
 
 from core.state import AgentWorkflowState, ConflictRecord, EvidencePackage, EvidenceItem
 from agents.llm_utils import chat_json, as_list, trace
@@ -115,6 +115,24 @@ def suspected_conflicts(items: List[EvidenceItem]) -> int:
     return count
 
 
+_YEAR = re.compile(r"(?<!\d)(?:FY\s?)?((?:19|20)\d{2})(?!\d)", re.I)
+
+
+def _years(text: str) -> set:
+    return set(_YEAR.findall(text or ""))
+
+
+def different_periods(quote_a: str, title_a: str, quote_b: str, title_b: str) -> bool:
+    """
+    Whether two "contradicting" statements are about different years: the years each one names,
+    or failing that the year in its document's name (an annual report for 2024 and one for 2025
+    report different years' figures). Statements that share a year are not told apart this way.
+    """
+    years_a = _years(quote_a) or _years(title_a)
+    years_b = _years(quote_b) or _years(title_b)
+    return bool(years_a and years_b and not (years_a & years_b))
+
+
 def _source_key(item: EvidenceItem) -> str:
     prov = item.provenance or {}
     return str(prov.get("doc_id") or item.evidence_id)
@@ -123,8 +141,14 @@ def _source_key(item: EvidenceItem) -> str:
 class ConflictResolutionAgent:
     """Reconciles contradictory claims across multi-document evidence."""
 
-    def __init__(self, model_name: str = "qwen2.5:7b-instruct"):
+    def __init__(self, model_name: str = "qwen2.5:7b-instruct", doc_titles: Optional[Callable[[], Dict[str, str]]] = None):
         self.model_name = model_name
+        self.doc_titles = doc_titles
+        self._titles: Dict[str, str] = {}
+
+    def _title(self, item: EvidenceItem) -> str:
+        doc_id = str((item.provenance or {}).get("doc_id") or "")
+        return self._titles.get(doc_id, doc_id)
 
     def _record(self, raw: Dict[str, Any], keyed: Dict[str, EvidenceItem]) -> Optional[Dict[str, Any]]:
         ka = str(raw.get("evidence_a") or raw.get("evidence_a_id") or "").strip().upper()
@@ -135,6 +159,8 @@ class ConflictResolutionAgent:
         quote_a, quote_b = str(raw.get("quote_a") or ""), str(raw.get("quote_b") or "")
         if not (_quote_in(quote_a, item_a.content) and _quote_in(quote_b, item_b.content)):
             return None
+        if different_periods(quote_a, self._title(item_a), quote_b, self._title(item_b)):
+            return None  # e.g. FY2024's growth in last year's report against FY2025's in this year's
         status = raw.get("resolution_status")
         status = status if status in ("resolved", "unresolved_uncertainty") else "unresolved_uncertainty"
         preferred_key = str(raw.get("preferred") or raw.get("preferred_evidence_id") or "").strip().upper()
@@ -179,8 +205,17 @@ class ConflictResolutionAgent:
                                                              "No differing figures about the same thing across documents.", started)]}
 
         keyed = {f"E{i}": it for i, it in enumerate(items, 1)}
-        ev_text = "\n\n".join(f"[{k}] ({it.provenance.get('doc_id', '') if it.provenance else ''}): {it.content[:1200]}"
-                              for k, it in keyed.items())
+        try:
+            self._titles = dict(self.doc_titles()) if self.doc_titles else {}
+        except Exception:
+            self._titles = {}
+
+        def label(it: EvidenceItem) -> str:
+            page = (it.provenance or {}).get("page")
+            return f"{self._title(it)}{f', page {page}' if page else ''}"
+
+        # The document's name tells the model which report (and often which year) each item is from.
+        ev_text = "\n\n".join(f"[{k}] ({label(it)}): {it.content[:1200]}" for k, it in keyed.items())
         try:
             parsed = chat_json(
                 self.model_name,
