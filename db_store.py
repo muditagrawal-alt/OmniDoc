@@ -144,6 +144,8 @@ class OmniDocDB:
             "ALTER TABLE oauth_states ADD COLUMN user_id TEXT",
             # Free answers on the server's keys, over the account's lifetime (then the user's own key).
             "ALTER TABLE users ADD COLUMN trial_used INTEGER DEFAULT 0",
+            # Administrators who claimed the role with the server's setup code (others are listed by e-mail).
+            "ALTER TABLE users ADD COLUMN is_admin INTEGER DEFAULT 0",
         ):
             try:
                 cursor.execute(statement)
@@ -583,6 +585,41 @@ class OmniDocDB:
         day = time.strftime("%Y-%m-%d", time.gmtime())
         row = self.conn.execute("SELECT questions, uploads FROM usage WHERE user_id = ? AND day = ?", (user_id, day)).fetchone()
         return {"questions": row["questions"], "uploads": row["uploads"]} if row else {"questions": 0, "uploads": 0}
+
+    # ---- administration -------------------------------------------------------
+    def set_admin(self, user_id: str, admin: bool = True) -> None:
+        self.conn.execute("UPDATE users SET is_admin = ? WHERE id = ?", (1 if admin else 0, user_id))
+        self.conn.commit()
+
+    def list_admins(self) -> List[Dict[str, Any]]:
+        rows = self.conn.execute("SELECT id, name, email FROM users WHERE is_admin = 1 ORDER BY name").fetchall()
+        return [dict(r) for r in rows]
+
+    def admin_stats(self) -> Dict[str, Any]:
+        """Counts for the administrator's overview: accounts, library, and questions over time."""
+        def one(sql: str, args: tuple = ()) -> int:
+            row = self.conn.execute(sql, args).fetchone()
+            return int(row[0] or 0) if row else 0
+
+        today = time.strftime("%Y-%m-%d", time.gmtime())
+        month = time.strftime("%Y-%m-%d", time.gmtime(time.time() - 30 * 86400))
+        week = time.strftime("%Y-%m-%d", time.gmtime(time.time() - 7 * 86400))
+        days = self.conn.execute(
+            "SELECT day, SUM(questions) AS questions, SUM(uploads) AS uploads FROM usage WHERE day >= ? GROUP BY day ORDER BY day",
+            (month,),
+        ).fetchall()
+        return {
+            "accounts": one("SELECT COUNT(*) FROM users WHERE COALESCE(kind, 'user') != 'guest'"),
+            "guests": one("SELECT COUNT(*) FROM users WHERE kind = 'guest'"),
+            "documents": one("SELECT COUNT(*) FROM documents"),
+            "chats": one("SELECT COUNT(*) FROM chats"),
+            "questions_today": one("SELECT SUM(questions) FROM usage WHERE day = ?", (today,)),
+            "questions_7d": one("SELECT SUM(questions) FROM usage WHERE day >= ?", (week,)),
+            "questions_30d": one("SELECT SUM(questions) FROM usage WHERE day >= ?", (month,)),
+            "uploads_30d": one("SELECT SUM(uploads) FROM usage WHERE day >= ?", (month,)),
+            "active_30d": one("SELECT COUNT(DISTINCT user_id) FROM usage WHERE day >= ? AND questions > 0", (month,)),
+            "by_day": [{"day": r["day"], "questions": int(r["questions"] or 0), "uploads": int(r["uploads"] or 0)} for r in days],
+        }
 
     def count_usage(self, user_id: str, kind: str) -> None:
         if kind not in ("questions", "uploads"):
