@@ -27,6 +27,7 @@ import { SignIn } from './components/SignIn';
 import { AccountDialog } from './components/AccountDialog';
 import { NoticesDialog } from './components/NoticesDialog';
 import { KeysDialog } from './components/KeysDialog';
+import { Tour } from './components/Tour';
 import { ToastProvider, useToast } from './components/ui/Toast';
 import styles from './App.module.css';
 
@@ -731,6 +732,8 @@ function Shell() {
             onAskSelected={askSelected}
             sidebarOpen={navOpen}
             onOpenSidebar={() => setSidebarOpen(true)}
+            readOnly={guest}
+            hosted={!!methods.accounts}
           />
         )}
         {extractOpened && (
@@ -812,6 +815,7 @@ function Shell() {
         onClearChats={clearChats}
       />
       <ProvidersDialog open={providersOpen} onClose={() => setProvidersOpen(false)} />
+      <Tour userKey={user?.kind === 'guest' ? 'guest' : user?.id || 'local'} />
       <ProfileDialog
         open={profileOpen}
         onClose={() => setProfileOpen(false)}
