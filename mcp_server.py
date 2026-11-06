@@ -5,7 +5,8 @@ Lets Claude Desktop, Claude Code, Cursor and other MCP clients use your OmniDoc 
 a tool: search it, ask cited questions, read documents, fill extraction templates, find
 sensitive data and compare documents. It talks to a running OmniDoc server over its REST API
 (OMNIDOC_API_URL, default http://127.0.0.1:8000; OMNIDOC_API_AUTH="user:password" when the
-server is protected with basic auth). Pure Python, no extra packages.
+server is protected with basic auth; OMNIDOC_API_TOKEN, an API token from the app's Connect page,
+for a hosted server with accounts). Pure Python, no extra packages.
 
 Claude Code:     claude mcp add omnidoc -- python /path/to/OmniDoc/mcp_server.py
 Claude Desktop:  {"mcpServers": {"omnidoc": {"command": "python", "args": ["/path/to/OmniDoc/mcp_server.py"]}}}
@@ -20,6 +21,7 @@ from typing import Any, Dict, List, Optional
 
 API = os.environ.get("OMNIDOC_API_URL", "http://127.0.0.1:8000").rstrip("/")
 AUTH = os.environ.get("OMNIDOC_API_AUTH", "")
+TOKEN = os.environ.get("OMNIDOC_API_TOKEN", "").strip()
 PROTOCOL_VERSIONS = ("2025-06-18", "2025-03-26", "2024-11-05")
 TIMEOUT_S = float(os.environ.get("OMNIDOC_MCP_TIMEOUT", "600"))
 
@@ -33,6 +35,8 @@ def call_api(method: str, path: str, body: Optional[Dict[str, Any]] = None) -> A
     req = urllib.request.Request(f"{API}{path}", data=data, method=method, headers={"Content-Type": "application/json"})
     if AUTH:
         req.add_header("Authorization", "Basic " + base64.b64encode(AUTH.encode()).decode())
+    if TOKEN:
+        req.add_header("X-OmniDoc-Token", TOKEN)
     try:
         with urllib.request.urlopen(req, timeout=TIMEOUT_S) as resp:
             return json.loads(resp.read().decode("utf-8"))
