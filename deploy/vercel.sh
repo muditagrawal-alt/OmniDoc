@@ -24,6 +24,8 @@ curl -fsS "$backend/_via/$OMNIDOC_PROXY_KEY/api/health" >/dev/null \
 out=$(mktemp -d)
 trap 'rm -rf "$out"' EXIT
 cp -R frontend/dist/. "$out/"
+# The demo video, played from the site itself (the README links to it).
+[ -f docs/media/omnidoc-demo.mp4 ] && mkdir -p "$out/demo" && cp docs/media/omnidoc-demo.mp4 docs/media/omnidoc-demo.srt "$out/demo/" 2>/dev/null || true
 OMNIDOC_BACKEND="$backend" python3 - "$out/vercel.json" deploy/vercel/vercel.template.json <<'PY'
 import json, os, sys
 target, template = sys.argv[1], sys.argv[2]
