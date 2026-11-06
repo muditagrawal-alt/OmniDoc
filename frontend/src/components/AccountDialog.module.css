@@ -35,6 +35,9 @@
 }
 
 .lede {
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
   color: var(--text-2);
   font-size: var(--text-sm);
 }
