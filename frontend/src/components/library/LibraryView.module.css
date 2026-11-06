@@ -494,3 +494,40 @@
     display: none;
   }
 }
+
+/* A phone: the name gets the row. It wraps onto two lines with its tags underneath, and the
+   processing status (also in the document's panel) steps aside. */
+@media (max-width: 520px) {
+  .table th:nth-child(5),
+  .table td:nth-child(5) {
+    display: none;
+  }
+
+  .table td {
+    height: auto;
+    padding-block: var(--space-2);
+  }
+
+  .nameCell {
+    gap: var(--space-2);
+  }
+
+  .nameText {
+    min-width: 0;
+  }
+
+  .nameLine {
+    flex-wrap: wrap;
+    row-gap: 2px;
+  }
+
+  .fileName {
+    flex-basis: 100%;
+    white-space: normal;
+    overflow-wrap: anywhere;
+    display: -webkit-box;
+    -webkit-box-orient: vertical;
+    -webkit-line-clamp: 2;
+    line-clamp: 2;
+  }
+}
