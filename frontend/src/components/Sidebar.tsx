@@ -1,36 +1,39 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import {
   Bell,
-  KeyRound,
-  GitCompareArrows,
   CalendarRange,
+  Compass,
   FileCheck2,
+  GitCompareArrows,
   Globe2,
+  KeyRound,
   Library,
   ListChecks,
-  Plug,
-  ShieldCheck,
-  ShieldUser,
-  Table2,
   LogIn,
   LogOut,
-  UserRound,
   MessageSquare,
   MoreHorizontal,
   PanelLeftClose,
   Pencil,
+  Plug,
   Search,
   Settings2,
+  ShieldCheck,
+  ShieldUser,
   Sparkles,
   SquarePen,
+  Table2,
   Trash2,
+  UserRound,
 } from 'lucide-react';
 import type { ChatSession, User } from '../api';
 import { dateGroup } from '../lib/format';
 import { modelName, useModels } from '../lib/models';
 import { useSettings } from '../lib/settings';
 import { Menu } from './ui/Menu';
+import { startTour } from '../lib/tour';
 import { BrandMark } from './BrandMark';
+import { Avatar } from './ui/Avatar';
 import styles from './Sidebar.module.css';
 
 export type View =
@@ -47,6 +50,9 @@ export const TOOL_VIEWS: Array<{ key: View; label: string; icon: typeof MessageS
   { key: 'privacy', label: 'Privacy scan', icon: ShieldCheck, about: 'Find Aadhaar, PAN, GSTIN, card and phone numbers across the library, and download redacted copies.' },
   { key: 'knowledge', label: 'Knowledge', icon: Globe2, about: 'People, companies, places and amounts linked across your library, on a globe you can search.' },
 ];
+
+/** Sidebar items the guided tour points at (the rail marks its own). */
+const SIDEBAR_TOUR: Partial<Record<View, string>> = { search: 'search', library: 'library', extract: 'tools', connect: 'connect', admin: 'admin' };
 
 interface SidebarProps {
   open: boolean;
@@ -147,7 +153,7 @@ export function Sidebar(props: SidebarProps) {
         </div>
 
         <div className={styles.actions}>
-          <button type="button" className={styles.newChat} onClick={onNewChat}>
+          <button type="button" className={styles.newChat} onClick={onNewChat} data-tour="new-chat">
             <SquarePen {...ICON} />
             <span>New chat</span>
             <span className={styles.shortcut} aria-hidden="true">
@@ -164,6 +170,7 @@ export function Sidebar(props: SidebarProps) {
                 className={styles.navItem}
                 aria-current={view === key ? 'page' : undefined}
                 onClick={() => onNavigate(key)}
+                data-tour={SIDEBAR_TOUR[key]}
               >
                 <Icon {...ICON} />
                 <span>{label}</span>
@@ -306,7 +313,6 @@ function SettingsFooter({ user, onOpenProfile, onSignOut, accountsMode = false, 
 }) {
   const { models, current } = useModels();
   const { model: mine } = useSettings();
-  const initials = (user?.name || 'Local').split(/\s+/).map((w) => w[0]).join('').slice(0, 2).toUpperCase();
 
   return (
     <div className={styles.footer}>
@@ -315,8 +321,10 @@ function SettingsFooter({ user, onOpenProfile, onSignOut, accountsMode = false, 
         side="top"
         align="start"
         trigger={(p) => (
-          <button type="button" className={styles.profileButton} {...p}>
-            <span className={styles.avatar} aria-hidden="true" data-unread={unreadNotices > 0 || undefined}>{initials}</span>
+          <button type="button" className={styles.profileButton} data-tour="account" {...p}>
+            <span className={styles.avatarWrap} data-unread={unreadNotices > 0 || undefined}>
+              <Avatar name={user?.name} src={user?.avatar_url} size={30} />
+            </span>
             <span className={styles.profileText}>
               <span className={styles.profileName}>{user?.name || 'Local profile'}</span>
               <span className={styles.profileMeta}>{mine || current ? modelName(mine || current, models) : 'Settings'}</span>
@@ -329,6 +337,9 @@ function SettingsFooter({ user, onOpenProfile, onSignOut, accountsMode = false, 
           <>
             <button type="button" role="menuitem" className="menu-item" onClick={() => { close(); onOpenSettings?.(); }}>
               <Settings2 size={15} strokeWidth={1.75} /> Settings…
+            </button>
+            <button type="button" role="menuitem" className="menu-item" onClick={() => { close(); startTour(); }}>
+              <Compass size={15} strokeWidth={1.75} /> Take the tour
             </button>
             <button type="button" role="menuitem" className="menu-item" onClick={() => { close(); onOpenKeys?.(); }}>
               {accountsMode ? <KeyRound size={15} strokeWidth={1.75} /> : <Sparkles size={15} strokeWidth={1.75} />}
