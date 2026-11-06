@@ -56,6 +56,16 @@ if sudo iptables -C INPUT -p tcp -m multiport --dports 80,443 -j ACCEPT 2>/dev/n
   sudo netfilter-persistent save >/dev/null 2>&1 || true
 fi
 
+# Hardening: SSH by key only and never as root, and no RPC port mapper (nothing here uses NFS).
+# The SSH settings are checked before sshd reloads, so a mistake cannot lock the VM out.
+if [ ! -f /etc/ssh/sshd_config.d/10-omnidoc.conf ]; then
+  printf "PermitRootLogin no\nPasswordAuthentication no\nKbdInteractiveAuthentication no\n" \
+    | sudo tee /etc/ssh/sshd_config.d/10-omnidoc.conf >/dev/null
+  if sudo sshd -t; then sudo systemctl reload ssh 2>/dev/null || sudo systemctl reload sshd 2>/dev/null || true
+  else sudo rm -f /etc/ssh/sshd_config.d/10-omnidoc.conf; fi
+fi
+sudo systemctl disable --now rpcbind.socket rpcbind.service >/dev/null 2>&1 || true
+
 # Latest scripts (when this is a git checkout), then the latest image.
 [ -d .git ] && git pull --ff-only || true
 compose="$DOCKER compose --env-file .env -f deploy/compose.oracle.yml"
