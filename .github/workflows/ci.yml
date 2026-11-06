@@ -70,6 +70,8 @@ jobs:
       packages: write
     steps:
       - uses: actions/checkout@v4
+      # Arm too: Oracle Cloud's Always Free VMs are Ampere (arm64).
+      - uses: docker/setup-qemu-action@v3
       - uses: docker/setup-buildx-action@v3
       - uses: docker/login-action@v3
         with:
@@ -80,7 +82,7 @@ jobs:
         with:
           context: .
           file: deploy/Dockerfile.slim
-          platforms: linux/amd64
+          platforms: linux/amd64,linux/arm64
           push: true
           tags: |
             ghcr.io/${{ github.repository_owner }}/omnidoc:slim
