@@ -4,6 +4,10 @@ import type { AgentStep, AuthMethods, ChatMessage, ChatSession, DocumentItem, So
 import { payloadToMetadata } from './lib/normalize';
 import { Sidebar } from './components/Sidebar';
 import type { View } from './components/Sidebar';
+import { AppRail } from './components/AppRail';
+import { SettingsPanel } from './components/SettingsPanel';
+import { ProvidersDialog } from './components/ProvidersDialog';
+import { setSetting, useSettings } from './lib/settings';
 import { ChatView } from './components/chat/ChatView';
 import { LibraryView } from './components/library/LibraryView';
 import type { UploadItem } from './components/library/LibraryView';
@@ -86,23 +90,13 @@ function Shell() {
   const [docsError, setDocsError] = useState<string | null>(null);
   const [uploads, setUploads] = useState<UploadItem[]>([]);
   const [selectedDocIds, setSelectedDocIds] = useState<string[]>([]);
-  const [language, setLanguage] = useState('en');
-  const [webMode, setWebModeState] = useState<WebMode>(() => {
-    try {
-      const v = localStorage.getItem('omnidoc_web_mode');
-      return v === 'on' || v === 'off' ? v : 'auto';
-    } catch {
-      return 'auto';
-    }
-  });
-  const setWebMode = (mode: WebMode) => {
-    setWebModeState(mode);
-    try {
-      localStorage.setItem('omnidoc_web_mode', mode);
-    } catch {
-      /* storage unavailable */
-    }
-  };
+  // Answer language, web search and effort are preferences kept in this browser (Settings).
+  const settings = useSettings();
+  const { language, webMode, effort } = settings;
+  const setLanguage = (code: string) => setSetting('language', code);
+  const setWebMode = (mode: WebMode) => setSetting('webMode', mode);
+  const [settingsOpen, setSettingsOpen] = useState(false);
+  const [providersOpen, setProvidersOpen] = useState(false);
   const [exporting, setExporting] = useState<'pdf' | 'docx' | null>(null);
   const [globeFocus, setGlobeFocus] = useState<string[] | undefined>(undefined);
   // The Extract view stays mounted once opened, so a running extraction and its results survive navigation.
@@ -270,6 +264,10 @@ function Shell() {
         e.preventDefault();
         newChat();
       }
+      if ((e.metaKey || e.ctrlKey) && e.key === ',') {
+        e.preventDefault();
+        setSettingsOpen((o) => !o);
+      }
     };
     window.addEventListener('keydown', onKey);
     return () => window.removeEventListener('keydown', onKey);
@@ -288,6 +286,12 @@ function Shell() {
       toast((e as Error).message, 'bad');
       loadChats();
     }
+  };
+
+  const clearChats = async () => {
+    for (const c of chats) await api.deleteChat(c.id);
+    setChats([]);
+    setActiveChatId(null);
   };
 
   const deleteChat = async (id: string) => {
@@ -358,7 +362,7 @@ function Shell() {
       try {
         const result = await api.streamQuery(
           chatId,
-          { query, document_ids: opts?.docIds ?? selectedDocIds, language, web: webMode },
+          { query, document_ids: opts?.docIds ?? selectedDocIds, language, web: webMode, effort },
           {
             signal: controller.signal,
             onStep: (step) => {
@@ -396,7 +400,7 @@ function Shell() {
         refreshFreeAnswers();
       }
     },
-    [language, loadChats, selectedDocIds, toast, webMode, refreshFreeAnswers],
+    [language, loadChats, selectedDocIds, toast, webMode, effort, refreshFreeAnswers],
   );
 
   const stop = () => inflightRef.current?.controller.abort();
@@ -581,31 +585,67 @@ function Shell() {
     if (!methods.accounts) loadChats();
   };
 
+  // Desktop shows the icon rail unless Settings asks for the full sidebar; phones use the sidebar as a drawer.
+  const rail = !isMobile && settings.navigation === 'rail';
+  const navOpen = rail || sidebarOpen;
+  const openKeys = () => {
+    if (methods.accounts) {
+      setKeysReason(null);
+      setKeysOpen(true);
+    } else setProvidersOpen(true);
+  };
+
   return (
     <div className={styles.app}>
-      <Sidebar
-        open={sidebarOpen}
-        isMobile={isMobile}
-        onClose={() => setSidebarOpen(false)}
-        view={view}
-        onNavigate={navigate}
-        chats={chats}
-        chatsLoading={chatsLoading}
-        activeChatId={activeChatId}
-        onSelectChat={selectChat}
-        onNewChat={newChat}
-        onRenameChat={renameChat}
-        onDeleteChat={deleteChat}
-        user={user}
-        onOpenProfile={() => setProfileOpen(true)}
-        onSignOut={signOut}
-        accountsMode={methods.accounts}
-        onOpenAccount={() => setAccountOpen(true)}
-        unreadNotices={unread}
-        onOpenNotices={() => setNoticesOpen(true)}
-        onOpenKeys={() => { setKeysReason(null); setKeysOpen(true); }}
-        documentCount={documents.length}
-      />
+      {rail ? (
+        <AppRail
+          view={view}
+          onNavigate={navigate}
+          chats={chats}
+          chatsLoading={chatsLoading}
+          activeChatId={activeChatId}
+          onSelectChat={selectChat}
+          onNewChat={newChat}
+          onRenameChat={renameChat}
+          onDeleteChat={deleteChat}
+          documents={documents}
+          user={user}
+          accountsMode={!!methods.accounts}
+          unreadNotices={unread}
+          onOpenNotices={() => setNoticesOpen(true)}
+          settingsOpen={settingsOpen}
+          onOpenSettings={() => setSettingsOpen(true)}
+          onOpenAccount={() => setAccountOpen(true)}
+          onOpenKeys={openKeys}
+          onOpenProfile={() => setProfileOpen(true)}
+          onSignOut={signOut}
+        />
+      ) : (
+        <Sidebar
+          open={sidebarOpen}
+          isMobile={isMobile}
+          onClose={() => setSidebarOpen(false)}
+          view={view}
+          onNavigate={navigate}
+          chats={chats}
+          chatsLoading={chatsLoading}
+          activeChatId={activeChatId}
+          onSelectChat={selectChat}
+          onNewChat={newChat}
+          onRenameChat={renameChat}
+          onDeleteChat={deleteChat}
+          user={user}
+          onOpenProfile={() => setProfileOpen(true)}
+          onSignOut={signOut}
+          accountsMode={methods.accounts}
+          onOpenAccount={() => setAccountOpen(true)}
+          unreadNotices={unread}
+          onOpenNotices={() => setNoticesOpen(true)}
+          onOpenKeys={openKeys}
+          onOpenSettings={() => setSettingsOpen(true)}
+          documentCount={documents.length}
+        />
+      )}
       <div className={styles.main}>
         {view === 'chat' && (
           <ChatView
@@ -614,7 +654,7 @@ function Shell() {
             liveSteps={liveSteps}
             loadingMessages={loadingMessages}
             onRetry={retry}
-            sidebarOpen={sidebarOpen}
+            sidebarOpen={navOpen}
             onOpenSidebar={() => setSidebarOpen(true)}
             onNewChat={newChat}
             onExport={exportChat}
@@ -640,6 +680,7 @@ function Shell() {
             onWebModeChange={setWebMode}
             freeAnswers={freeAnswers}
             onAddKey={() => { setKeysReason(null); setKeysOpen(true); }}
+            accountsMode={!!methods.accounts}
           />
         )}
         {view === 'library' && (
@@ -657,7 +698,7 @@ function Shell() {
             onToggleDoc={toggleDoc}
             onSetSelection={setSelectedDocIds}
             onAskSelected={askSelected}
-            sidebarOpen={sidebarOpen}
+            sidebarOpen={navOpen}
             onOpenSidebar={() => setSidebarOpen(true)}
           />
         )}
@@ -666,7 +707,7 @@ function Shell() {
             <ExtractView
               documents={documents}
               selectedDocIds={selectedDocIds}
-              sidebarOpen={sidebarOpen}
+              sidebarOpen={navOpen}
               onOpenSidebar={() => setSidebarOpen(true)}
               onOpenLibrary={() => navigate('library')}
             />
@@ -674,7 +715,7 @@ function Shell() {
         )}
         {view === 'compare' && (
           <div className={styles.extract}>
-            <CompareView documents={documents} sidebarOpen={sidebarOpen} onOpenSidebar={() => setSidebarOpen(true)} />
+            <CompareView documents={documents} sidebarOpen={navOpen} onOpenSidebar={() => setSidebarOpen(true)} />
           </div>
         )}
         {view === 'knowledge' && (
@@ -684,7 +725,7 @@ function Shell() {
                 onAskAboutEntity={askAboutEntity}
                 onOpenLibrary={() => navigate('library')}
                 focusEntityNames={globeFocus}
-                sidebarOpen={sidebarOpen}
+                sidebarOpen={navOpen}
                 onOpenSidebar={() => setSidebarOpen(true)}
               />
             </Suspense>
@@ -709,6 +750,24 @@ function Shell() {
         canStoreOnServer={!!methods.accounts && user?.kind !== 'guest'}
         onClose={() => setKeysOpen(false)} onSaved={refreshFreeAnswers} />
       <NoticesDialog key={noticesOpen ? 'open' : 'closed'} open={noticesOpen} onClose={() => setNoticesOpen(false)} onRead={clearUnread} />
+      <SettingsPanel
+        open={settingsOpen}
+        onClose={() => setSettingsOpen(false)}
+        user={user}
+        isMobile={isMobile}
+        accountsMode={!!methods.accounts}
+        freeAnswers={freeAnswers}
+        onAddKey={() => { setSettingsOpen(false); setKeysReason(null); setKeysOpen(true); }}
+        onOpenKeys={openKeys}
+        onOpenAccount={() => setAccountOpen(true)}
+        onOpenNotices={() => setNoticesOpen(true)}
+        unreadNotices={unread}
+        onSignOut={signOut}
+        onOpenProfile={() => setProfileOpen(true)}
+        chatCount={chats.length}
+        onClearChats={clearChats}
+      />
+      <ProvidersDialog open={providersOpen} onClose={() => setProvidersOpen(false)} />
       <ProfileDialog
         open={profileOpen}
         onClose={() => setProfileOpen(false)}
