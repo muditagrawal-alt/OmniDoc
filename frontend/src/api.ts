@@ -524,6 +524,8 @@ export interface ModelInfo {
 }
 
 export type WebMode = 'auto' | 'on' | 'off';
+/** How much evidence an answer reads: fewer passages and sooner, or more passages and later. */
+export type Effort = 'quick' | 'balanced' | 'thorough';
 
 export interface StreamHandlers {
   onStep?: (step: AgentStep) => void;
@@ -988,7 +990,7 @@ class OmniDocApiClient {
    */
   async streamQuery(
     chatId: string,
-    body: { query: string; document_ids?: string[]; language?: string; web?: WebMode },
+    body: { query: string; document_ids?: string[]; language?: string; web?: WebMode; effort?: Effort },
     handlers: StreamHandlers = {},
   ): Promise<QueryResponse> {
     let res: Response;
