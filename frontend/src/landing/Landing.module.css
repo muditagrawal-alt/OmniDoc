@@ -1,8 +1,18 @@
 .page {
+  position: relative;
+  isolation: isolate;
   min-height: 100dvh;
   background: var(--bg);
   color: var(--text);
   overflow-x: clip;
+}
+
+/* Chroma waves behind every section after the hero (Waves in Landing.tsx). */
+.waves {
+  position: fixed;
+  inset: 0;
+  z-index: -1;
+  pointer-events: none;
 }
 
 .progress {
@@ -73,10 +83,26 @@
   display: inline-flex;
   align-items: center;
   gap: var(--space-2);
+  padding: 4px 8px 4px 4px;
+  border: 0;
+  border-radius: var(--radius-pill);
+  background: none;
   color: var(--text);
+  font: inherit;
   font-weight: 600;
   letter-spacing: var(--tracking-snug);
   text-decoration: none;
+  cursor: pointer;
+  transition: background var(--dur-2) var(--ease-out);
+}
+
+.brand:hover {
+  background: color-mix(in srgb, var(--text) 6%, transparent);
+}
+
+.brand:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
 }
 
 .links {
