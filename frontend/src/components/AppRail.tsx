@@ -1,14 +1,13 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import type { ComponentType, ReactNode } from 'react';
 import {
-  Bell, FileText, GitCompareArrows, Globe2, KeyRound, Library, ListChecks, LogIn, LogOut, MessageSquare, Search,
-  Settings2, SquarePen, UserRound,
+  Bell, FileText, KeyRound, Library, LogIn, LogOut, MessageSquare, Plug, Search, Settings2, ShieldUser, SquarePen, UserRound,
 } from 'lucide-react';
 import type { ChatSession, DocumentItem, User } from '../api';
 import { dateGroup } from '../lib/format';
 import { isMac } from '../lib/settings';
 import { BrandMark } from './BrandMark';
-import { ChatRow } from './Sidebar';
+import { ChatRow, TOOL_VIEWS } from './Sidebar';
 import type { View } from './Sidebar';
 import styles from './AppRail.module.css';
 
@@ -188,6 +187,8 @@ interface AppRailProps {
   documents: DocumentItem[];
   user: User | null;
   accountsMode: boolean;
+  /** Shows the Admin tab (an administrator, or anyone on a local install). */
+  admin: boolean;
   unreadNotices: number;
   onOpenNotices: () => void;
   settingsOpen: boolean;
@@ -219,22 +220,31 @@ export function AppRail(props: AppRailProps) {
             onSelectChat={props.onSelectChat} onNewChat={props.onNewChat} onRenameChat={props.onRenameChat}
             onDeleteChat={props.onDeleteChat} />
         </RailItem>
+        <RailItem label="Search" icon={Search} active={view === 'search'} onClick={() => onNavigate('search')}
+          shortcut={<><kbd className="kbd">{mod}</kbd><kbd className="kbd">K</kbd></>} />
         <RailItem label="Library" icon={Library} active={view === 'library'} onClick={() => onNavigate('library')}
           badge={documents.length ? <span className={styles.count}>{documents.length}</span> : null}>
           <LibraryFlyout documents={documents} onOpen={() => onNavigate('library')} />
         </RailItem>
-        <RailItem label="Extract" icon={ListChecks} active={view === 'extract'} onClick={() => onNavigate('extract')}>
-          <ToolFlyout title="Extract" text="Pull invoice numbers, totals, dates or any field you name from many documents into one table, each value with its citation." />
-        </RailItem>
-        <RailItem label="Compare" icon={GitCompareArrows} active={view === 'compare'} onClick={() => onNavigate('compare')}>
-          <ToolFlyout title="Compare" text="Two drafts or two years side by side: changed clauses, added sections and moved figures." />
-        </RailItem>
-        <RailItem label="Knowledge" icon={Globe2} active={view === 'knowledge'} onClick={() => onNavigate('knowledge')}>
-          <ToolFlyout title="Knowledge" text="People, companies, places and amounts linked across your library, on a globe you can search." />
-        </RailItem>
+      </div>
+
+      <div className={styles.group} role="group" aria-label="Tools">
+        {TOOL_VIEWS.map((t) => (
+          <RailItem key={t.key} label={t.label} icon={t.icon} active={view === t.key} onClick={() => onNavigate(t.key)}>
+            <ToolFlyout title={t.label} text={t.about} />
+          </RailItem>
+        ))}
       </div>
 
       <div className={`${styles.group} ${styles.bottom}`}>
+        <RailItem label="Connect" icon={Plug} active={view === 'connect'} onClick={() => onNavigate('connect')}>
+          <ToolFlyout title="Connect" text="Use your library from Claude Code, Claude Desktop or Cursor through OmniDoc's MCP server." />
+        </RailItem>
+        {props.admin && (
+          <RailItem label="Admin" icon={ShieldUser} active={view === 'admin'} onClick={() => onNavigate('admin')}>
+            <ToolFlyout title="Admin" text="Usage, server health and memory, the default model for everyone, and announcements." />
+          </RailItem>
+        )}
         {accountsMode && user && !guest && (
           <RailItem label="Notifications" icon={Bell} onClick={props.onOpenNotices}
             badge={props.unreadNotices > 0 ? <span className={styles.dot} aria-label={`${props.unreadNotices} new`} /> : null} />
