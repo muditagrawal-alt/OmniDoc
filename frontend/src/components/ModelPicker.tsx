@@ -1,6 +1,6 @@
 import { Check, ChevronDown, Cpu, Gauge, KeyRound } from 'lucide-react';
 import type { Effort } from '../api';
-import { chooseModel, modelName, useModels } from '../lib/models';
+import { chooseModel, modelName, setDefaultModel, useModels } from '../lib/models';
 import { setSetting, useSettings } from '../lib/settings';
 import { Popover, Segmented } from './ui/Controls';
 import type { SegmentedOption } from './ui/Controls';
@@ -52,36 +52,48 @@ function CostNote({ accountsMode, freeAnswers, onAddKey }: CostContext) {
   );
 }
 
-/** The models the server offers, grouped by provider, as a single-choice list. */
-export function ModelChoices({ onChosen }: { onChosen?: () => void }) {
+/**
+ * The models the server offers, grouped by provider, as a single-choice list: the model for this
+ * user's own questions, or (mode "default", administrators) the server's default for everyone.
+ */
+export function ModelChoices({ onChosen, mode = 'mine' }: { onChosen?: () => void; mode?: 'mine' | 'default' }) {
   const { models, current, error, loading } = useModels();
+  const { model: mine } = useSettings();
   const toast = useToast();
+  const selected = mode === 'mine' ? mine || current : current;
   const choose = async (name: string) => {
-    try {
-      const now = await chooseModel(name);
-      toast(`Answers now use ${modelName(now, models)}`, 'good');
-      onChosen?.();
-    } catch (e) {
-      toast((e as Error).message, 'bad');
+    if (mode === 'default') {
+      try {
+        const now = await setDefaultModel(name);
+        toast(`The default model for everyone is now ${modelName(now, models)}`, 'good');
+        onChosen?.();
+      } catch (e) {
+        toast((e as Error).message, 'bad');
+      }
+      return;
     }
+    chooseModel(name);
+    toast(`Your answers now use ${modelName(name, models)}`, 'good');
+    onChosen?.();
   };
   if (error) return <p className={styles.note}>{error}</p>;
   if (!models) return <p className={styles.note}>{loading ? 'Loading models…' : 'No models listed.'}</p>;
   return (
-    <div role="radiogroup" aria-label="Answer model" className={styles.models}>
+    <div role="radiogroup" aria-label={mode === 'default' ? 'Default model' : 'Answer model'} className={styles.models}>
       {models.map((m, i) => (
         <div key={m.name}>
           {(i === 0 || models[i - 1].provider_label !== m.provider_label) && m.provider_label && (
             <p className={styles.provider}>{m.provider_label}</p>
           )}
-          <button type="button" role="radio" aria-checked={current === m.name} className={styles.model} onClick={() => choose(m.name)}>
+          <button type="button" role="radio" aria-checked={selected === m.name} className={styles.model} onClick={() => choose(m.name)}>
             <span className={styles.modelName}>{m.label || modelName(m.name, models)}</span>
             <span className={styles.modelMeta}>
+              {mode === 'mine' && m.name === current && <span className={styles.tag}>Default</span>}
               {m.tier && <span className={styles.tag}>{m.tier === 'fast' ? 'Fast' : 'Smart'}</span>}
               {m.parameter_size && <span className={styles.tag}>{m.parameter_size}</span>}
               <span className={styles.price}>{m.hosted === false ? 'This computer' : 'Free'}</span>
             </span>
-            <span className={styles.check}>{current === m.name && <Check size={15} strokeWidth={2} />}</span>
+            <span className={styles.check}>{selected === m.name && <Check size={15} strokeWidth={2} />}</span>
           </button>
         </div>
       ))}
@@ -107,7 +119,7 @@ export function EffortChoice() {
 /** The model and effort for the next answers, from the chat's navigation bar. */
 export function ModelPicker(cost: CostContext) {
   const { models, current } = useModels();
-  const { effort } = useSettings();
+  const { effort, model: mine } = useSettings();
   return (
     <Popover
       label="Model and effort"
@@ -115,7 +127,7 @@ export function ModelPicker(cost: CostContext) {
       trigger={(p) => (
         <button type="button" className={styles.trigger} {...p}>
           <Cpu size={15} strokeWidth={1.75} />
-          <span className={styles.triggerName}>{current ? modelName(current, models) : 'Model'}</span>
+          <span className={styles.triggerName}>{mine || current ? modelName(mine || current, models) : 'Model'}</span>
           <span className={styles.triggerEffort}>{EFFORTS.find((e) => e.value === effort)?.label}</span>
           <ChevronDown size={14} strokeWidth={1.75} />
         </button>
