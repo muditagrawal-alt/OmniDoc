@@ -9,10 +9,9 @@ copied in as the library intends and used on the landing page (`src/landing/`):
 | Threads | The background of the closing call to action (WebGL, no dependencies) |
 | RotatingText | "Ask your annual reports / contracts / ..." |
 | CardSwap | The 3D stack of product screenshots in the closing call to action |
-| SpotlightCard | Feature cards |
+| SpotlightCard | The stacked cards in "How it stays free" |
 | CountUp | Benchmark figures |
-| LogoLoop | Formats and languages |
-| ShinyText | The hero badge |
+| LogoLoop | The languages strip |
 
 Changes from upstream: CardSwap's demo cards and the icon library they needed are removed (OmniDoc
 passes its own cards), and the `'use client'` directives are dropped (this is a Vite app). RotatingText
