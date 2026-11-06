@@ -1,17 +1,21 @@
 import { useEffect, useSyncExternalStore } from 'react';
 import { api } from '../api';
 import type { ModelInfo } from '../api';
+import { getSettings, setSetting } from './settings';
 
 /* The answer models the server offers and the one in use, shared by the model picker and Settings. */
 
 interface ModelsState {
   models: ModelInfo[] | null;
+  /** The server's default answer model. */
   current: string;
+  /** Whether this user may change the default for everyone (an administrator, or a local install). */
+  canSetDefault: boolean;
   error: string | null;
   loading: boolean;
 }
 
-let state: ModelsState = { models: null, current: '', error: null, loading: false };
+let state: ModelsState = { models: null, current: '', canSetDefault: false, error: null, loading: false };
 const listeners = new Set<() => void>();
 
 function emit(next: Partial<ModelsState>) {
@@ -24,12 +28,22 @@ export function loadModels() {
   emit({ loading: true });
   api
     .getModels()
-    .then((r) => emit({ models: r.models, current: r.current, error: null, loading: false }))
+    .then((r) => {
+      // A model chosen earlier that this server no longer offers falls back to the default.
+      const mine = getSettings().model;
+      if (mine && !r.models.some((m) => m.name === mine)) setSetting('model', '');
+      emit({ models: r.models, current: r.current, canSetDefault: !!r.can_set_default, error: null, loading: false });
+    })
     .catch((e: Error) => emit({ error: e.message, loading: false }));
 }
 
-/** Switches the answer model; resolves to the model now in use. */
-export async function chooseModel(name: string): Promise<string> {
+/** The model this user's questions use: their own choice, or the server's default. */
+export function chooseModel(name: string) {
+  setSetting('model', name === state.current ? '' : name);
+}
+
+/** Changes the default answer model for everyone (administrators). */
+export async function setDefaultModel(name: string): Promise<string> {
   const r = await api.setModel(name);
   emit({ current: r.current });
   return r.current;
