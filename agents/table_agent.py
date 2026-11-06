@@ -58,6 +58,8 @@ Rules:
   abbreviations (solar: '%solar%', '%photovoltaic%', '%PV%'), and return those rows with their values,
   plus the total in its own query, so the reader can see what was counted.
 - Return the rows or aggregates that answer each part, with readable column aliases; at most 50 rows.
+- When rows are returned (not a single aggregate), also select the row's name column (the table's first
+  TEXT column, e.g. the line item or name) first, so every number in the result is labelled.
 - If no table can answer the question, return an empty list.
 Return JSON only: {{"queries": [{{"table": "<table name>", "sql": "SELECT ...", "answers": "the part of the question it answers"}}]}}"""
 
