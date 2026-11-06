@@ -5,7 +5,10 @@
 	header {
 		Strict-Transport-Security "max-age=31536000"
 		X-Content-Type-Options "nosniff"
-		X-Frame-Options "SAMEORIGIN"
+		X-Frame-Options "DENY"
+		# The web app's own scripts only (plus the theme bootstrap, by hash: see deploy/vercel.sh).
+		Content-Security-Policy "default-src 'self'; script-src 'self' 'sha256-DlEr1YUf7XZxQP3TmZHNvPrmetI0A5GRdKGyiZv61sI='; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob: https://avatars.githubusercontent.com https://*.googleusercontent.com https://gravatar.com https://*.gravatar.com; font-src 'self' data:; connect-src 'self'; media-src 'self' blob: data:; worker-src 'self' blob:; frame-src 'self' blob:; object-src 'none'; base-uri 'self'; form-action 'self'; frame-ancestors 'none'"
+		Cross-Origin-Opener-Policy "same-origin"
 		Referrer-Policy "strict-origin-when-cross-origin"
 		# Voice input uses the microphone; nothing else is needed.
 		Permissions-Policy "camera=(), geolocation=(), microphone=(self)"
