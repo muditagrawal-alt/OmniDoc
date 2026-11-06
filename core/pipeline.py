@@ -127,7 +127,7 @@ class AgenticGraphRAGPipeline:
         self.hybrid_agent = HybridRetrievalAgent(self.embed_service, self.lance_store, self.reranker)
         self.vision_agent = VisionAgent(images_dir=self.figures_dir)
         self.evidence_selection_agent = EvidenceSelectionAgent(self.reranker)
-        self.conflict_resolution_agent = ConflictResolutionAgent(model_name=model_name)
+        self.conflict_resolution_agent = ConflictResolutionAgent(model_name=model_name, doc_titles=lambda: self.document_titles())
         self.math_agent = MathematicsAgent(model_name=model_name)
         self.visualization_agent = VisualizationAgent(model_name=model_name)
         self.synthesis_agent = SynthesisAgent(model_name=model_name)
