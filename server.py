@@ -24,6 +24,7 @@ import queue
 import zipfile
 import tempfile
 import hashlib
+import hmac
 import logging
 import secrets
 import threading
@@ -94,6 +95,7 @@ async def lifespan(_app: FastAPI):
         threading.Thread(target=get_pipeline, name="pipeline-warmup", daemon=True).start()
     if accounts.demo_enabled():
         threading.Thread(target=_seed_demo_library, name="demo-library", daemon=True).start()
+    announce_setup_code()
     yield
 
 
@@ -348,6 +350,8 @@ class QueryRequest(BaseModel):
     web: Optional[str] = Field("auto", pattern="^(auto|on|off)$")
     # How much evidence to read: "quick", "balanced" (the benchmarked pipeline) or "thorough"
     effort: Optional[str] = Field("balanced", pattern="^(quick|balanced|thorough)$")
+    # The user's own choice of answer model ("provider:model" from /api/models); the server's default when empty
+    model: Optional[str] = Field(None, max_length=200)
 
 
 class ModelRequest(BaseModel):
@@ -397,7 +401,11 @@ def library_owner(user_id: str) -> str:
 
 
 def is_admin(user_id: str) -> bool:
-    return accounts_on() and accounts.is_admin((db.get_user(user_id) or {}).get("email"))
+    """An administrator: listed in OMNIDOC_ADMIN_EMAILS, or claimed the role with the server's setup code."""
+    if not accounts_on():
+        return False
+    user = db.get_user(user_id) or {}
+    return accounts.is_admin(user.get("email")) or bool(user.get("is_admin"))
 
 
 def has_two_step(user_id: str) -> bool:
@@ -509,16 +517,19 @@ class CodeVerifyRequest(BaseModel):
     name: Optional[str] = Field(None, max_length=120)
 
 
-_PRIVATE_USER_FIELDS = ("totp_secret", "totp_last_step", "webauthn_handle")
+_PRIVATE_USER_FIELDS = ("totp_secret", "totp_last_step", "webauthn_handle", "is_admin")
 
 
 def _public_user(user: Optional[Dict[str, Any]]) -> Dict[str, Any]:
     """A user record without its secrets, as the app sees it."""
     user = dict(user or {})
+    admin = accounts.is_admin(user.get("email")) or bool(user.get("is_admin"))
     for key in _PRIVATE_USER_FIELDS:
         user.pop(key, None)
     user["totp_enabled"] = bool(user.get("totp_enabled"))
     user["email"] = user.get("email") or ""
+    # A local install has no accounts: whoever runs it administers it.
+    user["admin"] = admin or not accounts_on()
     return user
 
 
@@ -1193,11 +1204,21 @@ def health_check():
 
 
 @app.get("/api/models")
-def list_models():
+def list_models(user_id: str = Depends(current_user_id)):
     models = available_models()
     if not models:
         raise HTTPException(status_code=503, detail="No model is available: add a free API key to .env (see .env.example) or start Ollama.")
-    return {"models": models, "current": current_model()}
+    # Everyone picks a model for their own questions; only an administrator changes the server's default.
+    return {"models": models, "current": current_model(), "can_set_default": not accounts_on() or is_admin(user_id)}
+
+
+def chosen_model(req: "QueryRequest") -> Optional[str]:
+    """The answer model a question asked for, if it is one this server (or the user's own key) can use."""
+    if not req.model or req.model == current_model():
+        return None
+    if req.model not in {m["name"] for m in available_models()}:
+        raise HTTPException(status_code=400, detail="That model is not available here. Choose another in the model picker.")
+    return req.model
 
 
 @app.put("/api/models/current")
@@ -1472,6 +1493,7 @@ def execute_chat_query(chat_id: str, req: QueryRequest, request: Request, user_i
     """Runs the agent pipeline and returns the complete answer."""
     chat = owned_chat(chat_id, user_id)
     _answer_gate(user_id, request)
+    model = chosen_model(req)
     history, doc_ids, query_text, selected = _query_inputs(chat, req, user_id)
     first_turn = not chat.get("memory_upto") and not db.get_messages(chat_id)
     started = time.perf_counter()
@@ -1481,7 +1503,7 @@ def execute_chat_query(chat_id: str, req: QueryRequest, request: Request, user_i
         for kind, data in get_pipeline().query_stream(
             user_query=query_text, document_ids=doc_ids, session_id=chat_id, conversation_history=history,
             web_mode=req.web or "auto", owner_id=library_owner(user_id) if accounts_on() else None,
-            effort=req.effort or "balanced",
+            effort=req.effort or "balanced", model=model,
         ):
             if kind == "step":
                 steps.append(data)
@@ -1505,6 +1527,7 @@ def stream_chat_query(chat_id: str, req: QueryRequest, request: Request, user_id
     """Runs the agent pipeline, streaming one `step` event per agent and a final `result`."""
     chat = owned_chat(chat_id, user_id)
     _answer_gate(user_id, request)
+    model = chosen_model(req)
     history, doc_ids, query_text, selected = _query_inputs(chat, req, user_id)
     first_turn = not chat.get("memory_upto") and not db.get_messages(chat_id)
 
@@ -1516,7 +1539,7 @@ def stream_chat_query(chat_id: str, req: QueryRequest, request: Request, user_id
             for kind, data in get_pipeline().query_stream(
                 user_query=query_text, document_ids=doc_ids, session_id=chat_id, conversation_history=history,
                 web_mode=req.web or "auto", owner_id=library_owner(user_id) if accounts_on() else None,
-                effort=req.effort or "balanced",
+                effort=req.effort or "balanced", model=model,
             ):
                 if kind == "step":
                     steps.append(data)
@@ -1550,6 +1573,7 @@ def stream_chat_query(chat_id: str, req: QueryRequest, request: Request, user_id
 def standalone_query(req: QueryRequest, request: Request, user_id: str = Depends(current_user_id)):
     """One-off agentic query without a stored conversation (used by scripts and evals)."""
     _answer_gate(user_id, request)
+    model = chosen_model(req)
     started = time.perf_counter()
     doc_ids = scoped_ids(req.document_ids, user_id)
     steps: List[Dict[str, Any]] = []
@@ -1558,7 +1582,7 @@ def standalone_query(req: QueryRequest, request: Request, user_id: str = Depends
         user_query=req.query, document_ids=doc_ids,
         session_id=req.session_id or f"session_{uuid.uuid4().hex[:8]}",
         web_mode=req.web or "auto", owner_id=library_owner(user_id) if accounts_on() else None,
-        effort=req.effort or "balanced",
+        effort=req.effort or "balanced", model=model,
     ):
         if kind == "step":
             steps.append(data)
@@ -1728,12 +1752,19 @@ def _seed_demo_library() -> None:
     if not DEMO_DIR.is_dir():
         logger.info(f"Demo on, but {DEMO_DIR} has no files yet: guests will see an empty library.")
         return
+    seeded = {d["filename"]: d for d in db.get_all_documents(owner_id=accounts.DEMO_OWNER)}
     for path in sorted(DEMO_DIR.iterdir()):
         ext = path.suffix.lower().lstrip(".")
         if not path.is_file() or ext not in ALLOWED_EXTENSIONS:
             continue
         try:
-            result = _ingest_bytes(path.read_bytes(), path.name, ext, accounts.DEMO_OWNER)
+            contents = path.read_bytes()
+            # A newer version of a sample replaces the old one instead of sitting beside it.
+            old = seeded.get(path.name)
+            if old and old.get("file_hash") != hashlib.sha256(contents).hexdigest():
+                _remove_document(old["id"])
+                logger.info(f"Demo library: replacing {path.name} with its new version")
+            result = _ingest_bytes(contents, path.name, ext, accounts.DEMO_OWNER)
             if not result.get("duplicate"):
                 logger.info(f"Demo library: added {path.name}")
         except Exception as e:
@@ -2318,6 +2349,195 @@ def export_docx(req: ExportRequest, user_id: str = Depends(current_user_id)):
 
 
 # ---------------------------------------------------------------------------
+# ---------------------------------------------------------------------------
+# Library views: every table, every extracted record and every dated statement in the library
+# ---------------------------------------------------------------------------
+def _my_documents(user_id: str) -> List[Dict[str, Any]]:
+    return [dict(d) for d in db.get_all_documents(owner_id=library_owner(user_id))]
+
+
+@app.get("/api/tables")
+def library_tables(user_id: str = Depends(current_user_id)):
+    """Every table found in the user's documents, with its document, page, columns and size."""
+    docs = {d["id"]: d for d in _my_documents(user_id)}
+    if not docs:
+        return {"tables": []}
+    entries = get_pipeline().table_store.tables_for(list(docs))
+    return {"tables": [{
+        "doc_id": t["doc_id"], "document": docs[t["doc_id"]].get("filename") or t["doc_id"], "table": t["table"],
+        "table_id": t["table_id"], "title": t["title"], "page": t["page"], "n_rows": t["n_rows"],
+        "columns": [c["name"] for c in t["columns"]],
+    } for t in entries if t["doc_id"] in docs]}
+
+
+@app.get("/api/records")
+def library_records(user_id: str = Depends(current_user_id)):
+    """The type detected for each document and the fields extracted from it, with the consistency checks."""
+    out = []
+    for d in _my_documents(user_id):
+        meta = _doc_meta(d["id"])
+        try:
+            rec = json.loads((DATA_DIR / "records" / f"{d['id']}.json").read_text())
+        except (OSError, ValueError):
+            rec = None
+        out.append({
+            "doc_id": d["id"], "document": d.get("filename") or d["id"],
+            "doc_type": meta.get("doc_type") or "other", "label": meta.get("doc_type_label") or "Document",
+            "fields": [{k: f.get(k) for k in ("name", "label", "type", "value", "status", "page", "chunk_id", "quote")}
+                       for f in (rec or {}).get("fields") or []],
+            "checks": (rec or {}).get("validation") or [],
+            "extracted": rec is not None,
+        })
+    return {"records": out}
+
+
+# Two periods side by side ("FY2024 FY2023", "31 Mar 2024 31 Mar 2023") are the column headers of a table.
+_PERIOD_COLUMNS = re.compile(r"(?:FY\s?\d{2,4}|(?:19|20)\d\d)\s+(?:\d{1,2}\s+[A-Za-z]{3,9}\.?\s+)?(?:FY\s?\d{2,4}|(?:19|20)\d\d)\b")
+_FIGURE_PREFIX = re.compile(r"^Description of the pictures and charts on page \d+:\s*")
+
+
+def _reads_as_a_statement(text: str, written: str = "") -> bool:
+    """
+    A sentence, not table cells read as text ("Balance sheet INR crore 31 Mar 2024 31 Mar 2023 412"):
+    no columns of periods, and apart from its own date at most a quarter of its words carry figures.
+    """
+    if len(text.split()) < 5 or _PERIOD_COLUMNS.search(text):
+        return False
+    rest = text.replace(written, " ", 1).split() if written else text.split()
+    return not rest or sum(1 for t in rest if any(ch.isdigit() for ch in t)) / len(rest) <= 0.25
+
+
+@app.get("/api/timeline")
+def library_timeline(doc_ids: Optional[str] = None, limit: int = 400, user_id: str = Depends(current_user_id)):
+    """
+    Dated statements across the library, oldest first: every sentence that mentions a date (found
+    by the same rules the temporal-reasoning agent uses), with its document and page. No model call.
+    """
+    from agents.temporal_reasoning_agent import TemporalReasoningAgent
+    docs = {d["id"]: d for d in _my_documents(user_id)}
+    wanted = [i for i in (doc_ids or "").split(",") if i in docs] or list(docs)
+    store = get_pipeline().lance_store
+    # A scanned page's description (read by the vision model) keeps its text, without the label.
+    chunks = [{"chunk_id": c.chunk_id, "doc_id": c.doc_id, "text": _FIGURE_PREFIX.sub("", c.text), "page_number": c.page_number}
+              for d in wanted for c in store.get_document_chunks(d)]
+    entries, _ = TemporalReasoningAgent._date_passages(chunks, None, None)
+    seen, events = set(), []
+    for e in sorted(entries, key=lambda e: e["date"]):
+        if not _reads_as_a_statement(e["text"], e.get("written", "")):
+            continue
+        sig = (e["date"], e["text"][:80])
+        if sig in seen:
+            continue
+        seen.add(sig)
+        events.append({**e, "document": docs.get(e["doc_id"], {}).get("filename") or e["doc_id"]})
+    limit = min(max(1, limit), 2000)
+    return {"events": events[:limit], "total": len(events)}
+
+
+# ---------------------------------------------------------------------------
+# Personal API tokens (for the MCP server and scripts on a hosted server)
+# ---------------------------------------------------------------------------
+class TokenRequest(BaseModel):
+    name: str = Field(..., min_length=1, max_length=40)
+
+
+@app.post("/api/account/tokens")
+def create_token(req: TokenRequest, user_id: str = Depends(account_user)):
+    """A token that signs in as this account for a year; shown once, listed and revoked with the devices."""
+    name = re.sub(r"\s+", " ", req.name).strip()
+    token = db.create_session(user_id, ttl_days=365, device=f"API token: {name}")
+    db.add_notice(user_id, "security", "A new API token was created", f"“{name}” can use your library for a year, until you revoke it under Devices.")
+    return {"token": token, "name": name, "expires_in_days": 365}
+
+
+# ---------------------------------------------------------------------------
+# Administration
+# ---------------------------------------------------------------------------
+ADMIN_CODE_FILE = DATA_DIR / "admin_setup_code"
+
+
+def admin_setup_code() -> str:
+    """The code that makes a signed-in account an administrator: OMNIDOC_ADMIN_CODE, or one kept in the data folder."""
+    configured = os.environ.get("OMNIDOC_ADMIN_CODE", "").strip()
+    if configured:
+        return configured
+    try:
+        return ADMIN_CODE_FILE.read_text().strip()
+    except OSError:
+        code = "-".join(secrets.token_hex(3) for _ in range(3))
+        ADMIN_CODE_FILE.write_text(code)
+        try:
+            os.chmod(ADMIN_CODE_FILE, 0o600)
+        except OSError:
+            pass
+        return code
+
+
+def announce_setup_code() -> None:
+    """At start-up, while nobody has claimed the role, print the code to the server log (the operator's eyes only)."""
+    if accounts_on() and not db.list_admins():
+        logger.warning("No administrator has claimed this server yet. Sign in, open Settings, choose "
+                       f"'Administer this server', and enter: {admin_setup_code()}")
+
+
+class AdminClaimRequest(BaseModel):
+    code: str = Field(..., min_length=4, max_length=80)
+
+
+@app.post("/api/admin/claim")
+def claim_admin(req: AdminClaimRequest, request: Request, user_id: str = Depends(account_user)):
+    _limit(request, "admin-claim", 5, 600)
+    if not hmac.compare_digest(req.code.strip().lower().encode(), admin_setup_code().lower().encode()):
+        raise HTTPException(status_code=403, detail="That code is not right. It is in the server's log, printed when it starts.")
+    db.set_admin(user_id, True)
+    db.add_notice(user_id, "security", "You are now an administrator of this server", "Claimed with the setup code.")
+    return {"admin": True}
+
+
+def _memory_limit_mb() -> Optional[int]:
+    """The container's memory limit (cgroup v2 or v1), when the server runs in one."""
+    for path in ("/sys/fs/cgroup/memory.max", "/sys/fs/cgroup/memory/memory.limit_in_bytes"):
+        try:
+            raw = Path(path).read_text().strip()
+        except OSError:
+            continue
+        if raw.isdigit() and int(raw) < 1 << 50:
+            return int(raw) // (1024 * 1024)
+    return None
+
+
+@app.get("/api/admin/overview")
+def admin_overview(user_id: str = Depends(current_user_id)):
+    require_admin(user_id)
+    health = health_check()
+    return {
+        "health": {**health, "memory_limit_mb": _memory_limit_mb()},
+        "stats": db.admin_stats(),
+        "admins": db.list_admins(),
+        "admin_emails": sorted(accounts._env_list("OMNIDOC_ADMIN_EMAILS")),
+        "settings": {
+            "accounts": accounts_on(), "demo": accounts.demo_enabled(), "trial_answers": accounts.trial_answers(),
+            "default_model": current_model(), "version": VERSION,
+        },
+    }
+
+
+class AnnounceRequest(BaseModel):
+    title: str = Field(..., min_length=1, max_length=120)
+    body: str = Field("", max_length=2000)
+    url: Optional[str] = Field(None, max_length=500)
+
+
+@app.post("/api/admin/announce")
+def announce(req: AnnounceRequest, user_id: str = Depends(current_user_id)):
+    """A notice every account sees under Notifications (What's new, planned maintenance)."""
+    require_admin(user_id)
+    if req.url and not re.match(r"^https?://", req.url):
+        raise HTTPException(status_code=400, detail="The link must start with http:// or https://")
+    notice_id = db.add_notice(None, "announcement", req.title.strip(), req.body.strip(), req.url)
+    return {"id": notice_id}
+
+
 # The built web app (frontend/dist), served from the same address as the API
 # ---------------------------------------------------------------------------
 STATIC_DIR = Path(os.environ.get("OMNIDOC_STATIC_DIR") or Path(__file__).resolve().parent / "frontend" / "dist")
