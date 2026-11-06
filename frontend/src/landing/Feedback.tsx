@@ -3,6 +3,7 @@ import type { FormEvent, KeyboardEvent } from 'react';
 import { AnimatePresence, motion, useScroll } from 'motion/react';
 import { ArrowRight } from 'lucide-react';
 import { api } from '../api';
+import { TiltCard } from '../components/ui/TiltCard';
 import { Reveal, RiseHeading } from './scroll';
 import { EASE, useRamp } from './motion';
 import styles from './Feedback.module.css';
@@ -108,7 +109,7 @@ export default function Feedback() {
 
         <motion.div className={styles.cardWrap} style={{ rotateX: tilt }}>
           <Reveal y={48} amount={0.2}>
-            <div className={styles.card}>
+            <TiltCard className={styles.card}>
               <AnimatePresence mode="wait" initial={false}>
                 {sent ? (
                   <motion.div key="thanks" className={styles.thanks} role="status"
@@ -163,7 +164,7 @@ export default function Feedback() {
                   </motion.form>
                 )}
               </AnimatePresence>
-            </div>
+            </TiltCard>
           </Reveal>
         </motion.div>
       </div>
