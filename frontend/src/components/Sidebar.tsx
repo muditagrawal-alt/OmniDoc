@@ -1,7 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import {
   Bell,
-  Check,
   KeyRound,
   GitCompareArrows,
   Globe2,
@@ -11,8 +10,6 @@ import {
   LogOut,
   UserRound,
   MessageSquare,
-  Monitor,
-  Moon,
   MoreHorizontal,
   PanelLeftClose,
   Pencil,
@@ -20,18 +17,13 @@ import {
   Settings2,
   Sparkles,
   SquarePen,
-  Sun,
   Trash2,
 } from 'lucide-react';
-import { api } from '../api';
-import type { ChatSession, ModelInfo, User } from '../api';
+import type { ChatSession, User } from '../api';
 import { dateGroup } from '../lib/format';
-import { useTheme } from '../lib/theme';
-import type { ThemePreference } from '../lib/theme';
+import { modelName, useModels } from '../lib/models';
 import { Menu } from './ui/Menu';
-import { useToast } from './ui/Toast';
 import { BrandMark } from './BrandMark';
-import { ProvidersDialog } from './ProvidersDialog';
 import styles from './Sidebar.module.css';
 
 export type View = 'chat' | 'library' | 'extract' | 'compare' | 'knowledge';
@@ -60,6 +52,7 @@ interface SidebarProps {
   onOpenNotices?: () => void;
   /** Opens "Your own model key" (bring your own free key after the free answers). */
   onOpenKeys?: () => void;
+  onOpenSettings?: () => void;
   documentCount: number;
 }
 
@@ -217,7 +210,7 @@ export function Sidebar(props: SidebarProps) {
         )}
         <SettingsFooter user={user} onOpenProfile={onOpenProfile} onSignOut={onSignOut} accountsMode={accountsMode}
           onOpenAccount={onOpenAccount} unreadNotices={props.unreadNotices ?? 0} onOpenNotices={props.onOpenNotices}
-          onOpenKeys={props.onOpenKeys} />
+          onOpenKeys={props.onOpenKeys} onOpenSettings={props.onOpenSettings} />
       </aside>
     </>
   );
@@ -233,7 +226,7 @@ interface ChatRowProps {
   onDelete: () => void;
 }
 
-function ChatRow({ chat, active, renaming, onSelect, onStartRename, onRename, onDelete }: ChatRowProps) {
+export function ChatRow({ chat, active, renaming, onSelect, onStartRename, onRename, onDelete }: ChatRowProps) {
   const inputRef = useRef<HTMLInputElement>(null);
   useEffect(() => {
     if (renaming) inputRef.current?.select();
@@ -285,60 +278,25 @@ function ChatRow({ chat, active, renaming, onSelect, onStartRename, onRename, on
   );
 }
 
-const THEMES: Array<{ key: ThemePreference; label: string; icon: typeof Sun }> = [
-  { key: 'system', label: 'System', icon: Monitor },
-  { key: 'light', label: 'Light', icon: Sun },
-  { key: 'dark', label: 'Dark', icon: Moon },
-];
-
-function SettingsFooter({ user, onOpenProfile, onSignOut, accountsMode = false, onOpenAccount, unreadNotices = 0, onOpenNotices, onOpenKeys }: {
+function SettingsFooter({ user, onOpenProfile, onSignOut, accountsMode = false, onOpenAccount, unreadNotices = 0, onOpenNotices, onOpenKeys, onOpenSettings }: {
   user: User | null; onOpenProfile: () => void; onSignOut: () => void; accountsMode?: boolean; onOpenAccount?: () => void;
-  unreadNotices?: number; onOpenNotices?: () => void; onOpenKeys?: () => void;
+  unreadNotices?: number; onOpenNotices?: () => void; onOpenKeys?: () => void; onOpenSettings?: () => void;
 }) {
-  const { preference, setPreference } = useTheme();
-  const toast = useToast();
-  const [models, setModels] = useState<ModelInfo[] | null>(null);
-  const [current, setCurrent] = useState<string>('');
-  const [modelError, setModelError] = useState<string | null>(null);
-  const [providersOpen, setProvidersOpen] = useState(false);
-
-  const loadModels = () => {
-    api
-      .getModels()
-      .then((r) => {
-        setModels(r.models);
-        setCurrent(r.current);
-        setModelError(null);
-      })
-      .catch((e: Error) => setModelError(e.message));
-  };
-
-  useEffect(loadModels, []);
-
-  const switchModel = async (name: string) => {
-    try {
-      const r = await api.setModel(name);
-      setCurrent(r.current);
-      toast(`Answers now use ${r.current}`, 'good');
-    } catch (e) {
-      toast((e as Error).message, 'bad');
-    }
-  };
-
+  const { models, current } = useModels();
   const initials = (user?.name || 'Local').split(/\s+/).map((w) => w[0]).join('').slice(0, 2).toUpperCase();
 
   return (
     <div className={styles.footer}>
       <Menu
-        label="Settings"
+        label="Account"
         side="top"
         align="start"
         trigger={(p) => (
-          <button type="button" className={styles.profileButton} {...p} onClick={() => { loadModels(); p.onClick(); }}>
+          <button type="button" className={styles.profileButton} {...p}>
             <span className={styles.avatar} aria-hidden="true" data-unread={unreadNotices > 0 || undefined}>{initials}</span>
             <span className={styles.profileText}>
               <span className={styles.profileName}>{user?.name || 'Local profile'}</span>
-              <span className={styles.profileMeta}>{current ? current.split(':').slice(-1)[0].split('/').slice(-1)[0] : 'Settings'}</span>
+              <span className={styles.profileMeta}>{current ? modelName(current, models) : 'Settings'}</span>
             </span>
             <Settings2 size={16} strokeWidth={1.75} className={styles.profileIcon} />
           </button>
@@ -346,52 +304,13 @@ function SettingsFooter({ user, onOpenProfile, onSignOut, accountsMode = false, 
       >
         {(close) => (
           <>
-            <div className="menu-label">Appearance</div>
-            {THEMES.map(({ key, label, icon: Icon }) => (
-              <button
-                key={key}
-                type="button"
-                role="menuitemradio"
-                aria-checked={preference === key}
-                className="menu-item"
-                onClick={() => setPreference(key)}
-              >
-                <Icon size={15} strokeWidth={1.75} /> {label}
-                {preference === key && <Check size={15} strokeWidth={2} className="menu-hint" />}
-              </button>
-            ))}
-            <div className="menu-sep" />
-            <div className="menu-label">Model</div>
-            {modelError && <div className="menu-label">{modelError}</div>}
-            {!models && !modelError && <div className="menu-label">Loading models…</div>}
-            {models?.map((m, i) => (
-              <div key={m.name}>
-                {(i === 0 || models[i - 1].provider_label !== m.provider_label) && m.provider_label && (
-                  <div className="menu-label">{m.provider_label}</div>
-                )}
-                <button
-                  type="button"
-                  role="menuitemradio"
-                  aria-checked={current === m.name}
-                  className="menu-item"
-                  onClick={() => switchModel(m.name)}
-                >
-                  <span>{m.label || m.name}</span>
-                  <span className="menu-hint">
-                    {current === m.name ? <Check size={15} strokeWidth={2} /> : m.tier === 'fast' ? 'fast' : m.parameter_size || ''}
-                  </span>
-                </button>
-              </div>
-            ))}
-            {accountsMode ? (
-              <button type="button" role="menuitem" className="menu-item" onClick={() => { close(); onOpenKeys?.(); }}>
-                <KeyRound size={15} strokeWidth={1.75} /> Your own model key…
-              </button>
-            ) : (
-              <button type="button" role="menuitem" className="menu-item" onClick={() => { close(); setProvidersOpen(true); }}>
-                <Sparkles size={15} strokeWidth={1.75} /> Free model APIs and web search…
-              </button>
-            )}
+            <button type="button" role="menuitem" className="menu-item" onClick={() => { close(); onOpenSettings?.(); }}>
+              <Settings2 size={15} strokeWidth={1.75} /> Settings…
+            </button>
+            <button type="button" role="menuitem" className="menu-item" onClick={() => { close(); onOpenKeys?.(); }}>
+              {accountsMode ? <KeyRound size={15} strokeWidth={1.75} /> : <Sparkles size={15} strokeWidth={1.75} />}
+              {accountsMode ? 'Your own model key…' : 'Free model APIs and web search…'}
+            </button>
             <div className="menu-sep" />
             {accountsMode && (
               <button type="button" role="menuitem" className="menu-item" onClick={() => { close(); onOpenAccount?.(); }}>
@@ -416,7 +335,6 @@ function SettingsFooter({ user, onOpenProfile, onSignOut, accountsMode = false, 
           </>
         )}
       </Menu>
-      <ProvidersDialog open={providersOpen} onClose={() => setProvidersOpen(false)} />
     </div>
   );
 }
