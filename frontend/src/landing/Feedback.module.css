@@ -6,9 +6,8 @@
   min-height: 100dvh;
   padding: var(--space-20) var(--space-5);
   border-top: 1px solid var(--border);
-  background:
-    radial-gradient(ellipse 60% 50% at 85% 40%, color-mix(in srgb, var(--accent) 7%, transparent), transparent 70%),
-    color-mix(in srgb, var(--surface) 45%, var(--bg));
+  /* Light enough for the page's chroma waves to show through. */
+  background: color-mix(in srgb, var(--surface) 22%, transparent);
   scroll-margin-top: 0;
 }
 
