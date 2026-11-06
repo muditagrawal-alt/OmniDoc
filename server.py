@@ -48,7 +48,7 @@ from fastapi.responses import StreamingResponse, FileResponse, RedirectResponse,
 from db_store import OmniDocDB, LOCAL_USER_ID, DATA_DIR
 from export.report_compiler import ReportCompiler
 from core.pipeline import AgenticGraphRAGPipeline
-from core import accounts, chat_memory, abuse, memory, passkeys, two_factor
+from core import accounts, chat_memory, abuse, memory, passkeys, passwords, two_factor
 from agents import llm_providers
 
 logging.basicConfig(level=logging.INFO, format="%(asctime)s [%(levelname)s] %(name)s: %(message)s")
@@ -153,7 +153,8 @@ report_compiler = ReportCompiler()
 # Accounts (OMNIDOC_ACCOUNTS=1, a hosted OmniDoc): every API call needs a signed-in session, except
 # the health check and signing in. Without accounts, requests act as the local profile, as before.
 _OPEN_API = ("/api/health", "/api/auth/methods", "/api/auth/code/", "/api/auth/oauth/", "/api/auth/passkey/",
-             "/api/auth/challenge", "/api/auth/recovery", "/api/auth/mfa", "/api/auth/guest")
+             "/api/auth/challenge", "/api/auth/recovery", "/api/auth/mfa", "/api/auth/guest", "/api/auth/password/",
+             "/api/feedback")
 NO_DOCUMENTS = "doc_none"  # a scope that matches nothing: the account has no documents yet
 API_PER_MINUTE = int(os.environ.get("OMNIDOC_API_PER_MINUTE", "240"))
 
@@ -530,13 +531,14 @@ class CodeVerifyRequest(BaseModel):
     name: Optional[str] = Field(None, max_length=120)
 
 
-_PRIVATE_USER_FIELDS = ("totp_secret", "totp_last_step", "webauthn_handle", "is_admin")
+_PRIVATE_USER_FIELDS = ("totp_secret", "totp_last_step", "webauthn_handle", "is_admin", "password_hash")
 
 
 def _public_user(user: Optional[Dict[str, Any]]) -> Dict[str, Any]:
     """A user record without its secrets, as the app sees it."""
     user = dict(user or {})
     admin = accounts.is_admin(user.get("email")) or bool(user.get("is_admin"))
+    user["has_password"] = bool(user.get("password_hash"))
     for key in _PRIVATE_USER_FIELDS:
         user.pop(key, None)
     user["totp_enabled"] = bool(user.get("totp_enabled"))
@@ -586,6 +588,17 @@ def _limit(request: Request, name: str, limit: int, window_s: float) -> None:
     if not accounts_on():
         return
     wait = abuse.limiter.hit(f"{name}:{_client_ip(request)}", limit, window_s)
+    if wait:
+        minutes = max(1, round(wait / 60))
+        raise HTTPException(status_code=429, detail=f"Too many attempts. Try again in {minutes} minute{'s' if minutes != 1 else ''}.",
+                            headers={"Retry-After": str(int(wait))})
+
+
+def _limit_key(key: str, limit: int, window_s: float) -> None:
+    """A limit on something other than the address (a username being guessed at, for one)."""
+    if not accounts_on():
+        return
+    wait = abuse.limiter.hit(key, limit, window_s)
     if wait:
         minutes = max(1, round(wait / 60))
         raise HTTPException(status_code=429, detail=f"Too many attempts. Try again in {minutes} minute{'s' if minutes != 1 else ''}.",
@@ -768,6 +781,98 @@ class RecoveryRequest(BaseModel):
     pow: Optional[Dict[str, Any]] = None
 
 
+# ---------------------------------------------------------------------------
+# Passwords (core/passwords.py): username and password instead of a passkey; no e-mail, so a forgotten
+# password is reset with one of the recovery codes given at sign-up.
+# ---------------------------------------------------------------------------
+class PasswordSignupRequest(BaseModel):
+    username: str = Field(..., min_length=1, max_length=64)
+    password: str = Field(..., min_length=1, max_length=passwords.MAX_LENGTH)
+    name: Optional[str] = Field(None, max_length=80)
+    pow: Optional[Dict[str, Any]] = None
+
+
+class PasswordSigninRequest(BaseModel):
+    username: str = Field(..., min_length=1, max_length=64)
+    password: str = Field(..., min_length=1, max_length=passwords.MAX_LENGTH)
+
+
+class PasswordResetRequest(BaseModel):
+    username: str = Field(..., min_length=1, max_length=64)
+    code: str = Field(..., min_length=8, max_length=40)
+    password: str = Field(..., min_length=1, max_length=passwords.MAX_LENGTH)
+    pow: Optional[Dict[str, Any]] = None
+
+
+def _passwords_on() -> None:
+    if not accounts.passwords_enabled():
+        raise HTTPException(status_code=404, detail="Passwords are not available on this server.")
+
+
+def _check_new_password(password: str, username: str) -> None:
+    problem = passwords.password_problem(password, username)
+    if problem:
+        raise HTTPException(status_code=400, detail=problem)
+
+
+@app.post("/api/auth/password/signup")
+def password_signup(req: PasswordSignupRequest, request: Request):
+    """Creates an account with a username and password, signs it in, and returns its ten recovery codes (shown once)."""
+    _passwords_on()
+    _limit(request, "signup", 10, 3600)
+    _require_proof(req.pow)
+    username = passwords.clean_username(req.username)
+    problem = passwords.username_problem(username)
+    if problem:
+        raise HTTPException(status_code=400, detail=problem)
+    _check_new_password(req.password, username)
+    if db.get_user_by_username(username):
+        raise HTTPException(status_code=409, detail="That username is taken. Choose another.")
+    user_id = f"usr_{uuid.uuid4().hex[:12]}"
+    db.create_user(user_id, (req.name or "").strip() or username, "password")
+    db.set_username(user_id, username)
+    db.set_password(user_id, passwords.hash_password(req.password))
+    codes = two_factor.new_recovery_codes(db, DATA_DIR, user_id)
+    return {"status": "success", "token": _new_session(user_id, request), "user": _public_user(db.get_user(user_id)),
+            "recovery_codes": codes}
+
+
+@app.post("/api/auth/password/signin")
+def password_signin(req: PasswordSigninRequest, request: Request):
+    """Signs in with a username and password, or returns a ticket for the authenticator-app step."""
+    _passwords_on()
+    username = passwords.clean_username(req.username)
+    _limit(request, "password", 20, 600)
+    _limit_key(f"password-user:{username}", 10, 900)
+    user = db.get_user_by_username(username)
+    if not passwords.verify_password(req.password, (user or {}).get("password_hash")):
+        raise HTTPException(status_code=401, detail="That username and password do not match.")
+    if user.get("totp_enabled"):
+        return {"mfa": two_factor.issue_ticket(db, DATA_DIR, user["id"], "password")}
+    return {"status": "success", "token": _new_session(user["id"], request), "user": _public_user(user)}
+
+
+@app.post("/api/auth/password/reset")
+def password_reset(req: PasswordResetRequest, request: Request):
+    """Forgot password: one of the account's recovery codes and a new password. Other devices are signed out."""
+    _passwords_on()
+    _limit(request, "recovery", 10, 3600)
+    _require_proof(req.pow)
+    username = passwords.clean_username(req.username)
+    user = db.get_user_by_username(username)
+    if not user or not two_factor.use_recovery_code(db, DATA_DIR, req.code, user_id=user["id"]):
+        raise HTTPException(status_code=401, detail="That username and recovery code do not match, or the code was already used.")
+    _check_new_password(req.password, username)
+    db.set_password(user["id"], passwords.hash_password(req.password))
+    for s in db.list_sessions(user["id"]):
+        db.delete_session_by_id(user["id"], s["id"])
+    left = db.recovery_codes_left(user["id"])
+    db.add_notice(user["id"], "security", "Your password was reset with a recovery code",
+                  f"Other devices were signed out. {left} recovery code{'' if left == 1 else 's'} left.")
+    return {"status": "success", "token": _new_session(user["id"], request), "user": _public_user(db.get_user(user["id"])),
+            "recovery_codes_left": left}
+
+
 @app.post("/api/auth/recovery")
 def recovery_sign_in(req: RecoveryRequest, request: Request):
     """Signs in with a one-time recovery code (for an account whose passkeys are lost). The code is spent."""
@@ -892,12 +997,56 @@ def account_user(user_id: str = Depends(current_user_id)) -> str:
     return user_id
 
 
-def _ways_in(user_id: str, without_passkey: Optional[str] = None) -> int:
-    """How many independent ways the account can sign in: its passkeys, plus a linked address when a provider is on."""
+def _ways_in(user_id: str, without_passkey: Optional[str] = None, without_password: bool = False) -> int:
+    """How many independent ways the account can sign in: its passkeys, a password, and a linked address when a provider is on."""
     keys = [k for k in db.list_passkeys(user_id) if k["id"] != without_passkey]
     methods = accounts.methods()
-    linked = bool((db.get_user(user_id) or {}).get("email")) and (methods["github"] or methods["google"] or methods["email"])
-    return len(keys) + (1 if linked else 0)
+    user = db.get_user(user_id) or {}
+    linked = bool(user.get("email")) and (methods["github"] or methods["google"] or methods["email"])
+    password = bool(user.get("password_hash")) and methods.get("password") and not without_password
+    return len(keys) + (1 if linked else 0) + (1 if password else 0)
+
+
+class PasswordChangeRequest(BaseModel):
+    password: str = Field(..., min_length=1, max_length=passwords.MAX_LENGTH)
+    current_password: Optional[str] = Field(None, max_length=passwords.MAX_LENGTH)
+    # Needed the first time an account without one (a passkey or GitHub account) sets a password
+    username: Optional[str] = Field(None, max_length=32)
+
+
+@app.put("/api/account/password")
+def set_account_password(req: PasswordChangeRequest, request: Request, user_id: str = Depends(account_user)):
+    """Sets a password (and a username, the first time) or changes it; changing needs the current one."""
+    _passwords_on()
+    user = db.get_user(user_id) or {}
+    if user.get("password_hash"):
+        _limit_key(f"password-change:{user_id}", 10, 900)
+        if not passwords.verify_password(req.current_password or "", user["password_hash"]):
+            raise HTTPException(status_code=403, detail="The current password is not right.")
+    username = user.get("username")
+    if not username:
+        username = passwords.clean_username(req.username or "")
+        problem = passwords.username_problem(username)
+        if problem:
+            raise HTTPException(status_code=400, detail=problem)
+        if db.get_user_by_username(username):
+            raise HTTPException(status_code=409, detail="That username is taken. Choose another.")
+        db.set_username(user_id, username)
+    _check_new_password(req.password, username)
+    changed = bool(user.get("password_hash"))
+    db.set_password(user_id, passwords.hash_password(req.password))
+    db.add_notice(user_id, "security", "Your password was changed" if changed else "A password was added to your account",
+                  "If this was not you, reset it with a recovery code and sign other devices out under Devices.")
+    return {"status": "success", "user": _public_user(db.get_user(user_id))}
+
+
+@app.delete("/api/account/password")
+def remove_account_password(user_id: str = Depends(account_user)):
+    if _ways_in(user_id, without_password=True) < 1:
+        raise HTTPException(status_code=400, detail="Add a passkey first: the password is the only way into this account.")
+    db.set_password(user_id, None)
+    db.add_notice(user_id, "security", "The password was removed from your account", "You sign in with a passkey or a linked account now.")
+    return {"status": "success", "user": _public_user(db.get_user(user_id))}
 
 
 @app.get("/api/account/passkeys")
@@ -2547,6 +2696,37 @@ def admin_overview(user_id: str = Depends(current_user_id)):
             "default_model": current_model(), "version": VERSION,
         },
     }
+
+
+class FeedbackRequest(BaseModel):
+    message: str = Field(..., min_length=3, max_length=2000)
+    rating: Optional[int] = Field(None, ge=1, le=5)
+    contact: Optional[str] = Field(None, max_length=120)
+    pow: Optional[Dict[str, Any]] = None
+
+
+@app.post("/api/feedback")
+def send_feedback(req: FeedbackRequest, request: Request):
+    """Feedback from the product page, read by the administrator. No address or account is kept with it."""
+    _limit(request, "feedback", 5, 3600)
+    if accounts_on():
+        _require_proof(req.pow)
+    feedback_id = db.add_feedback(req.message.strip(), req.rating, (req.contact or "").strip() or None)
+    return {"status": "success", "id": feedback_id}
+
+
+@app.get("/api/admin/feedback")
+def list_feedback(user_id: str = Depends(current_user_id)):
+    require_admin(user_id)
+    return {"feedback": db.list_feedback()}
+
+
+@app.delete("/api/admin/feedback/{feedback_id}")
+def delete_feedback(feedback_id: int, user_id: str = Depends(current_user_id)):
+    require_admin(user_id)
+    if not db.delete_feedback(feedback_id):
+        raise HTTPException(status_code=404, detail="Not found")
+    return {"status": "success"}
 
 
 class AnnounceRequest(BaseModel):
