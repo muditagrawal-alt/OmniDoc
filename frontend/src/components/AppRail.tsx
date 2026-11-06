@@ -257,7 +257,7 @@ export function AppRail(props: AppRailProps) {
               <span className={styles.avatarLarge} aria-hidden="true">{initials}</span>
               <div>
                 <strong>{user?.name || 'Local profile'}</strong>
-                <span>{guest ? 'Exploring the demo, read-only' : user?.email || (accountsMode ? 'Signed in' : 'This computer')}</span>
+                <span>{guest ? 'Exploring the demo, read-only' : user?.email || (user?.username ? `@${user.username}` : accountsMode ? 'Signed in' : 'This computer')}</span>
               </div>
             </div>
             {guest && (
