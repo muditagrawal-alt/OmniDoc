@@ -4,6 +4,8 @@ headers or markup, the hourly cap, and that SMTP for notices does not switch on 
 """
 import threading
 
+import httpx
+
 from core import abuse, accounts, notify
 from test_account_security import client, hosted, proof  # noqa: F401  (hosted is a fixture)
 
@@ -61,3 +63,46 @@ def test_feedback_is_mailed_in_the_background_and_capped(hosted, monkeypatch):
 def test_no_recipient_means_no_mail(monkeypatch):
     monkeypatch.delenv("OMNIDOC_FEEDBACK_EMAIL", raising=False)
     assert notify.notify_feedback({"message": "hi"}, "https://x") is False
+
+
+def test_resend_is_used_when_its_key_is_set_and_the_key_stays_in_the_header(hosted, monkeypatch, caplog):
+    key = "re_test_not_a_real_key_0123456789"
+    monkeypatch.setenv("RESEND_API_KEY", key)
+    monkeypatch.setenv("OMNIDOC_FEEDBACK_EMAIL", "owner@example.com")
+    monkeypatch.setattr(accounts, "smtp_send", lambda msg: (_ for _ in ()).throw(AssertionError("SMTP used")))
+    calls, done = [], threading.Event()
+
+    class Reply:
+        def __init__(self, status, body):
+            self.status_code, self._body = status, body
+
+        def json(self):
+            return self._body
+
+    def fake_post(url, json=None, headers=None, timeout=None):
+        calls.append((url, json, headers))
+        done.set()
+        return Reply(200, {"id": "email_123"})
+
+    monkeypatch.setattr(httpx, "post", fake_post)
+    abuse.limiter.reset()
+    r = client.post("/api/feedback", json={"message": "<b>Bold</b> claim", "rating": 2, "contact": "kavya@example.org", "pow": proof()})
+    assert r.status_code == 200 and done.wait(5)
+    url, payload, headers = calls[0]
+    assert url == "https://api.resend.com/emails" and headers["Authorization"] == f"Bearer {key}"
+    assert payload["from"] == "OmniDoc <onboarding@resend.dev>" and payload["to"] == ["owner@example.com"]
+    assert payload["reply_to"] == "kavya@example.org" and "&lt;b&gt;Bold" in payload["html"]
+    assert key not in str(payload)
+
+    # A refusal is logged with Resend's reason, never with the key.
+    done.clear()
+    monkeypatch.setattr(httpx, "post", lambda *a, **k: (done.set(), Reply(403, {"message": "You can only send testing emails to your own email address"}))[1])
+    with caplog.at_level("WARNING", logger="OmniDoc.Notify"):
+        assert client.post("/api/feedback", json={"message": "Second", "pow": proof()}).status_code == 200
+        done.wait(5)
+        for _ in range(50):
+            if "Resend answered 403" in caplog.text:
+                break
+            threading.Event().wait(0.05)
+    assert "Resend answered 403" in caplog.text and key not in caplog.text
+    abuse.limiter.reset()
