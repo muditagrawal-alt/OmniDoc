@@ -23,6 +23,8 @@ export interface Settings {
   /** The drifting rings behind the chat. */
   backdrop: Backdrop;
   effort: Effort;
+  /** The answer model for this user's questions ("provider:model"); empty: the server's default. */
+  model: string;
   webMode: WebMode;
   /** Default answer language (a code from utils/voice SUPPORTED_LANGUAGES). */
   language: string;
@@ -42,6 +44,7 @@ export const DEFAULTS: Settings = {
   motion: 'system',
   backdrop: 'animated',
   effort: 'balanced',
+  model: '',
   webMode: 'auto',
   language: 'en',
   sendKey: 'enter',
@@ -125,6 +128,11 @@ function subscribe(listener: () => void) {
   return () => {
     listeners.delete(listener);
   };
+}
+
+/** The current preferences, outside React. */
+export function getSettings(): Settings {
+  return current;
 }
 
 /** The current preferences; components re-render when one changes. */
