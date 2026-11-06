@@ -1,5 +1,6 @@
 import { Fragment, useRef, type CSSProperties, type ReactNode } from 'react';
 import { motion, useReducedMotion, useScroll, useSpring, type MotionValue } from 'motion/react';
+import SpotlightCard from '../components/reactbits/SpotlightCard';
 import { EASE, group, useRamp, wordRise } from './motion';
 import styles from './Landing.module.css';
 
@@ -63,21 +64,6 @@ export function RiseHeading({ text, id, className }: { text: string; id?: string
   );
 }
 
-/** An eyebrow label that draws its leading rule and then fades its text in. */
-export function Eyebrow({ children }: { children: ReactNode }) {
-  return (
-    <motion.p className={styles.eyebrow} initial="hidden" whileInView="shown" viewport={{ once: true, amount: 1 }}
-      variants={group(0.15)}>
-      <motion.span className={styles.eyebrowRule} variants={{
-        hidden: { scaleX: 0 }, shown: { scaleX: 1, transition: { duration: 0.6, ease: EASE } },
-      }} />
-      <motion.span variants={{ hidden: { opacity: 0, x: -8 }, shown: { opacity: 1, x: 0, transition: { duration: 0.5 } } }}>
-        {children}
-      </motion.span>
-    </motion.p>
-  );
-}
-
 /**
  * A statement pinned to the screen while its words light up one by one as the visitor scrolls.
  * Words written as `*word*` are drawn in the accent colour.
@@ -88,7 +74,7 @@ export function ScrollWords({ text }: { text: string }) {
   const { scrollYProgress } = useScroll({ target: ref, offset: ['start start', 'end end'] });
   const words = text.split(' ');
   return (
-    <section ref={ref} className={styles.statement} aria-label="Why OmniDoc">
+    <section ref={ref} className={styles.statement} aria-label="How answers are cited">
       <div className={styles.statementSticky}>
         <p className={styles.statementText}>
           {words.map((word, i) => (
@@ -121,40 +107,41 @@ function LitWord({ children, progress, from, to, still }: {
 }
 
 export interface StackItem {
-  step: string;
   title: string;
   text: string;
   visual: ReactNode;
 }
 
 /** Cards that pin one after another and pile up, each new one sliding over the last. */
-export function StackCards({ items }: { items: StackItem[] }) {
+export function StackCards({ items, dark }: { items: StackItem[]; dark: boolean }) {
   const ref = useRef<HTMLDivElement>(null);
   const { scrollYProgress } = useScroll({ target: ref, offset: ['start start', 'end end'] });
   return (
     <div ref={ref} className={styles.stack}>
       {items.map((item, i) => (
-        <StackCard key={item.title} item={item} index={i} count={items.length} progress={scrollYProgress} />
+        <StackCard key={item.title} item={item} index={i} count={items.length} progress={scrollYProgress} dark={dark} />
       ))}
     </div>
   );
 }
 
-function StackCard({ item, index, count, progress }: {
-  item: StackItem; index: number; count: number; progress: MotionValue<number>;
+function StackCard({ item, index, count, progress, dark }: {
+  item: StackItem; index: number; count: number; progress: MotionValue<number>; dark: boolean;
 }) {
   const still = useReducedMotion();
   const scale = useRamp(progress, [index / count, 1], [1, 1 - (count - 1 - index) * 0.05]);
   const dim = useRamp(progress, [index / count, 1], [0, (count - 1 - index) * 0.18]);
   return (
     <div className={styles.stackSlot} style={{ '--i': index } as CSSProperties}>
-      <motion.article className={styles.stackCard} style={still ? undefined : { scale }}>
-        <div className={styles.stackText}>
-          <span className={styles.stackStep}>{item.step}</span>
-          <h3>{item.title}</h3>
-          <p>{item.text}</p>
-        </div>
-        <div className={styles.stackVisual}>{item.visual}</div>
+      <motion.article className={styles.stackMotion} style={still ? undefined : { scale }}>
+        <SpotlightCard className={styles.stackCard} theme={dark ? 'dark' : 'light'}
+          spotlightColor={dark ? 'rgba(69, 137, 255, 0.18)' : 'rgba(15, 98, 254, 0.1)'}>
+          <div className={styles.stackText}>
+            <h3>{item.title}</h3>
+            <p>{item.text}</p>
+          </div>
+          <div className={styles.stackVisual}>{item.visual}</div>
+        </SpotlightCard>
         {!still && <motion.span className={styles.stackShade} style={{ opacity: dim }} aria-hidden="true" />}
       </motion.article>
     </div>
