@@ -1,7 +1,7 @@
 import { useEffect, useId, useRef, useState } from 'react';
 import type { ReactNode } from 'react';
 import { createPortal } from 'react-dom';
-import { Bell, Download, ExternalLink, KeyRound, LogOut, RotateCcw, ShieldUser, Sparkles, Trash2, UserRound, X } from 'lucide-react';
+import { Bell, Compass, Download, ExternalLink, KeyRound, LogOut, RotateCcw, ShieldUser, Sparkles, Trash2, UserRound, X } from 'lucide-react';
 import { api } from '../api';
 import type { User } from '../api';
 import { setThemePreference } from '../lib/theme';
@@ -11,6 +11,7 @@ import { SUPPORTED_LANGUAGES } from '../utils/voice';
 import { ThemeSwitch } from './ThemeSwitch';
 import { EffortChoice, ModelChoices } from './ModelPicker';
 import type { CostContext } from './ModelPicker';
+import { startTour } from '../lib/tour';
 import { Segmented, Toggle } from './ui/Controls';
 import { useToast } from './ui/Toast';
 import styles from './SettingsPanel.module.css';
@@ -31,6 +32,7 @@ const SECTIONS = [
   { id: 'chat', label: 'Chat' },
   { id: 'account', label: 'Account' },
   { id: 'data', label: 'Data' },
+  { id: 'tour', label: 'Tour' },
   { id: 'shortcuts', label: 'Shortcuts' },
   { id: 'about', label: 'About' },
 ];
@@ -308,6 +310,15 @@ export function SettingsPanel(props: SettingsPanelProps) {
               </div>
             )}
             <p className={styles.note}>Settings are kept in this browser only.</p>
+          </Section>
+
+          <Section id="tour" title="Guided tour">
+            <p className={styles.note}>A one-minute walk through the workspace: asking, adding documents, the tools and your account.</p>
+            <div className={styles.actions}>
+              <button type="button" className="btn btn-secondary" onClick={() => { onClose(); window.setTimeout(startTour, 250); }}>
+                <Compass size={15} strokeWidth={1.75} /> Take the tour
+              </button>
+            </div>
           </Section>
 
           <Section id="shortcuts" title="Keyboard shortcuts">
