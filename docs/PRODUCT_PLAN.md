@@ -21,16 +21,17 @@ or bring-your-own-key), never "upgrade".
 | Benchmarks (FinanceBench, MMLongBench-Doc, BEIR, RAGAS) | Done; full MMLongBench run paused at 2 of 10 batches |
 | Web app redesign (enterprise look, IBM Plex, one accent) | Done |
 | README, demo video, GIFs, screenshots | Done |
-| Accounts: Google and GitHub sign-in (e-mailed codes built but switched off: no e-mail sending); private libraries; limits; account deletion | Done (code), not yet live |
+| Accounts: Google and GitHub sign-in (e-mailed codes built but switched off: no e-mail sending); private libraries; limits; account deletion | Live, without GitHub/Google until their OAuth apps are registered |
 | Conversation memory (rolling summary of older turns) | Done |
-| Sign-in without e-mail: passkeys, recovery codes, authenticator apps, devices, linking GitHub/Google, data export, notices | Done (code), not yet live |
-| Guest demo on a read-only sample library; proof-of-work check and per-address rate limits | Done (code), not yet live |
-| Free trial (3 answers), then bring your own key (browser or encrypted on the server); data minimised | Done (code), not yet live |
-| Product page (React Bits) before sign-in; fictional sample library for the demo | Done (code), not yet live |
+| Sign-in without e-mail: passkeys, recovery codes, authenticator apps, devices, linking GitHub/Google, data export, notices | Live |
+| Guest demo on a read-only sample library; proof-of-work check and per-address rate limits | Live |
+| Free trial (3 answers), then bring your own key (browser or encrypted on the server); data minimised | Live |
+| Product page (React Bits) before sign-in; fictional sample library for the demo | Live |
 | Slim image for 1 GB hosts (ONNX, no PyTorch), CI with tests, a memory budget and GHCR publishing | Done |
-| One-command deployment, HTTPS, nightly backups, security headers | Done (code), not yet live |
+| One-command deployment, HTTPS, nightly backups, security headers | Live |
 | App shell: icon rail with flyouts (or full sidebar), floating navbar, settings panel, system/light/dark themes, accent, text size, density | Done |
-| Passwords as an alternative to passkeys (scrypt; "forgot password" with a recovery code); feedback form on the product page, read in Admin | Done (code), not yet live |
+| Hosted at https://omnidoc-silk.vercel.app: the server on an Oracle Cloud Always Free Arm VM, the web app on Vercel's free plan forwarding /api to it | Live |
+| Passwords as an alternative to passkeys (scrypt; "forgot password" with a recovery code); feedback form on the product page, read in Admin | Live |
 | Per-user model choice and effort (Quick, Balanced, Thorough) for each question | Done |
 | Library tools: Search (no model call), Tables, Records, Timeline, Privacy scan | Done |
 | Connect: MCP setup page and personal API tokens (revocable, a year) | Done |
