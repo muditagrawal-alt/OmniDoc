@@ -1,7 +1,7 @@
 import { useEffect, useId, useRef, useState } from 'react';
 import type { ReactNode } from 'react';
 import { createPortal } from 'react-dom';
-import { Bell, Download, ExternalLink, KeyRound, LogOut, RotateCcw, Sparkles, Trash2, UserRound, X } from 'lucide-react';
+import { Bell, Download, ExternalLink, KeyRound, LogOut, RotateCcw, ShieldUser, Sparkles, Trash2, UserRound, X } from 'lucide-react';
 import { api } from '../api';
 import type { User } from '../api';
 import { setThemePreference } from '../lib/theme';
@@ -47,6 +47,8 @@ interface SettingsPanelProps extends CostContext {
   unreadNotices: number;
   onSignOut: () => void;
   onOpenProfile: () => void;
+  /** Opens the Admin page: the overview for an administrator, the setup-code form for anyone else. */
+  onOpenAdmin: () => void;
   chatCount: number;
   onClearChats: () => Promise<void>;
 }
@@ -256,6 +258,11 @@ export function SettingsPanel(props: SettingsPanelProps) {
                   <Bell size={15} strokeWidth={1.75} /> Notifications{props.unreadNotices > 0 ? ` (${props.unreadNotices} new)` : ''}
                 </button>
               )}
+              {accountsMode && user && !guest && (
+                <button type="button" className="btn btn-secondary" onClick={() => { onClose(); props.onOpenAdmin(); }}>
+                  <ShieldUser size={15} strokeWidth={1.75} /> {user.admin ? 'Admin' : 'Administer this server…'}
+                </button>
+              )}
               {!accountsMode && !user && (
                 <button type="button" className="btn btn-secondary" onClick={() => { onClose(); props.onOpenProfile(); }}>
                   <UserRound size={15} strokeWidth={1.75} /> Create a local profile
@@ -302,6 +309,7 @@ export function SettingsPanel(props: SettingsPanelProps) {
           <Section id="shortcuts" title="Keyboard shortcuts">
             <dl className={styles.keys}>
               <div><dt>New chat</dt><dd><kbd className="kbd">{mod}</kbd><kbd className="kbd">⇧</kbd><kbd className="kbd">O</kbd></dd></div>
+              <div><dt>Search the library</dt><dd><kbd className="kbd">{mod}</kbd><kbd className="kbd">K</kbd></dd></div>
               <div><dt>Settings</dt><dd><kbd className="kbd">{mod}</kbd><kbd className="kbd">,</kbd></dd></div>
               <div>
                 <dt>Send</dt>
