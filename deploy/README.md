@@ -69,9 +69,10 @@ prints the setup code. Sign in (a passkey account, or a password account with an
 app: administrators need two-step sign-in), open *Settings → Administer this server…* and enter it.
 
 Notes:
-- Answers stream through Vercel. A request through a Vercel rewrite must finish within about two
-  minutes, and very large uploads may be refused by Vercel before they reach the server; the
-  server address (`https://<ip>.sslip.io`) also works directly for password sign-in and uploads.
+- Answers stream through Vercel, and a 20 MB upload passed through the rewrite when this was set
+  up (the server's own cap is `OMNIDOC_MAX_UPLOAD_MB`, 100). A request through a Vercel rewrite
+  must finish within about two minutes. Vercel sends the visitor's address as
+  `x-vercel-forwarded-for`, which is what the server reads.
 - Oracle reclaims an Always Free Arm VM whose CPU, network *and* memory use all stay below 20% for
   seven days. A quiet OmniDoc can fall under that; see the instance's metrics in the console.
 - Logs: `docker compose --env-file .env -f deploy/compose.oracle.yml logs -f omnidoc`.
