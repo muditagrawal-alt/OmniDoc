@@ -149,7 +149,11 @@ Ask in Hindi, Marathi, Tamil, Telugu, Kannada, Bengali, Gujarati and more; the a
 
 **Accounts for a hosted server, with no e-mail needed:** passkeys (Face ID, Touch ID, Windows Hello, a phone) with one-time recovery codes, GitHub or Google sign-in, an authenticator app as a second step, a devices list with remote sign-out, a private library per account, daily limits and a storage cap, export of everything as a zip, and self-service account deletion. A read-only guest demo lets visitors try a sample library without an account, behind a proof-of-work check and per-address limits. Signed-out visitors first see a product page (built with [React Bits](https://reactbits.dev) components). Every account gets three answers on the server's free model keys; then users add their own free key, kept in their browser or, if they choose, encrypted on the server. Long conversations keep a rolling summary of earlier turns, so follow-up questions can refer back to anything said in the chat.
 
-**Also included:** a light and a dark theme, conversation export to PDF and Word, voice input, per-question budgets for model calls and time, and an [MCP server](#use-from-mcp-clients) that makes your library available to Claude, Cursor and other AI tools.
+**Library tools beside the chat:** **Search** finds passages by meaning and exact words instantly, with no model call (so it never uses free answers). **Tables** lists every table found in the library as data, opens it as a grid and downloads it as CSV. **Records** shows each recognised invoice, receipt or contract with its fields and consistency checks, one table per type. **Timeline** puts every dated sentence in the library in order, each linked to its page. **Privacy scan** checks the whole library for identifiers and makes redacted copies. **Connect** sets up the MCP server for Claude Code, Claude Desktop or Cursor, with a personal API token on a hosted server. **Admin** (for the administrator) shows usage, server health and memory, sets the default model for everyone and posts announcements.
+
+**Settings and choices:** each user picks their own answer model and effort (Quick, Balanced or Thorough: how much evidence an answer reads), a system, light or dark theme, an accent colour, text size, density, motion, the chat background, and how messages are sent. Desktop navigation is an icon rail with flyouts or a full sidebar.
+
+**Also included:** conversation export to PDF and Word, voice input, per-question budgets for model calls and time, and an [MCP server](#use-from-mcp-clients) that makes your library available to Claude, Cursor and other AI tools.
 
 ## Quick start
 
@@ -278,7 +282,9 @@ claude mcp add omnidoc -- python /path/to/OmniDoc/mcp_server.py      # Claude Co
 Claude Desktop (`claude_desktop_config.json`): `{"mcpServers": {"omnidoc": {"command": "python", "args": ["/path/to/OmniDoc/mcp_server.py"]}}}`.
 Tools: `list_documents`, `search_documents`, `ask`, `read_document`, `extract_fields`, `find_sensitive_data`
 and `compare_documents`. The server must be running (`OMNIDOC_API_URL`, and `OMNIDOC_API_AUTH` when it has a
-password). The REST API is described at `/docs` (OpenAPI).
+password). For a hosted server with accounts, create a token on the app's **Connect** page and pass it as
+`OMNIDOC_API_TOKEN`; the page shows the exact command for Claude Code, Claude Desktop and Cursor. The REST API is
+described at `/docs` (OpenAPI).
 
 ## Configuration
 
