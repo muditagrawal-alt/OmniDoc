@@ -98,6 +98,24 @@ def use_keys(keys: Optional[Dict[str, Any]]) -> None:
     _user_keys.set(clean_keys(keys))
 
 
+# A user's own choice of answer model for one question: (the server's default spec, the chosen spec).
+_answer_model: "contextvars.ContextVar[Optional[Tuple[str, str]]]" = contextvars.ContextVar("omnidoc_answer_model", default=None)
+
+
+def prefer_answer_model(default_spec: str, chosen: Optional[str]) -> None:
+    """
+    In this context, calls for the server's default answer model go to ``chosen`` instead (the
+    model a user picked for their own questions). The vision, embedding and other fixed models
+    are untouched, and the fast variant follows the chosen provider.
+    """
+    _answer_model.set((default_spec, chosen) if chosen and chosen != default_spec else None)
+
+
+def _answer_spec(spec: str) -> str:
+    swap = _answer_model.get()
+    return swap[1] if swap and spec == swap[0] else spec
+
+
 def current_keys() -> Optional[Dict[str, str]]:
     return _user_keys.get()
 
@@ -588,7 +606,7 @@ def candidates(spec: str, *, allow_fallback: bool = True) -> Iterator[Tuple[str,
     hosted model and OMNIDOC_LOCAL_FALLBACK is not 0). A request for a local model stays local
     unless OMNIDOC_CLOUD_FALLBACK=1.
     """
-    kind, model = parse_spec(spec)
+    kind, model = parse_spec(_answer_spec(spec))
     if kind == "ollama":
         yield "ollama", None, model
         if allow_fallback and os.getenv("OMNIDOC_CLOUD_FALLBACK", "0") == "1":
