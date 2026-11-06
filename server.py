@@ -99,11 +99,18 @@ async def lifespan(_app: FastAPI):
     yield
 
 
+# The interactive API docs (/docs, /redoc, /openapi.json) are for a local install; a hosted server
+# does not publish a map of its endpoints unless OMNIDOC_API_DOCS=1.
+_API_DOCS = os.environ.get("OMNIDOC_API_DOCS", "1" if os.environ.get("OMNIDOC_ACCOUNTS", "0") != "1" else "0") == "1"
+
 app = FastAPI(
     title="OmniDoc API",
     description="Local multi-agent document intelligence: cited answers, knowledge graph, reports.",
     version=VERSION,
     lifespan=lifespan,
+    docs_url="/docs" if _API_DOCS else None,
+    redoc_url="/redoc" if _API_DOCS else None,
+    openapi_url="/openapi.json" if _API_DOCS else None,
 )
 
 # The API authenticates with a bearer header, not cookies, so credentials are not
@@ -1360,13 +1367,23 @@ def delete_account(user_id: str = Depends(current_user_id)):
 
 
 @app.get("/api/health")
+def health_endpoint():
+    """For uptime checks. A hosted server says only whether it is healthy; the model, providers,
+    memory and store details are for its administrator (the Admin tab) or a local install."""
+    full = health_check()
+    if not accounts_on():
+        return full
+    return {"status": full["status"], "service": full["service"], "version": full["version"], "timestamp": full["timestamp"]}
+
+
 def health_check():
     stores: Dict[str, str] = {}
     try:
         db.conn.execute("SELECT 1").fetchone()
         stores["sqlite"] = "ok"
     except Exception as e:
-        stores["sqlite"] = f"error: {e}"
+        logger.error(f"Health check: SQLite failed: {e}")
+        stores["sqlite"] = "error"
     if _pipeline is not None:
         stores["kuzu"] = "ok" if _pipeline.graph_store.conn is not None else "unavailable"
         stores["lancedb"] = "ok" if getattr(_pipeline.lance_store, "table", None) is not None else "empty"
@@ -2775,9 +2792,14 @@ def announce(req: AnnounceRequest, user_id: str = Depends(current_user_id)):
 STATIC_DIR = Path(os.environ.get("OMNIDOC_STATIC_DIR") or Path(__file__).resolve().parent / "frontend" / "dist")
 if (STATIC_DIR / "index.html").is_file():
     @app.get("/{path:path}", include_in_schema=False)
-    def web_app(path: str):
+    def web_app(path: str, request: Request):
         if path.startswith("api/") or path == "api":
             raise HTTPException(status_code=404, detail="Not found")
+        # Behind a front end on another host (core/proxy.py), the web app lives there: a browser that
+        # opens this server's own address is sent to it, so the site has one address and one origin.
+        public = accounts.public_url()
+        if proxy._key() and accounts_on() and urllib.parse.urlparse(public).netloc and request.url.netloc != urllib.parse.urlparse(public).netloc:
+            return RedirectResponse(f"{public}/{path}", status_code=308)
         target = (STATIC_DIR / path).resolve()
         if path and target.is_file() and STATIC_DIR.resolve() in target.parents:
             cache = "public, max-age=31536000, immutable" if path.startswith("assets/") else "no-cache"
