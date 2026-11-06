@@ -148,6 +148,7 @@ export function Composer(props: ComposerProps) {
   return (
     <form
       className={styles.composer}
+      data-tour="composer"
       data-variant={variant}
       data-dragging={dragging}
       onSubmit={submit}
@@ -196,6 +197,7 @@ export function Composer(props: ComposerProps) {
             onClick={() => fileRef.current?.click()}
             disabled={uploading}
             aria-label="Add documents"
+            data-tour="attach"
             title="Add documents (PDF, scans, images, Word, spreadsheets, slides, email, text)"
           >
             {uploading ? <span className="spinner" /> : <Paperclip size={17} strokeWidth={1.75} />}
@@ -206,7 +208,8 @@ export function Composer(props: ComposerProps) {
             side="top"
             align="start"
             trigger={(p) => (
-              <button type="button" className={`chip ${styles.scopeChip}`} data-active={selectedDocIds.length > 0} {...p}>
+              <button type="button" className={`chip ${styles.scopeChip}`} data-active={selectedDocIds.length > 0}
+                aria-label={`Answer from: ${scopeLabel}`} title={`Answer from: ${scopeLabel}`} {...p}>
                 <Library size={14} strokeWidth={1.75} />
                 <span className={styles.scopeText}>{scopeLabel}</span>
               </button>
@@ -289,7 +292,8 @@ export function Composer(props: ComposerProps) {
             label="Answer language"
             side="top"
             trigger={(p) => (
-              <button type="button" className={`chip ${styles.langChip}`} title="Answer language" {...p}>
+              <button type="button" className={`chip ${styles.langChip}`} title="Answer language"
+                aria-label={`Answer language: ${lang.code === 'en' ? 'English' : lang.nativeName}`} {...p}>
                 <Languages size={14} strokeWidth={1.75} />
                 <span>{lang.code === 'en' ? 'English' : lang.nativeName}</span>
               </button>
