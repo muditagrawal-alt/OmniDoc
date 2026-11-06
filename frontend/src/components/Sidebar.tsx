@@ -3,9 +3,15 @@ import {
   Bell,
   KeyRound,
   GitCompareArrows,
+  CalendarRange,
+  FileCheck2,
   Globe2,
   Library,
   ListChecks,
+  Plug,
+  ShieldCheck,
+  ShieldUser,
+  Table2,
   LogIn,
   LogOut,
   UserRound,
@@ -22,11 +28,25 @@ import {
 import type { ChatSession, User } from '../api';
 import { dateGroup } from '../lib/format';
 import { modelName, useModels } from '../lib/models';
+import { useSettings } from '../lib/settings';
 import { Menu } from './ui/Menu';
 import { BrandMark } from './BrandMark';
 import styles from './Sidebar.module.css';
 
-export type View = 'chat' | 'library' | 'extract' | 'compare' | 'knowledge';
+export type View =
+  | 'chat' | 'search' | 'library' | 'extract' | 'compare' | 'tables' | 'records' | 'timeline' | 'privacy' | 'knowledge'
+  | 'connect' | 'admin';
+
+/** The tools beside Chat: label, icon and a sentence for the rail's flyout. */
+export const TOOL_VIEWS: Array<{ key: View; label: string; icon: typeof MessageSquare; about: string }> = [
+  { key: 'extract', label: 'Extract', icon: ListChecks, about: 'Pull invoice numbers, totals, dates or any field you name from many documents into one table, each value with its citation.' },
+  { key: 'compare', label: 'Compare', icon: GitCompareArrows, about: 'Two drafts or two years side by side: changed clauses, added sections and moved figures.' },
+  { key: 'tables', label: 'Tables', icon: Table2, about: 'Every table found in your documents, as data: open it as a grid, download it as CSV.' },
+  { key: 'records', label: 'Records', icon: FileCheck2, about: 'Invoices, receipts and contracts recognised, their key fields read and checked against each other.' },
+  { key: 'timeline', label: 'Timeline', icon: CalendarRange, about: 'Every date in the library in order: deadlines, filings, effective dates, each linked to its page.' },
+  { key: 'privacy', label: 'Privacy scan', icon: ShieldCheck, about: 'Find Aadhaar, PAN, GSTIN, card and phone numbers across the library, and download redacted copies.' },
+  { key: 'knowledge', label: 'Knowledge', icon: Globe2, about: 'People, companies, places and amounts linked across your library, on a globe you can search.' },
+];
 
 interface SidebarProps {
   open: boolean;
@@ -95,12 +115,14 @@ export function Sidebar(props: SidebarProps) {
     return out;
   }, [chats, filter]);
 
+  const admin = !accountsMode || !!user?.admin;
   const nav: Array<{ key: View; label: string; icon: typeof MessageSquare; hint?: string }> = [
     { key: 'chat', label: 'Chat', icon: MessageSquare },
+    { key: 'search', label: 'Search', icon: Search },
     { key: 'library', label: 'Library', icon: Library, hint: documentCount ? String(documentCount) : undefined },
-    { key: 'extract', label: 'Extract', icon: ListChecks },
-    { key: 'compare', label: 'Compare', icon: GitCompareArrows },
-    { key: 'knowledge', label: 'Knowledge', icon: Globe2 },
+    ...TOOL_VIEWS.map(({ key, label, icon }) => ({ key, label, icon })),
+    { key: 'connect', label: 'Connect', icon: Plug },
+    ...(admin ? [{ key: 'admin' as View, label: 'Admin', icon: ShieldUser }] : []),
   ];
 
   return (
@@ -283,6 +305,7 @@ function SettingsFooter({ user, onOpenProfile, onSignOut, accountsMode = false, 
   unreadNotices?: number; onOpenNotices?: () => void; onOpenKeys?: () => void; onOpenSettings?: () => void;
 }) {
   const { models, current } = useModels();
+  const { model: mine } = useSettings();
   const initials = (user?.name || 'Local').split(/\s+/).map((w) => w[0]).join('').slice(0, 2).toUpperCase();
 
   return (
@@ -296,7 +319,7 @@ function SettingsFooter({ user, onOpenProfile, onSignOut, accountsMode = false, 
             <span className={styles.avatar} aria-hidden="true" data-unread={unreadNotices > 0 || undefined}>{initials}</span>
             <span className={styles.profileText}>
               <span className={styles.profileName}>{user?.name || 'Local profile'}</span>
-              <span className={styles.profileMeta}>{current ? modelName(current, models) : 'Settings'}</span>
+              <span className={styles.profileMeta}>{mine || current ? modelName(mine || current, models) : 'Settings'}</span>
             </span>
             <Settings2 size={16} strokeWidth={1.75} className={styles.profileIcon} />
           </button>
