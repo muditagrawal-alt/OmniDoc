@@ -125,7 +125,7 @@ export function ModelPicker(cost: CostContext) {
       label="Model and effort"
       width={360}
       trigger={(p) => (
-        <button type="button" className={styles.trigger} {...p}>
+        <button type="button" className={styles.trigger} data-tour="model" {...p}>
           <Cpu size={15} strokeWidth={1.75} />
           <span className={styles.triggerName}>{mine || current ? modelName(mine || current, models) : 'Model'}</span>
           <span className={styles.triggerEffort}>{EFFORTS.find((e) => e.value === effort)?.label}</span>
