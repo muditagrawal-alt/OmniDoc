@@ -146,6 +146,10 @@ class OmniDocDB:
             "ALTER TABLE users ADD COLUMN trial_used INTEGER DEFAULT 0",
             # Administrators who claimed the role with the server's setup code (others are listed by e-mail).
             "ALTER TABLE users ADD COLUMN is_admin INTEGER DEFAULT 0",
+            # Password sign-in: a unique username and a scrypt hash (core/passwords.py).
+            "ALTER TABLE users ADD COLUMN username TEXT",
+            "ALTER TABLE users ADD COLUMN password_hash TEXT",
+            "ALTER TABLE users ADD COLUMN password_set_at REAL",
         ):
             try:
                 cursor.execute(statement)
@@ -253,6 +257,17 @@ class OmniDocDB:
         cursor.execute("CREATE INDEX IF NOT EXISTS idx_messages_chat ON messages(chat_id, id)")
         cursor.execute("CREATE INDEX IF NOT EXISTS idx_chats_user ON chats(user_id, updated_at)")
 
+        # Feedback left on the product page: a rating and a message, and a way to reply only if given.
+        cursor.execute("""
+            CREATE TABLE IF NOT EXISTS feedback (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                rating INTEGER,
+                message TEXT NOT NULL,
+                contact TEXT,
+                created_at REAL NOT NULL
+            )
+        """)
+
         cursor.execute("""
             CREATE TABLE IF NOT EXISTS search_history (
                 id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -297,6 +312,7 @@ class OmniDocDB:
             cursor.execute("DROP TABLE documents")
             cursor.execute("ALTER TABLE documents_new RENAME TO documents")
         cursor.execute("CREATE UNIQUE INDEX IF NOT EXISTS idx_documents_owner_hash ON documents(owner_id, file_hash)")
+        cursor.execute("CREATE UNIQUE INDEX IF NOT EXISTS idx_users_username ON users(username)")
         cursor.execute("CREATE INDEX IF NOT EXISTS idx_documents_owner ON documents(owner_id, upload_date)")
 
     # ------------------------------------------------------------------ users
@@ -353,6 +369,20 @@ class OmniDocDB:
         rows = self.conn.execute("SELECT id FROM users WHERE kind = 'guest' AND created_at < datetime('now', ?)",
                                  (f"-{older_than_days} days",)).fetchall()
         return [r[0] for r in rows]
+
+    def get_user_by_username(self, username: str) -> Optional[Dict[str, Any]]:
+        row = self.conn.execute("SELECT * FROM users WHERE username = ?", (username,)).fetchone()
+        return dict(row) if row else None
+
+    def set_username(self, user_id: str, username: str) -> None:
+        self.conn.execute("UPDATE users SET username = ? WHERE id = ?", (username, user_id))
+        self.conn.commit()
+
+    def set_password(self, user_id: str, password_hash: Optional[str]) -> None:
+        """Sets or (None) removes the account's password."""
+        self.conn.execute("UPDATE users SET password_hash = ?, password_set_at = ? WHERE id = ?",
+                          (password_hash, time.time() if password_hash else None, user_id))
+        self.conn.commit()
 
     def get_user_by_email(self, email: str) -> Optional[Dict[str, Any]]:
         cursor = self.conn.cursor()
@@ -586,13 +616,29 @@ class OmniDocDB:
         row = self.conn.execute("SELECT questions, uploads FROM usage WHERE user_id = ? AND day = ?", (user_id, day)).fetchone()
         return {"questions": row["questions"], "uploads": row["uploads"]} if row else {"questions": 0, "uploads": 0}
 
+    # ---- feedback -------------------------------------------------------------
+    def add_feedback(self, message: str, rating: Optional[int] = None, contact: Optional[str] = None) -> int:
+        cur = self.conn.execute("INSERT INTO feedback (rating, message, contact, created_at) VALUES (?, ?, ?, ?)",
+                                (rating, message, contact or None, time.time()))
+        self.conn.commit()
+        return cur.lastrowid
+
+    def list_feedback(self, limit: int = 200) -> List[Dict[str, Any]]:
+        rows = self.conn.execute("SELECT * FROM feedback ORDER BY created_at DESC, id DESC LIMIT ?", (limit,)).fetchall()
+        return [dict(r) for r in rows]
+
+    def delete_feedback(self, feedback_id: int) -> bool:
+        cur = self.conn.execute("DELETE FROM feedback WHERE id = ?", (feedback_id,))
+        self.conn.commit()
+        return cur.rowcount > 0
+
     # ---- administration -------------------------------------------------------
     def set_admin(self, user_id: str, admin: bool = True) -> None:
         self.conn.execute("UPDATE users SET is_admin = ? WHERE id = ?", (1 if admin else 0, user_id))
         self.conn.commit()
 
     def list_admins(self) -> List[Dict[str, Any]]:
-        rows = self.conn.execute("SELECT id, name, email FROM users WHERE is_admin = 1 ORDER BY name").fetchall()
+        rows = self.conn.execute("SELECT id, name, email, username FROM users WHERE is_admin = 1 ORDER BY name").fetchall()
         return [dict(r) for r in rows]
 
     def admin_stats(self) -> Dict[str, Any]:
@@ -617,6 +663,8 @@ class OmniDocDB:
             "questions_7d": one("SELECT SUM(questions) FROM usage WHERE day >= ?", (week,)),
             "questions_30d": one("SELECT SUM(questions) FROM usage WHERE day >= ?", (month,)),
             "uploads_30d": one("SELECT SUM(uploads) FROM usage WHERE day >= ?", (month,)),
+            "feedback": one("SELECT COUNT(*) FROM feedback"),
+            "rating": round(float(self.conn.execute("SELECT AVG(rating) FROM feedback WHERE rating IS NOT NULL").fetchone()[0] or 0), 1),
             "active_30d": one("SELECT COUNT(DISTINCT user_id) FROM usage WHERE day >= ? AND questions > 0", (month,)),
             "by_day": [{"day": r["day"], "questions": int(r["questions"] or 0), "uploads": int(r["uploads"] or 0)} for r in days],
         }
