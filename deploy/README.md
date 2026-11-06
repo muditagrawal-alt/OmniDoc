@@ -14,51 +14,67 @@ address can read and delete your documents.
 | Host | What you get | Guide |
 |---|---|---|
 | **ClawCloud Run** (no card) | $5 credit a month for GitHub accounts over 180 days old: the slim image at 0.5 vCPU and 1 GB, HTTPS, a persistent disk | [CLAWCLOUD.md](CLAWCLOUD.md) |
-| Oracle Cloud Always Free | A 2 OCPU, 12 GB Arm VM with 200 GB of disk; the full image with Ollama | below |
+| Oracle Cloud Always Free + Vercel | An Arm VM (1 OCPU and 6 GB is plenty) for the server; Vercel's free plan for the web app | below |
 | Your own computer | Cloudflare Tunnel for a temporary public address | below |
 
-## Oracle Cloud "Always Free" VM
+## Oracle Cloud "Always Free" VM, with Vercel in front
 
-Oracle's Always Free tier includes Arm (Ampere A1) capacity of 2 OCPUs and 12 GB of memory and
-200 GB of disk that stays free, which is enough for OmniDoc and keeps your library on a
-persistent disk. Sign-up asks for a card for identity checks; Always Free resources are not
-charged (stay on the Free Tier, do not upgrade the account).
+The hosted OmniDoc runs as two free pieces: the server on an Oracle Cloud Always Free Arm VM, and
+the web app on Vercel's free Hobby plan. Vercel serves the app and forwards `/api/*` to the VM, so
+people open one address (`https://<project>.vercel.app`) and sign-in cookies and passkeys work as
+if it were one machine. Oracle's sign-up asks for a card for identity checks; Always Free resources
+are not charged (stay on the Free Tier, do not upgrade the account).
 
-1. Create a VM: *Compute → Instances → Create*, image **Ubuntu 24.04**, shape
-   **VM.Standard.A1.Flex** with 2 OCPUs and 12 GB, boot volume up to 200 GB, and your SSH key.
-   "Out of capacity" means none is free in that availability domain right now: try another one or
-   try again later.
-2. Open the web ports in the instance's subnet *Security List*: an ingress rule for TCP 80 and
-   443 from `0.0.0.0/0`.
-3. On the VM (`ssh ubuntu@<public-ip>`):
-   ```bash
-   git clone https://github.com/muditagrawal-alt/OmniDoc.git && cd OmniDoc
-   cp .env.example .env && nano .env    # API keys and OMNIDOC_AUTH=you:a-long-random-password
-   bash deploy/oracle-setup.sh
-   ```
-   The script installs Docker, opens the VM's own firewall for ports 80 and 443, builds the image
-   (about 15 minutes on 2 Arm cores) and starts OmniDoc behind Caddy with a free HTTPS address,
-   `https://<public-ip-with-dashes>.sslip.io` unless `OMNIDOC_DOMAIN` names your own domain. It
-   also starts Ollama for the `nomic-embed-text` embeddings, the model the benchmarks use. Run it
-   again to update to the latest code; the library is kept.
+**1. The VM.** *Compute → Instances → Create*: image **Ubuntu 24.04**, shape **VM.Standard.A1.Flex**
+with 1 OCPU and 6 GB (the slim server needs about 1 GB), your SSH public key. "Out of capacity"
+means none is free in that availability domain right now: try another one or later. In the
+instance's subnet *Security List*, add ingress rules for TCP 80 and 443 from `0.0.0.0/0`.
 
-The settings the benchmarks measured (add them to `.env`):
+**2. The server.** On the VM (`ssh ubuntu@<public-ip>`):
 
 ```bash
-OMNIDOC_MODEL=nvidia:nvidia/nemotron-3-ultra-550b-a55b   # answers (Super, used by the benchmarks, was retired)
-OMNIDOC_LLM_PROVIDERS=nvidia,groq,gemini                 # fallbacks when one is rate-limited
-OMNIDOC_VISION_MODEL=gemini:gemini-3.5-flash-lite        # figures and page reading
-OLLAMA_HOST=http://ollama:11434                          # embeddings: nomic-embed-text
-OLLAMA_KEEP_ALIVE=-1
-OMNIDOC_LOCAL_FALLBACK=0                                 # no local chat model on the VM
+git clone https://github.com/muditagrawal-alt/OmniDoc.git && cd OmniDoc
+cp .env.example .env && nano .env    # at least one free model key: NVIDIA, Groq, Gemini...
+bash deploy/oracle-setup.sh
 ```
 
-Oracle reclaims an Always Free Arm VM that stays below 20% CPU, network *and* memory use for
-seven days. OmniDoc keeps its reranker and (with `OLLAMA_KEEP_ALIVE=-1`) the embedding model in
-memory, about a fifth of 12 GB; check with `free -h` if the VM sees little use.
+The script installs Docker, opens the VM's own firewall for ports 80 and 443, adds to `.env`
+what a hosted server needs (`OMNIDOC_ACCOUNTS=1`, `OMNIDOC_DEMO=1`, `OMNIDOC_DOMAIN`, a random
+`OMNIDOC_PROXY_KEY`), pulls the slim image that CI builds for arm64 (`ghcr.io/muditagrawal-alt/omnidoc:slim`)
+and starts it behind Caddy with a free HTTPS address, `https://<public-ip-with-dashes>.sslip.io`.
+Run it again to update; the library is kept. Nightly backups go to `~/omnidoc-backups`.
 
-Logs: `docker compose logs -f omnidoc`. Backups: the library is the `omnidoc_omnidoc-data` Docker
-volume (`docker run --rm -v omnidoc_omnidoc-data:/data -v $PWD:/b alpine tar czf /b/omnidoc-data.tgz /data`).
+**3. The web app on Vercel.** On your own computer, with the [Vercel CLI](https://vercel.com/docs/cli)
+signed in (`npm i -g vercel && vercel login`):
+
+```bash
+OMNIDOC_BACKEND=https://<public-ip-with-dashes>.sslip.io \
+OMNIDOC_PROXY_KEY=<OMNIDOC_PROXY_KEY from the VM's .env> \
+bash deploy/vercel.sh
+```
+
+It builds the app and deploys it with a `vercel.json` (from [`vercel/vercel.template.json`](vercel/vercel.template.json))
+whose `/api` rewrite points at the VM under `/_via/<OMNIDOC_PROXY_KEY>/`. That secret prefix
+tells the server a request came through Vercel, so it takes the visitor's address from Vercel's
+`x-vercel-forwarded-for` header (rate limits stay per visitor) and marks responses private for
+Vercel's CDN ([`core/proxy.py`](../core/proxy.py)). The file is written to a temporary folder and
+never committed.
+
+**4. Point the server at the Vercel address.** Passkeys and GitHub/Google sign-in are tied to the
+address people open. On the VM, set `OMNIDOC_PUBLIC_URL=https://<project>.vercel.app` in `.env`
+and run `bash deploy/oracle-setup.sh` again.
+
+**5. Become the administrator.** `docker compose --env-file .env -f deploy/compose.oracle.yml logs omnidoc | grep -i "administer this server"`
+prints the setup code. Sign in (a passkey account, or a password account with an authenticator
+app: administrators need two-step sign-in), open *Settings → Administer this server…* and enter it.
+
+Notes:
+- Answers stream through Vercel. A request through a Vercel rewrite must finish within about two
+  minutes, and very large uploads may be refused by Vercel before they reach the server; the
+  server address (`https://<ip>.sslip.io`) also works directly for password sign-in and uploads.
+- Oracle reclaims an Always Free Arm VM whose CPU, network *and* memory use all stay below 20% for
+  seven days. A quiet OmniDoc can fall under that; see the instance's metrics in the console.
+- Logs: `docker compose --env-file .env -f deploy/compose.oracle.yml logs -f omnidoc`.
 
 ## Accounts: sign-in for everyone you share it with
 
