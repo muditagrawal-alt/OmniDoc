@@ -15,6 +15,7 @@ import time
 import logging
 from typing import Dict, Any, List, Tuple
 
+from core import effort
 from core.state import AgentWorkflowState, EvidenceItem, EvidencePackage
 from retrieval.reranker import ChunkReranker
 from agents.citations import is_real_chunk
@@ -204,7 +205,8 @@ class EvidenceSelectionAgent:
         referenced = [it for it in chunk_items if it.provenance.get("retrieval_method") == "reference"][:MAX_REFERENCE_PASSAGES]
         others = [it for it in chunk_items if it not in referenced]
         whole = any(c.get("retrieval_method") == "whole_document" for c in chunks)
-        selected = referenced + others[:max(WHOLE_DOCUMENT_CHUNKS, MAX_CHUNKS) if whole else MAX_CHUNKS] + triple_items[:MAX_TRIPLES]
+        limit = effort.scaled(state, MAX_CHUNKS, quick=min(6, MAX_CHUNKS), thorough=max(16, MAX_CHUNKS))
+        selected = referenced + others[:max(WHOLE_DOCUMENT_CHUNKS, limit) if whole else limit] + triple_items[:MAX_TRIPLES]
         total = len(chunks) + len(triples)
 
         package = EvidencePackage(
