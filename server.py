@@ -48,7 +48,7 @@ from fastapi.responses import StreamingResponse, FileResponse, RedirectResponse,
 from db_store import OmniDocDB, LOCAL_USER_ID, DATA_DIR
 from export.report_compiler import ReportCompiler
 from core.pipeline import AgenticGraphRAGPipeline
-from core import accounts, chat_memory, abuse, memory, passkeys, passwords, proxy, two_factor
+from core import accounts, chat_memory, abuse, memory, notify, passkeys, passwords, proxy, two_factor
 from agents import llm_providers
 
 logging.basicConfig(level=logging.INFO, format="%(asctime)s [%(levelname)s] %(name)s: %(message)s")
@@ -548,6 +548,7 @@ def _public_user(user: Optional[Dict[str, Any]]) -> Dict[str, Any]:
         user.pop(key, None)
     user["totp_enabled"] = bool(user.get("totp_enabled"))
     user["email"] = user.get("email") or ""
+    user["avatar_url"] = user.get("avatar_url") or accounts.gravatar_url(user["email"])
     # A local install has no accounts: whoever runs it administers it.
     user["admin"] = admin or not accounts_on()
     return user
@@ -1928,11 +1929,21 @@ def import_url(req: ImportUrlRequest, user_id: str = Depends(current_user_id)):
 DEMO_DIR = Path(os.environ.get("OMNIDOC_DEMO_DIR") or DATA_DIR / "demo")
 
 
+# Raise when documents are read differently enough that the sample library should be read again
+# (2: PDF table cells read from the page's words, so PyMuPDF 2.x keeps "16.5%" and spaces).
+DEMO_READ_VERSION = "2"
+
+
 def _seed_demo_library() -> None:
     """Adds each file in the demo folder (once) to the shared sample library that guests read."""
     if not DEMO_DIR.is_dir():
         logger.info(f"Demo on, but {DEMO_DIR} has no files yet: guests will see an empty library.")
         return
+    marker = DATA_DIR / "demo_read_version"
+    try:
+        reread = marker.read_text().strip() != DEMO_READ_VERSION
+    except OSError:
+        reread = True
     seeded = {d["filename"]: d for d in db.get_all_documents(owner_id=accounts.DEMO_OWNER)}
     for path in sorted(DEMO_DIR.iterdir()):
         ext = path.suffix.lower().lstrip(".")
@@ -1942,14 +1953,19 @@ def _seed_demo_library() -> None:
             contents = path.read_bytes()
             # A newer version of a sample replaces the old one instead of sitting beside it.
             old = seeded.get(path.name)
-            if old and old.get("file_hash") != hashlib.sha256(contents).hexdigest():
+            if old and (reread or old.get("file_hash") != hashlib.sha256(contents).hexdigest()):
                 _remove_document(old["id"])
-                logger.info(f"Demo library: replacing {path.name} with its new version")
+                logger.info(f"Demo library: reading {path.name} again" if reread else
+                            f"Demo library: replacing {path.name} with its new version")
             result = _ingest_bytes(contents, path.name, ext, accounts.DEMO_OWNER)
             if not result.get("duplicate"):
                 logger.info(f"Demo library: added {path.name}")
         except Exception as e:
             logger.warning(f"Demo library: could not add {path.name}: {getattr(e, 'detail', e)}")
+    try:
+        marker.write_text(DEMO_READ_VERSION)
+    except OSError:
+        pass
 
 
 def _remove_document(doc_id: str) -> None:
@@ -2716,7 +2732,11 @@ def send_feedback(req: FeedbackRequest, request: Request):
     _limit(request, "feedback", 5, 3600)
     if accounts_on():
         _require_proof(req.pow)
-    feedback_id = db.add_feedback(req.message.strip(), req.rating, (req.contact or "").strip() or None)
+    message, contact = req.message.strip(), (req.contact or "").strip() or None
+    feedback_id = db.add_feedback(message, req.rating, contact)
+    # The operator hears about it at once (OMNIDOC_FEEDBACK_EMAIL), without the visitor waiting.
+    notify.notify_feedback({"rating": req.rating, "message": message, "contact": contact, "created_at": time.time()},
+                           accounts.public_url())
     return {"status": "success", "id": feedback_id}
 
 
