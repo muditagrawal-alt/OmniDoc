@@ -48,7 +48,7 @@ from fastapi.responses import StreamingResponse, FileResponse, RedirectResponse,
 from db_store import OmniDocDB, LOCAL_USER_ID, DATA_DIR
 from export.report_compiler import ReportCompiler
 from core.pipeline import AgenticGraphRAGPipeline
-from core import accounts, chat_memory, abuse, memory, passkeys, passwords, two_factor
+from core import accounts, chat_memory, abuse, memory, passkeys, passwords, proxy, two_factor
 from agents import llm_providers
 
 logging.basicConfig(level=logging.INFO, format="%(asctime)s [%(levelname)s] %(name)s: %(message)s")
@@ -242,6 +242,11 @@ async def require_session(request, call_next):
     keys = {**_stored_keys(user_id), **(_header_keys(request) or {})}
     llm_providers.use_keys(keys or None)
     return await call_next(request)
+
+
+# Outermost: a front end on another host (Vercel) forwards /api here under a secret prefix; the
+# prefix comes off before anything above sees the path (core/proxy.py).
+app.add_middleware(proxy.FrontProxy)
 
 
 # ---------------------------------------------------------------------------
