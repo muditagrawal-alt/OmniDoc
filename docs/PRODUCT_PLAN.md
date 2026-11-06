@@ -30,6 +30,7 @@ or bring-your-own-key), never "upgrade".
 | Slim image for 1 GB hosts (ONNX, no PyTorch), CI with tests, a memory budget and GHCR publishing | Done |
 | One-command deployment, HTTPS, nightly backups, security headers | Done (code), not yet live |
 | App shell: icon rail with flyouts (or full sidebar), floating navbar, settings panel, system/light/dark themes, accent, text size, density | Done |
+| Passwords as an alternative to passkeys (scrypt; "forgot password" with a recovery code); feedback form on the product page, read in Admin | Done (code), not yet live |
 | Per-user model choice and effort (Quick, Balanced, Thorough) for each question | Done |
 | Library tools: Search (no model call), Tables, Records, Timeline, Privacy scan | Done |
 | Connect: MCP setup page and personal API tokens (revocable, a year) | Done |
@@ -103,6 +104,10 @@ For users:
 - **Passkeys** (WebAuthn, `py_webauthn`): sign up and sign in with Face ID, Touch ID, Windows Hello or
   a phone, with no password and no e-mail. Ten one-time recovery codes are shown at sign-up; an account
   can also link GitHub or Google as a second way in.
+- **Passwords**, for people who prefer them: a username and a password of at least ten characters (not
+  a common one, not the username), stored as scrypt hashes, with per-address and per-username limits on
+  guesses. With no e-mail, "forgot password" is a recovery code plus a new password, which also signs
+  out every other device.
 - **Two-step sign-in** without e-mail: a code from an authenticator app (TOTP, `pyotp`: Google
   Authenticator, Microsoft Authenticator, 1Password...) after GitHub or Google sign-in, or a passkey.
   Optional per user, required for admins; recovery codes as the fallback.
