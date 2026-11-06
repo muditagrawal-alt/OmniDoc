@@ -160,7 +160,7 @@ API_PER_MINUTE = int(os.environ.get("OMNIDOC_API_PER_MINUTE", "240"))
 # Besides reading, a guest (the demo) may ask, compare, search, extract and keep conversations; nothing else.
 _GUEST_WRITES = (
     re.compile(r"^/api/chats(/[^/]+(/query(/stream)?)?)?$"),
-    re.compile(r"^/api/(query|compare|search|extract/stream|documents/summaries|auth/logout|notices/read|keys/check|export/(pdf|docx))$"),
+    re.compile(r"^/api/(query|compare|search|extract/stream|documents/summaries|auth/logout|auth/media|notices/read|keys/check|export/(pdf|docx))$"),
     re.compile(r"^/api/documents/[^/]+/(locate|redact)$"),
 )
 
@@ -230,7 +230,7 @@ async def require_session(request, call_next):
     if path.startswith(_OPEN_API):
         llm_providers.use_keys(None)
         return await call_next(request)
-    token = _bearer(request.headers.get("authorization"), request.headers.get("x-omnidoc-token"))
+    token = _bearer(request.headers.get("authorization"), request.headers.get("x-omnidoc-token")) or _media_token(request)
     user_id = db.get_session_user_id(token, touch=True) if token else None
     if not user_id:
         return JSONResponse({"detail": "Sign in to continue."}, status_code=401)
@@ -378,8 +378,21 @@ def _bearer(authorization: Optional[str], omnidoc_token: Optional[str] = None) -
     return None
 
 
-def current_user_id(authorization: Optional[str] = Header(None), x_omnidoc_token: Optional[str] = Header(None)) -> str:
-    token = _bearer(authorization, x_omnidoc_token)
+# Images, the original file and recordings are loaded by <img>, <a> and <audio>, which cannot send the
+# session header: for those GETs alone the session also travels in an HttpOnly, SameSite=Strict cookie.
+MEDIA_COOKIE = "omnidoc_media"
+_MEDIA_PATH = re.compile(r"^/api/documents/[A-Za-z0-9_.\-]{1,128}/(pages/\d+|file)$")
+
+
+def _media_token(request: Request) -> Optional[str]:
+    if request.method in ("GET", "HEAD") and _MEDIA_PATH.match(request.url.path):
+        return request.cookies.get(MEDIA_COOKIE) or None
+    return None
+
+
+def current_user_id(request: Request, authorization: Optional[str] = Header(None),
+                    x_omnidoc_token: Optional[str] = Header(None)) -> str:
+    token = _bearer(authorization, x_omnidoc_token) or _media_token(request)
     if not token:
         if accounts_on():
             raise HTTPException(status_code=401, detail="Sign in to continue.")
@@ -826,7 +839,21 @@ def logout(authorization: Optional[str] = Header(None), x_omnidoc_token: Optiona
     token = _bearer(authorization, x_omnidoc_token)
     if token:
         db.delete_session(token)
-    return {"status": "success"}
+    response = JSONResponse({"status": "success"})
+    response.delete_cookie(MEDIA_COOKIE, path="/api/documents")
+    return response
+
+
+@app.post("/api/auth/media")
+def media_cookie(authorization: Optional[str] = Header(None), x_omnidoc_token: Optional[str] = Header(None)):
+    """Puts the session in the cookie that page images, files and recordings are loaded with."""
+    token = _bearer(authorization, x_omnidoc_token)
+    if not token or not db.get_session_user_id(token):
+        raise HTTPException(status_code=401, detail="Sign in to continue.")
+    response = JSONResponse({"status": "success"})
+    response.set_cookie(MEDIA_COOKIE, token, max_age=30 * 86400, path="/api/documents", httponly=True, samesite="strict",
+                        secure=os.environ.get("OMNIDOC_PUBLIC_URL", "").startswith("https://"))
+    return response
 
 
 # ---------------------------------------------------------------------------
