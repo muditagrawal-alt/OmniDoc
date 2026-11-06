@@ -1,11 +1,25 @@
-/** OmniDoc mark: a page with a folded corner and one highlighted line, the evidence an answer cites. */
-export function BrandMark({ size = 22 }: { size?: number }) {
+import { useId } from 'react';
+
+/*
+ * The OmniDoc mark: a circle (the answer) overlapping a page (the document). Where they overlap,
+ * in the accent colour, is the evidence an answer stands on. Built from two primitives on a
+ * 24-unit grid so it holds at 16 px, and it works in one colour (the overlap knocked out).
+ * Inside a button or link, the circle slides a little further onto the page on hover.
+ */
+export function BrandMark({ size = 22, mono = false }: { size?: number; mono?: boolean }) {
+  const clip = `omnidoc-page-${useId().replace(/:/g, '')}`;
   return (
-    <svg width={size} height={size} viewBox="0 0 24 24" fill="none" aria-hidden="true">
-      <path d="M6 2.75h8.2l4.55 4.55V20.1a1.15 1.15 0 0 1-1.15 1.15H6.4A1.15 1.15 0 0 1 5.25 20.1V3.9" stroke="currentColor" strokeWidth="1.7" strokeLinejoin="round" />
-      <path d="M5.25 3.9c0-.64.51-1.15 1.15-1.15M14 2.9v3.6c0 .55.45 1 1 1h3.6" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" strokeLinejoin="round" />
-      <rect x="8" y="11.4" width="8.6" height="2.9" rx="0.7" fill="var(--accent)" />
-      <rect x="8" y="16.2" width="5.6" height="1.6" rx="0.8" fill="currentColor" opacity="0.45" />
+    <svg className="brand-mark" width={size} height={size} viewBox="0 0 24 24" aria-hidden="true">
+      <defs>
+        <clipPath id={clip}>
+          <rect x="10" y="3" width="11" height="15" rx="2.6" />
+        </clipPath>
+      </defs>
+      <rect className="brand-mark-page" x="10" y="3" width="11" height="15" rx="2.6" fill="currentColor" />
+      <g className="brand-mark-orb">
+        <circle cx="9" cy="14" r="7" fill="currentColor" />
+        <circle cx="9" cy="14" r="7" fill={mono ? 'var(--bg)' : 'var(--accent)'} clipPath={`url(#${clip})`} />
+      </g>
     </svg>
   );
 }
