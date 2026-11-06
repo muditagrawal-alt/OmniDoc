@@ -55,6 +55,16 @@ def _env_list(name: str) -> List[str]:
     return [x.strip().lower() for x in os.getenv(name, "").split(",") if x.strip()]
 
 
+def gravatar_url(email: str) -> str:
+    """The picture registered for an e-mail address on Gravatar, for accounts without one from GitHub
+    or Google. d=404 makes a missing one fail, so the app shows initials instead of a placeholder.
+    Only the address's SHA-256 is in the URL. OMNIDOC_GRAVATAR=0 turns it off."""
+    email = (email or "").strip().lower()
+    if not email or "@" not in email or os.getenv("OMNIDOC_GRAVATAR", "1") == "0":
+        return ""
+    return f"https://gravatar.com/avatar/{hashlib.sha256(email.encode()).hexdigest()}?s=160&d=404"
+
+
 def public_url() -> str:
     """The address users open (redirects after Google and GitHub sign-in come back here)."""
     return os.getenv("OMNIDOC_PUBLIC_URL", "http://127.0.0.1:8000").rstrip("/")
@@ -162,36 +172,32 @@ def device_label(user_agent: Optional[str]) -> str:
 
 
 # --------------------------------------------------------------- e-mail codes
+def smtp_configured() -> bool:
+    return bool(os.getenv("OMNIDOC_SMTP_HOST", "").strip())
+
+
 def email_configured() -> bool:
-    return bool(os.getenv("OMNIDOC_SMTP_HOST")) or os.getenv("OMNIDOC_OTP_LOG", "0") == "1"
+    """E-mailed sign-in codes: SMTP set up and not switched off (OMNIDOC_EMAIL_SIGNIN=0 keeps SMTP for
+    the operator's own notices, core/notify.py, without letting visitors have mail sent to any address)."""
+    if os.getenv("OMNIDOC_OTP_LOG", "0") == "1":
+        return True
+    return smtp_configured() and os.getenv("OMNIDOC_EMAIL_SIGNIN", "1") != "0"
 
 
-def send_code_email(to: str, code: str) -> None:
-    """Sends the sign-in code by SMTP; with OMNIDOC_OTP_LOG=1 and no SMTP it is only logged (local testing)."""
+def smtp_sender() -> str:
+    host = os.getenv("OMNIDOC_SMTP_HOST", "").strip()
+    user = os.getenv("OMNIDOC_SMTP_USER", "")
+    return os.getenv("OMNIDOC_SMTP_FROM", user or f"OmniDoc <no-reply@{host}>")
+
+
+def smtp_send(msg: EmailMessage) -> None:
+    """Sends one message through OMNIDOC_SMTP_* (port 465: TLS from the start; otherwise STARTTLS)."""
     host = os.getenv("OMNIDOC_SMTP_HOST", "").strip()
     if not host:
-        if os.getenv("OMNIDOC_OTP_LOG", "0") == "1":
-            logger.warning(f"Sign-in code for {to}: {code} (OMNIDOC_OTP_LOG=1; set OMNIDOC_SMTP_HOST to e-mail it)")
-            return
-        raise RuntimeError("E-mail sign-in is not configured")
+        raise RuntimeError("SMTP is not configured")
     port = int(os.getenv("OMNIDOC_SMTP_PORT", "587"))
     user = os.getenv("OMNIDOC_SMTP_USER", "")
     password = os.getenv("OMNIDOC_SMTP_PASSWORD", "")
-    sender = os.getenv("OMNIDOC_SMTP_FROM", user or f"OmniDoc <no-reply@{host}>")
-    msg = EmailMessage()
-    msg["Subject"] = f"{code} is your OmniDoc sign-in code"
-    msg["From"] = sender
-    msg["To"] = to
-    msg.set_content(
-        f"Your OmniDoc sign-in code is {code}\n\n"
-        f"It works once and expires in {CODE_TTL_S // 60} minutes. If you did not try to sign in, ignore this e-mail.\n")
-    msg.add_alternative(f"""\
-<div style="font-family:-apple-system,Segoe UI,Helvetica,Arial,sans-serif;max-width:460px;margin:0 auto;padding:28px;color:#121620">
-  <p style="font-size:15px;margin:0 0 18px">Your OmniDoc sign-in code:</p>
-  <p style="font-size:32px;font-weight:600;letter-spacing:6px;margin:0 0 18px;font-family:Menlo,Consolas,monospace">{code}</p>
-  <p style="font-size:13px;color:#4a5263;margin:0">It works once and expires in {CODE_TTL_S // 60} minutes.
-  If you did not try to sign in, ignore this e-mail.</p>
-</div>""", subtype="html")
     if port == 465:
         with smtplib.SMTP_SSL(host, port, timeout=20) as s:
             if user:
@@ -203,6 +209,31 @@ def send_code_email(to: str, code: str) -> None:
             if user:
                 s.login(user, password)
             s.send_message(msg)
+
+
+def send_code_email(to: str, code: str) -> None:
+    """Sends the sign-in code by SMTP; with OMNIDOC_OTP_LOG=1 and no SMTP it is only logged (local testing)."""
+    host = os.getenv("OMNIDOC_SMTP_HOST", "").strip()
+    if not host:
+        if os.getenv("OMNIDOC_OTP_LOG", "0") == "1":
+            logger.warning(f"Sign-in code for {to}: {code} (OMNIDOC_OTP_LOG=1; set OMNIDOC_SMTP_HOST to e-mail it)")
+            return
+        raise RuntimeError("E-mail sign-in is not configured")
+    msg = EmailMessage()
+    msg["Subject"] = f"{code} is your OmniDoc sign-in code"
+    msg["From"] = smtp_sender()
+    msg["To"] = to
+    msg.set_content(
+        f"Your OmniDoc sign-in code is {code}\n\n"
+        f"It works once and expires in {CODE_TTL_S // 60} minutes. If you did not try to sign in, ignore this e-mail.\n")
+    msg.add_alternative(f"""\
+<div style="font-family:-apple-system,Segoe UI,Helvetica,Arial,sans-serif;max-width:460px;margin:0 auto;padding:28px;color:#121620">
+  <p style="font-size:15px;margin:0 0 18px">Your OmniDoc sign-in code:</p>
+  <p style="font-size:32px;font-weight:600;letter-spacing:6px;margin:0 0 18px;font-family:Menlo,Consolas,monospace">{code}</p>
+  <p style="font-size:13px;color:#4a5263;margin:0">It works once and expires in {CODE_TTL_S // 60} minutes.
+  If you did not try to sign in, ignore this e-mail.</p>
+</div>""", subtype="html")
+    smtp_send(msg)
 
 
 class CodeError(Exception):
