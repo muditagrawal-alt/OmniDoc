@@ -692,6 +692,16 @@ class OmniDocApiClient {
     } catch {
       /* storage unavailable */
     }
+    if (token) this.syncMediaCookie();
+  }
+
+  /**
+   * Page images, the original file and recordings load through <img>, <a> and <audio>, which cannot
+   * send the session header; the server keeps the session in a cookie for those requests alone.
+   */
+  syncMediaCookie() {
+    if (!this.token) return;
+    fetch(`${API_BASE}/api/auth/media`, { method: 'POST', headers: this.headers(false) }).catch(() => undefined);
   }
 
   private headers(json = true): HeadersInit {
@@ -988,6 +998,7 @@ class OmniDocApiClient {
     if (!this.token) return null;
     try {
       const data = await this.request<{ user: User }>('/api/auth/me');
+      this.syncMediaCookie();
       return data.user;
     } catch (err) {
       if (err instanceof ApiError && err.status === 401) this.setToken(null);
