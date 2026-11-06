@@ -35,6 +35,8 @@ fi
 default OMNIDOC_ACCOUNTS 1
 default OMNIDOC_DEMO 1
 default OMNIDOC_PROXY_KEY "$(openssl rand -hex 24)"
+# SMTP, when set, is for the operator's own notices (feedback): no e-mailed sign-in codes to visitors.
+default OMNIDOC_EMAIL_SIGNIN 0
 # The address people open: the Vercel front end when there is one (deploy/vercel.sh), else this server.
 default OMNIDOC_PUBLIC_URL "https://$domain"
 
