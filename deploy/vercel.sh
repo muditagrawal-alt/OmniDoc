@@ -32,6 +32,14 @@ destination = f"{os.environ['OMNIDOC_BACKEND']}/_via/{os.environ['OMNIDOC_PROXY_
 for rule in config["rewrites"]:
     if rule["source"] == "/api/:path*":
         rule["destination"] = destination
+# The page's inline scripts (the theme bootstrap) are allowed by their hash, taken from this build.
+import base64, hashlib, re
+page = open(os.path.join(os.path.dirname(target), "index.html")).read()
+inline = re.findall(r"<script(?![^>]*\bsrc=)[^>]*>(.*?)</script>", page, re.S)
+hashes = " ".join(f"'sha256-{base64.b64encode(hashlib.sha256(s.encode()).digest()).decode()}'" for s in inline)
+for rule in config["headers"]:
+    for header in rule["headers"]:
+        header["value"] = header["value"].replace("{INLINE_SCRIPTS}", hashes)
 json.dump(config, open(target, "w"), indent=2)
 PY
 
