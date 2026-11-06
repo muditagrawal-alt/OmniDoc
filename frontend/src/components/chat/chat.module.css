@@ -774,6 +774,23 @@
     max-width: 120px;
   }
 
+  .toolbarRight > :last-child {
+    flex-shrink: 0;
+  }
+}
+
+/* A phone: the chips show their icons only (their names stay in aria-label and the tooltip),
+   so the send button always fits. */
+@media (max-width: 480px) {
+  .langChip span,
+  .scopeText {
+    display: none;
+  }
+
+  .toolbar {
+    gap: var(--space-1);
+  }
+
   .jump {
     bottom: 132px;
   }
