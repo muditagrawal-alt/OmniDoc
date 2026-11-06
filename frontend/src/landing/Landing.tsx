@@ -4,6 +4,7 @@ import { ArrowRight, Languages } from 'lucide-react';
 import type { AuthMethods } from '../api';
 import { useTheme } from '../lib/theme';
 import { BrandMark } from '../components/BrandMark';
+import { ThemeSwitch } from '../components/ThemeSwitch';
 import LiquidChrome from '../components/reactbits/LiquidChrome';
 import Threads from '../components/reactbits/Threads';
 import RotatingText from '../components/reactbits/RotatingText';
@@ -142,6 +143,7 @@ function Nav({ methods, onSignIn, onTryDemo, demoBusy }: Omit<LandingProps, 'dem
           <a href={REPO} target="_blank" rel="noreferrer"><span>GitHub</span></a>
         </nav>
         <div className={styles.navActions}>
+          <ThemeSwitch />
           <button type="button" className="btn btn-ghost" onClick={() => onSignIn('start')}>Sign in</button>
           {methods.demo && (
             <button type="button" className="btn btn-primary" onClick={onTryDemo} disabled={demoBusy}>Try the demo</button>
