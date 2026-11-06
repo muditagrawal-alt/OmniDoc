@@ -1,8 +1,8 @@
+/* Flat (no preserve-3d): the card turns as one plane, so clicks land on what is under the pointer.
+   With preserve-3d each control was hit-tested in 3D and a click could miss a visible button. */
 .tilt {
   --tilt-glare: rgba(255, 255, 255, 0.55);
   position: relative;
-  transform-style: preserve-3d;
-  will-change: transform;
 }
 
 :global(:root[data-theme='dark']) .tilt {
