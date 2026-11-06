@@ -1,21 +1,49 @@
 .page {
+  position: relative;
+  isolation: isolate;
   min-height: 100dvh;
   display: grid;
   place-items: center;
   align-content: center;
   gap: var(--space-5);
-  padding: var(--space-8) var(--space-4);
+  padding: 96px var(--space-4) var(--space-8);
   background: var(--bg);
+  overflow: hidden;
+}
+
+/* The same drifting rings as the chat, behind the card. */
+.backdrop {
+  z-index: -1;
+}
+
+.topbar {
+  position: absolute;
+  top: 12px;
+  right: 16px;
+  left: 16px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-3);
+  max-width: 1200px;
+  margin: 0 auto;
+  padding: 6px 8px 6px 14px;
+  border-radius: var(--radius-pill);
+  background: color-mix(in srgb, var(--surface) 72%, transparent);
+  box-shadow: inset 0 0 0 1px var(--border);
+  backdrop-filter: saturate(160%) blur(14px);
+  -webkit-backdrop-filter: saturate(160%) blur(14px);
 }
 
 .card {
   width: 100%;
-  max-width: 400px;
+  max-width: 420px;
   padding: var(--space-8);
-  background: var(--surface);
-  border: 1px solid var(--border);
-  border-radius: var(--radius-xl);
-  box-shadow: var(--shadow-2);
+  border-radius: var(--radius-2xl);
+  background: color-mix(in srgb, var(--surface) 90%, transparent);
+  box-shadow: inset 0 0 0 1px var(--border), var(--shadow-3);
+  backdrop-filter: saturate(160%) blur(18px);
+  -webkit-backdrop-filter: saturate(160%) blur(18px);
   animation: rise-in var(--dur-4) var(--ease-out);
 }
 
@@ -23,10 +51,27 @@
   display: flex;
   align-items: center;
   gap: var(--space-2);
-  margin-bottom: var(--space-8);
   font-size: var(--text-md);
   font-weight: 600;
   letter-spacing: var(--tracking-snug);
+}
+
+.backArrow {
+  color: var(--text-3);
+  transition: transform var(--dur-2) var(--ease-out);
+}
+
+.brandLink:hover .backArrow {
+  transform: translateX(-3px);
+}
+
+.providerRow {
+  display: grid;
+  gap: var(--space-2);
+}
+
+.providerRow[data-pair] {
+  grid-template-columns: repeat(2, minmax(0, 1fr));
 }
 
 .brandLink {
@@ -139,8 +184,8 @@
 }
 
 .footnote {
-  max-width: 400px;
-  color: var(--text-3);
+  max-width: 420px;
+  color: var(--text-2);
   font-size: var(--text-xs);
   text-align: center;
 }
