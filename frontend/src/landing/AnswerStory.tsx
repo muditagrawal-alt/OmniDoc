@@ -2,8 +2,8 @@ import { useRef, useState, type ReactNode } from 'react';
 import {
   AnimatePresence, motion, useMotionValueEvent, useReducedMotion, useScroll, useTransform, type MotionValue,
 } from 'motion/react';
-import { Check, FileText, ShieldCheck, Sigma } from 'lucide-react';
-import { Eyebrow, RiseHeading } from './scroll';
+import { Check, FileText, ShieldCheck } from 'lucide-react';
+import { RiseHeading } from './scroll';
 import { useRamp } from './motion';
 import page from './Landing.module.css';
 import styles from './AnswerStory.module.css';
@@ -17,24 +17,24 @@ const QUESTION = 'How much did Kestrel’s revenue grow in FY2025, and what drov
 
 const STAGES = [
   {
-    n: '01', title: 'You ask', status: 'Reading the question',
+    title: 'You ask', status: 'Reading the question',
     text: 'In plain words, in English or one of nine Indian languages, about one document or the whole library.',
   },
   {
-    n: '02', title: 'It plans', status: 'Planning 3 steps',
-    text: 'The question is broken into the steps that answer it: which figures, which years, which documents.',
+    title: 'It plans', status: 'Planning 3 steps',
+    text: 'The question is split into the steps that answer it: which figures, which years, which documents.',
   },
   {
-    n: '03', title: 'It finds the evidence', status: 'Searching 5 documents',
-    text: 'Search by meaning and by exact words across every page, tables included. A reranker keeps only the passages that answer.',
+    title: 'It finds the evidence', status: 'Searching 5 documents',
+    text: 'It searches every page by meaning and by exact words, tables included, and a reranker keeps the passages that answer.',
   },
   {
-    n: '04', title: 'It does the maths', status: 'Calculating',
-    text: 'Growth rates and shares are calculated with SymPy, not guessed by the model, and every input has to appear in the evidence.',
+    title: 'It does the maths', status: 'Calculating',
+    text: 'Growth rates and shares are calculated with SymPy, from numbers that have to appear in the evidence.',
   },
   {
-    n: '05', title: 'It checks every sentence', status: '3 of 3 sentences supported',
-    text: 'Each sentence is checked against the passage it cites before you see it. Click a citation to see that sentence on its page.',
+    title: 'It checks every sentence', status: '3 of 3 sentences supported',
+    text: 'Each sentence is checked against the passage it cites before you see it. A citation opens that sentence on its page.',
   },
 ];
 
@@ -118,26 +118,22 @@ export default function AnswerStory() {
   return (
     <section id="how" className={styles.story} aria-labelledby="how-title">
       <div className={styles.head}>
-        <Eyebrow>How an answer is made</Eyebrow>
-        <RiseHeading id="how-title" className={page.h2} text="Five steps between your question and an answer you can check." />
+        <RiseHeading id="how-title" className={page.h2} text="What happens after you ask" />
       </div>
 
       <div ref={track} className={styles.track}>
         <div className={styles.sticky}>
           <div className={styles.segments} aria-hidden="true">
-            {STAGES.map((s, i) => <span key={s.n}><StageFill p={p} index={i} /></span>)}
+            {STAGES.map((s, i) => <span key={s.title}><StageFill p={p} index={i} /></span>)}
           </div>
 
           <ol className={styles.stages}>
             {STAGES.map((s, i) => (
-              <motion.li key={s.n} data-active={i === active || undefined}
+              <motion.li key={s.title} data-active={i === active || undefined}
                 animate={{ opacity: i === active ? 1 : i < active ? 0.5 : 0.3 }} transition={{ duration: 0.4 }}>
-                <span className={styles.stageNo}>{s.n}</span>
-                <div>
-                  <h3>{s.title}</h3>
-                  <p>{s.text}</p>
-                  <span className={styles.fillTrack} aria-hidden="true"><StageFill p={p} index={i} /></span>
-                </div>
+                <h3>{s.title}</h3>
+                <p>{s.text}</p>
+                <span className={styles.fillTrack} aria-hidden="true"><StageFill p={p} index={i} /></span>
               </motion.li>
             ))}
           </ol>
@@ -150,10 +146,8 @@ export default function AnswerStory() {
 
           <div className={styles.panel} aria-hidden="true">
             <div className={styles.panelBar}>
-              <span className={styles.dots}><i /><i /><i /></span>
               <span className={styles.panelTitle}>Kestrel demo library · 5 documents</span>
               <span className={styles.status} data-done={active === STAGES.length - 1 || undefined}>
-                <span className={styles.pulse} />
                 <AnimatePresence mode="wait" initial={false}>
                   <motion.span key={active} initial={{ opacity: 0, y: 6 }} animate={{ opacity: 1, y: 0 }}
                     exit={{ opacity: 0, y: -6 }} transition={{ duration: 0.2 }}>
@@ -180,7 +174,7 @@ export default function AnswerStory() {
                 </Layer>
 
                 <Layer p={p} at={[0.4, 0.44, 0.57, 0.61]} className={styles.evidence}>
-                  <span className={styles.label}>Evidence · the passages the reranker kept</span>
+                  <span className={styles.label}>Evidence the reranker kept</span>
                   <Bit p={p} at={0.42} x={30} y={0} className={styles.source}>
                     <span className={styles.sourceHead}><FileText size={13} /> Annual Report 2025 · page 1 <em>Table 1</em></span>
                     <div className={styles.rows}>
@@ -208,7 +202,7 @@ export default function AnswerStory() {
                 </Layer>
 
                 <Layer p={p} at={[0.6, 0.64, 0.77, 0.81]} className={styles.compute}>
-                  <span className={styles.label}><Sigma size={13} /> Calculated with SymPy, not by the model</span>
+                  <span className={styles.label}>Calculated with SymPy</span>
                   <div className={styles.code}>
                     <Bit p={p} at={0.63} className={styles.codeLine}>
                       <span>revenue_fy2025</span><span>= 1,284</span><em>Table 1</em>
