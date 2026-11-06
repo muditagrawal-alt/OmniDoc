@@ -51,6 +51,10 @@ interface LibraryViewProps {
   onAskSelected: () => void;
   sidebarOpen: boolean;
   onOpenSidebar: () => void;
+  /** The demo's shared sample library: nothing can be added or deleted. */
+  readOnly?: boolean;
+  /** A hosted server (documents live there, private to the account), not this computer. */
+  hosted?: boolean;
 }
 
 const ACCEPT = '.pdf,.docx,.txt,.md,.csv,.tsv,.xlsx,.pptx,.eml,.epub,.html,.htm,.png,.jpg,.jpeg,.tif,.tiff,.webp,.bmp,.mp3,.wav,.m4a,.ogg,.flac,.webm,.mp4,.mov';
@@ -128,6 +132,8 @@ export function LibraryView(props: LibraryViewProps) {
     uploads,
     onDismissUploads,
     onDelete,
+    readOnly = false,
+    hosted = false,
     selectedDocIds,
     onToggleDoc,
     onSetSelection,
@@ -227,18 +233,19 @@ export function LibraryView(props: LibraryViewProps) {
             <h1 className={styles.title}>Library</h1>
             <p className={styles.subtitle}>
               {documents.length
-                ? `${pluralize(documents.length, 'document')} · ${formatBytes(totalBytes)} · stored on this machine`
+                ? `${pluralize(documents.length, 'document')} · ${formatBytes(totalBytes)} · ${
+                    readOnly ? 'a shared sample library, read-only' : hosted ? 'private to your account' : 'stored on this machine'}`
                 : 'Documents you add are parsed, indexed and mapped into the knowledge graph locally.'}
             </p>
           </div>
-          <div className={styles.addButtons}>
+          {!readOnly && <div className={styles.addButtons}>
             <button type="button" className="btn btn-secondary" onClick={() => setUrlOpen((o) => !o)} aria-expanded={urlOpen}>
               <Link2 size={15} strokeWidth={1.9} /> From a link
             </button>
             <button type="button" className="btn btn-primary" onClick={pick}>
               <Plus size={16} strokeWidth={2} /> Add documents
             </button>
-          </div>
+          </div>}
         </div>
 
         {urlOpen && (
@@ -443,9 +450,11 @@ export function LibraryView(props: LibraryViewProps) {
                             >
                               <Eye size={15} strokeWidth={1.75} />
                             </button>
-                            <button type="button" className="icon-btn icon-btn-sm" aria-label={`Delete ${d.filename}`} title="Delete" onClick={() => setConfirm(d)}>
-                              <Trash2 size={15} strokeWidth={1.75} />
-                            </button>
+                            {!readOnly && (
+                              <button type="button" className="icon-btn icon-btn-sm" aria-label={`Delete ${d.filename}`} title="Delete" onClick={() => setConfirm(d)}>
+                                <Trash2 size={15} strokeWidth={1.75} />
+                              </button>
+                            )}
                           </div>
                         </td>
                       </tr>
