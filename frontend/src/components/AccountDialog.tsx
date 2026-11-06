@@ -3,6 +3,7 @@ import { Download, KeyRound, LockKeyhole, LogOut, Monitor, ShieldCheck, Smartpho
 import { api } from '../api';
 import type { AccountInfo, AuthMethods, DeviceSession, Passkey, TotpSetup } from '../api';
 import { passkeysSupported } from '../lib/webauthn';
+import { Avatar } from './ui/Avatar';
 import { Dialog } from './ui/Dialog';
 import { MIN_PASSWORD, passwordHint } from '../lib/passwords';
 import { PasswordInput } from './PasswordInput';
@@ -125,10 +126,13 @@ export function AccountDialog({ open, methods, onClose, onSignOut, onDeleted }: 
         </div>
       ) : (
         <p className={styles.lede}>
+          <Avatar name={info.user.name} src={info.user.avatar_url} size={40} />
+          <span>
           Signs in with {PROVIDERS[info.user.provider] || info.user.provider}
           {info.user.username ? ` as ${info.user.username}` : ''}
           {email && (info.user.provider === 'passkey' || info.user.provider === 'password') ? ` or ${email}` : ''}
           {info.admin ? ' · administrator' : ''}
+          </span>
         </p>
       )}
       {info.limits ? (
