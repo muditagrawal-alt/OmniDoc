@@ -8,7 +8,8 @@
 # Data (library, indexes, uploads, accounts) lives in /data: mount a persistent volume there.
 
 # ---- 1. Web app --------------------------------------------------------------
-FROM node:22-alpine AS web
+# Built on the machine doing the build: the output is the same for every platform.
+FROM --platform=$BUILDPLATFORM node:22-alpine AS web
 WORKDIR /web
 COPY frontend/package.json frontend/package-lock.json ./
 RUN npm ci --no-audit --no-fund
