@@ -62,7 +62,8 @@ $compose up -d --remove-orphans
 $DOCKER image prune -f >/dev/null
 
 # A nightly snapshot of the library (deploy/backup.sh keeps the last 7).
-( crontab -l 2>/dev/null | grep -v "# omnidoc-backup" ;
+# (No crontab yet, or nothing left after the filter, is fine: hence the "|| true"s under set -e.)
+( { crontab -l 2>/dev/null || true; } | { grep -v "# omnidoc-backup" || true; }
   echo "30 3 * * * OMNIDOC_COMPOSE=deploy/compose.oracle.yml bash $PWD/deploy/backup.sh >> $HOME/omnidoc-backup.log 2>&1 # omnidoc-backup" ) | crontab -
 
 echo "Waiting for OmniDoc to start..."
