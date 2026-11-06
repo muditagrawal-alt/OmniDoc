@@ -13,6 +13,13 @@ import { LibraryView } from './components/library/LibraryView';
 import type { UploadItem } from './components/library/LibraryView';
 import { ExtractView } from './components/extract/ExtractView';
 import { CompareView } from './components/compare/CompareView';
+import { SearchView } from './components/views/SearchView';
+import { TablesView } from './components/views/TablesView';
+import { RecordsView } from './components/views/RecordsView';
+import { TimelineView } from './components/views/TimelineView';
+import { PrivacyView } from './components/views/PrivacyView';
+import { ConnectView } from './components/views/ConnectView';
+import { AdminView } from './components/views/AdminView';
 import { ProfileDialog } from './components/ProfileDialog';
 import { SignIn } from './components/SignIn';
 import { AccountDialog } from './components/AccountDialog';
@@ -27,7 +34,7 @@ const MOBILE_QUERY = '(max-width: 900px)';
 const KnowledgeView = lazy(() => import('./components/knowledge/KnowledgeView').then((m) => ({ default: m.KnowledgeView })));
 // The product page is its own chunk: people using the app never download it.
 const Landing = lazy(() => import('./landing/Landing'));
-const VIEWS: View[] = ['chat', 'library', 'extract', 'compare', 'knowledge'];
+const VIEWS: View[] = ['chat', 'search', 'library', 'extract', 'compare', 'tables', 'records', 'timeline', 'privacy', 'knowledge', 'connect', 'admin'];
 
 function viewFromHash(): View {
   const v = window.location.hash.replace(/^#\/?/, '').split('/')[0] as View;
@@ -268,10 +275,14 @@ function Shell() {
         e.preventDefault();
         setSettingsOpen((o) => !o);
       }
+      if ((e.metaKey || e.ctrlKey) && !e.shiftKey && e.key.toLowerCase() === 'k') {
+        e.preventDefault();
+        navigate('search');
+      }
     };
     window.addEventListener('keydown', onKey);
     return () => window.removeEventListener('keydown', onKey);
-  }, [newChat]);
+  }, [newChat, navigate]);
 
   const selectChat = (id: string) => {
     setActiveChatId(id);
@@ -362,7 +373,7 @@ function Shell() {
       try {
         const result = await api.streamQuery(
           chatId,
-          { query, document_ids: opts?.docIds ?? selectedDocIds, language, web: webMode, effort },
+          { query, document_ids: opts?.docIds ?? selectedDocIds, language, web: webMode, effort, model: settings.model || undefined },
           {
             signal: controller.signal,
             onStep: (step) => {
@@ -400,7 +411,7 @@ function Shell() {
         refreshFreeAnswers();
       }
     },
-    [language, loadChats, selectedDocIds, toast, webMode, effort, refreshFreeAnswers],
+    [language, loadChats, selectedDocIds, toast, webMode, effort, settings.model, refreshFreeAnswers],
   );
 
   const stop = () => inflightRef.current?.controller.abort();
@@ -415,6 +426,14 @@ function Shell() {
   const askAboutEntity = (name: string) => {
     navigate('chat');
     send(`What do my documents say about ${name}? Explain how it relates to the other entities it is connected to.`, { chatId: null, docIds: [] });
+  };
+
+  /** A question typed in Search, asked in a new chat (an answer, which uses a model). */
+  const askFromSearch = (question: string) => {
+    setActiveChatId(null);
+    setMessages([]);
+    navigate('chat');
+    send(question, { chatId: null });
   };
 
   const askSelected = () => {
@@ -587,7 +606,10 @@ function Shell() {
 
   // Desktop shows the icon rail unless Settings asks for the full sidebar; phones use the sidebar as a drawer.
   const rail = !isMobile && settings.navigation === 'rail';
+  const admin = !methods.accounts || !!user?.admin;
+  const openLibrary = () => navigate('library');
   const navOpen = rail || sidebarOpen;
+  const viewChrome = { sidebarOpen: navOpen, onOpenSidebar: () => setSidebarOpen(true) };
   const openKeys = () => {
     if (methods.accounts) {
       setKeysReason(null);
@@ -611,6 +633,7 @@ function Shell() {
           documents={documents}
           user={user}
           accountsMode={!!methods.accounts}
+          admin={admin}
           unreadNotices={unread}
           onOpenNotices={() => setNoticesOpen(true)}
           settingsOpen={settingsOpen}
@@ -718,6 +741,18 @@ function Shell() {
             <CompareView documents={documents} sidebarOpen={navOpen} onOpenSidebar={() => setSidebarOpen(true)} />
           </div>
         )}
+        {view === 'search' && (
+          <SearchView documents={documents} selectedDocIds={selectedDocIds} onOpenLibrary={openLibrary} onAsk={askFromSearch} {...viewChrome} />
+        )}
+        {view === 'tables' && <TablesView onOpenLibrary={openLibrary} {...viewChrome} />}
+        {view === 'records' && <RecordsView onOpenLibrary={openLibrary} {...viewChrome} />}
+        {view === 'timeline' && <TimelineView documents={documents} onOpenLibrary={openLibrary} {...viewChrome} />}
+        {view === 'privacy' && <PrivacyView documents={documents} onOpenLibrary={openLibrary} {...viewChrome} />}
+        {view === 'connect' && <ConnectView accountsMode={!!methods.accounts} user={user} {...viewChrome} />}
+        {view === 'admin' && (
+          <AdminView user={user} accountsMode={!!methods.accounts} {...viewChrome}
+            onBecameAdmin={() => api.getMe().then((u) => u && setUser(u)).catch(() => undefined)} />
+        )}
         {view === 'knowledge' && (
           <div className={styles.knowledge}>
             <Suspense fallback={null}>
@@ -764,6 +799,7 @@ function Shell() {
         unreadNotices={unread}
         onSignOut={signOut}
         onOpenProfile={() => setProfileOpen(true)}
+        onOpenAdmin={() => navigate('admin')}
         chatCount={chats.length}
         onClearChats={clearChats}
       />
