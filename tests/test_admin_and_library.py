@@ -117,3 +117,36 @@ def test_library_views_show_only_the_users_own_documents(hosted, monkeypatch):
     events = client.get("/api/timeline", headers=headers).json()["events"]
     assert [e["date"][:10] for e in events] == ["2025-02-01", "2026-09-11"]
     assert all(e["document"] == "contract.pdf" for e in events)
+
+
+def test_page_images_load_with_the_media_cookie_and_nothing_else_does(hosted):
+    _, headers, _ = signup("Ravi")
+    client.cookies.clear()
+    assert client.get("/api/documents/doc_missing01/pages/1").status_code == 401
+
+    set_cookie = client.post("/api/auth/media", headers=headers)
+    assert set_cookie.status_code == 200
+    cookie = set_cookie.headers["set-cookie"].lower()
+    assert "httponly" in cookie and "samesite=strict" in cookie and "path=/api/documents" in cookie
+
+    # The cookie signs in an image or file request (the document does not exist: 404, not 401) ...
+    assert client.get("/api/documents/doc_missing01/pages/1").status_code == 404
+    assert client.get("/api/documents/doc_missing01/file").status_code == 404
+    # ... and nothing else: not the document list, not a write.
+    assert client.get("/api/documents").status_code == 401
+    assert client.delete("/api/documents/doc_missing01").status_code == 401
+
+    assert client.post("/api/auth/logout", headers=headers).status_code == 200
+    client.cookies.clear()
+    assert client.post("/api/auth/media").status_code == 401
+
+
+def test_guests_get_the_media_cookie_for_the_demo_library(hosted, monkeypatch):
+    monkeypatch.setenv("OMNIDOC_DEMO", "1")
+    from test_account_security import proof
+    guest = client.post("/api/auth/guest", json={"pow": proof()})
+    assert guest.status_code == 200
+    client.cookies.clear()
+    assert client.post("/api/auth/media", headers={"X-OmniDoc-Token": guest.json()["token"]}).status_code == 200
+    assert client.get("/api/documents/doc_missing02/pages/1").status_code == 404  # signed in by the cookie
+    client.cookies.clear()
