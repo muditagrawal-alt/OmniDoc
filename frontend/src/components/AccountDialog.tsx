@@ -1,9 +1,11 @@
 import { useCallback, useEffect, useState } from 'react';
-import { Download, KeyRound, LogOut, Monitor, ShieldCheck, Smartphone, Trash2 } from 'lucide-react';
+import { Download, KeyRound, LockKeyhole, LogOut, Monitor, ShieldCheck, Smartphone, Trash2 } from 'lucide-react';
 import { api } from '../api';
 import type { AccountInfo, AuthMethods, DeviceSession, Passkey, TotpSetup } from '../api';
 import { passkeysSupported } from '../lib/webauthn';
 import { Dialog } from './ui/Dialog';
+import { MIN_PASSWORD, passwordHint } from '../lib/passwords';
+import { PasswordInput } from './PasswordInput';
 import { RecoveryCodes } from './SignIn';
 import styles from './AccountDialog.module.css';
 
@@ -18,7 +20,7 @@ interface AccountDialogProps {
 type Tab = 'overview' | 'security' | 'devices';
 
 const PROVIDERS: Record<string, string> = {
-  email: 'an e-mailed code', google: 'Google', github: 'GitHub', passkey: 'a passkey', guest: 'the demo', local: 'a local profile',
+  email: 'an e-mailed code', google: 'Google', github: 'GitHub', passkey: 'a passkey', password: 'a password', guest: 'the demo', local: 'a local profile',
 };
 
 function ago(seconds?: number | null): string {
@@ -77,6 +79,10 @@ export function AccountDialog({ open, methods, onClose, onSignOut, onDeleted }: 
   const [busy, setBusy] = useState<string | null>(null);
   const [confirming, setConfirming] = useState(false);
   const [typed, setTyped] = useState('');
+  const [editingPassword, setEditingPassword] = useState(false);
+  const [newUsername, setNewUsername] = useState('');
+  const [currentPassword, setCurrentPassword] = useState('');
+  const [newPassword, setNewPassword] = useState('');
 
   const apply = useCallback((data: Loaded) => {
     setInfo(data.account);
@@ -120,7 +126,8 @@ export function AccountDialog({ open, methods, onClose, onSignOut, onDeleted }: 
       ) : (
         <p className={styles.lede}>
           Signs in with {PROVIDERS[info.user.provider] || info.user.provider}
-          {email && info.user.provider === 'passkey' ? ` or ${email}` : ''}
+          {info.user.username ? ` as ${info.user.username}` : ''}
+          {email && (info.user.provider === 'passkey' || info.user.provider === 'password') ? ` or ${email}` : ''}
           {info.admin ? ' · administrator' : ''}
         </p>
       )}
@@ -162,8 +169,80 @@ export function AccountDialog({ open, methods, onClose, onSignOut, onDeleted }: 
     </>
   );
 
+  const hasPassword = !!info?.user.has_password;
+  const editPassword = (on: boolean) => {
+    setEditingPassword(on);
+    setCurrentPassword('');
+    setNewPassword('');
+    setNewUsername('');
+    setError(null);
+  };
+  const savePassword = () => act('password', async () => {
+    await api.setPassword(newPassword, hasPassword ? currentPassword : undefined, info?.user.username ? undefined : newUsername.trim().toLowerCase());
+    editPassword(false);
+    await refresh();
+  });
+
+  const passwordSection = info && methods.password && (
+    <section className={styles.section}>
+      <h3>
+        Password
+        {hasPassword && <span className={styles.on}><ShieldCheck size={13} strokeWidth={2} /> On</span>}
+      </h3>
+      <p className={styles.note}>
+        {hasPassword ? (
+          <>You sign in as <strong>{info.user.username}</strong>. Forgot it? A recovery code resets it from the sign-in page.</>
+        ) : (
+          'Sign in with a username and password too, on devices where passkeys are not available.'
+        )}
+      </p>
+      {editingPassword ? (
+        <form className={styles.form} onSubmit={(e) => { e.preventDefault(); void savePassword(); }} noValidate>
+          {!info.user.username && (
+            <div>
+              <label className="field-label" htmlFor="account-username">Username</label>
+              <input id="account-username" className="field" autoComplete="username" autoCapitalize="none" spellCheck={false}
+                maxLength={32} value={newUsername} onChange={(e) => setNewUsername(e.target.value)} />
+            </div>
+          )}
+          {hasPassword && (
+            <div>
+              <label className="field-label" htmlFor="account-current-password">Current password</label>
+              <PasswordInput id="account-current-password" autoComplete="current-password" value={currentPassword} onChange={setCurrentPassword} />
+            </div>
+          )}
+          <div>
+            <label className="field-label" htmlFor="account-new-password">{hasPassword ? 'New password' : 'Password'}</label>
+            <PasswordInput id="account-new-password" autoComplete="new-password" value={newPassword} onChange={setNewPassword} />
+            <p className={styles.meta}>{passwordHint(newPassword)}</p>
+          </div>
+          <div className={styles.actions}>
+            <button type="submit" className="btn btn-primary btn-sm"
+              disabled={!!busy || newPassword.length < MIN_PASSWORD || (hasPassword && !currentPassword) || (!info.user.username && !newUsername.trim())}>
+              {spin('password')} Save password
+            </button>
+            <button type="button" className="btn btn-ghost btn-sm" onClick={() => editPassword(false)}>Cancel</button>
+          </div>
+        </form>
+      ) : (
+        <div className={styles.actions}>
+          <button type="button" className="btn btn-secondary btn-sm" disabled={!!busy} onClick={() => editPassword(true)}>
+            <LockKeyhole size={14} strokeWidth={1.75} /> {hasPassword ? 'Change password' : 'Set a password'}
+          </button>
+          {hasPassword && (
+            <button type="button" className="btn btn-ghost btn-sm" disabled={!!busy}
+              onClick={() => act('rm-password', async () => { await api.removePassword(); await refresh(); })}>
+              {spin('rm-password')} Remove password
+            </button>
+          )}
+        </div>
+      )}
+    </section>
+  );
+
   const securityTab = info && security && (
     <>
+      {passwordSection}
       <section className={styles.section}>
         <h3>Passkeys</h3>
         <p className={styles.note}>Sign in with Face ID, Touch ID, Windows Hello, your phone or a security key. Nothing to remember or type.</p>
@@ -224,8 +303,8 @@ export function AccountDialog({ open, methods, onClose, onSignOut, onDeleted }: 
         </h3>
         <p className={styles.note}>
           {security.totp
-            ? 'Signing in with GitHub, Google or an e-mailed code also asks for a code from your app. Passkeys need no code.'
-            : 'Ask for a six-digit code from an app such as Google Authenticator, Microsoft Authenticator or 1Password after GitHub, Google or e-mail sign-in.'}
+            ? 'Signing in with a password, GitHub, Google or an e-mailed code also asks for a code from your app. Passkeys need no code.'
+            : 'Ask for a six-digit code from an app such as Google Authenticator, Microsoft Authenticator or 1Password after password, GitHub, Google or e-mail sign-in.'}
         </p>
         {!security.totp && !setup && (
           <button type="button" className="btn btn-secondary btn-sm" disabled={!!busy}
@@ -275,7 +354,8 @@ export function AccountDialog({ open, methods, onClose, onSignOut, onDeleted }: 
       <section className={styles.section}>
         <h3>Recovery codes</h3>
         <p className={styles.note}>
-          {security.recovery_codes_left} of 10 left. Each code signs in once if you lose your passkeys, or replaces an authenticator code.
+          {security.recovery_codes_left} of 10 left. Each code signs in once if you lose your passkeys, resets a forgotten password,
+          or replaces an authenticator code.
         </p>
         {newCodes ? (
           <>
