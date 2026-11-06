@@ -19,6 +19,9 @@ export interface User {
   totp_enabled?: boolean;
   /** An administrator of this server (always true on a local install). */
   admin?: boolean;
+  /** Set when the account signs in with a username and password. */
+  username?: string | null;
+  has_password?: boolean;
 }
 
 export interface AuthMethods {
@@ -28,8 +31,18 @@ export interface AuthMethods {
   google: boolean;
   github: boolean;
   passkey?: boolean;
+  /** Username and password accounts (forgot password: a recovery code) */
+  password?: boolean;
   /** "Try it without signing in": a read-only guest session on the sample library */
   demo?: boolean;
+}
+
+export interface FeedbackItem {
+  id: number;
+  rating: number | null;
+  message: string;
+  contact: string | null;
+  created_at: number;
 }
 
 export interface AccountInfo {
@@ -578,8 +591,9 @@ export interface AdminOverview {
   stats: {
     accounts: number; guests: number; documents: number; chats: number; questions_today: number; questions_7d: number;
     questions_30d: number; uploads_30d: number; active_30d: number; by_day: Array<{ day: string; questions: number; uploads: number }>;
+    feedback: number; rating: number;
   };
-  admins: Array<{ id: string; name: string; email: string | null }>;
+  admins: Array<{ id: string; name: string; email: string | null; username?: string | null }>;
   admin_emails: string[];
   settings: { accounts: boolean; demo: boolean; trial_answers: number; default_model: string; version: string };
 }
@@ -802,6 +816,57 @@ class OmniDocApiClient {
       'Could not sign in',
     );
     return this.finish(data);
+  }
+
+  /** Creates an account with a username and password; returns the user and their recovery codes. */
+  async signUpWithPassword(username: string, password: string, name?: string): Promise<SignInResult> {
+    const pow = await this.proof();
+    const data = await this.request<{ user: User; token: string; recovery_codes: string[] }>(
+      '/api/auth/password/signup', { method: 'POST', body: JSON.stringify({ username, password, name: name || null, pow }) },
+      'Could not create the account');
+    return this.finish(data);
+  }
+
+  async signInWithPassword(username: string, password: string): Promise<SignInResult> {
+    const data = await this.request<{ user?: User; token?: string; mfa?: string }>(
+      '/api/auth/password/signin', { method: 'POST', body: JSON.stringify({ username, password }) }, 'Could not sign in');
+    return this.finish(data);
+  }
+
+  /** Forgot password: one of the recovery codes and a new password; signs in and signs other devices out. */
+  async resetPassword(username: string, code: string, password: string): Promise<SignInResult> {
+    const pow = await this.proof();
+    const data = await this.request<{ user: User; token: string }>(
+      '/api/auth/password/reset', { method: 'POST', body: JSON.stringify({ username, code, password, pow }) },
+      'Could not reset the password');
+    return this.finish(data);
+  }
+
+  /** Sets (with a username, the first time) or changes the account's password. */
+  setPassword(password: string, currentPassword?: string, username?: string): Promise<{ user: User }> {
+    return this.request('/api/account/password', {
+      method: 'PUT', body: JSON.stringify({ password, current_password: currentPassword || null, username: username || null }),
+    }, 'Could not save the password');
+  }
+
+  removePassword(): Promise<{ user: User }> {
+    return this.request('/api/account/password', { method: 'DELETE' }, 'Could not remove the password');
+  }
+
+  /** Feedback from the product page (a rating, a message, and a way to reply only if given). */
+  async sendFeedback(message: string, rating?: number | null, contact?: string): Promise<void> {
+    const pow = await this.proof();
+    await this.request('/api/feedback', {
+      method: 'POST', body: JSON.stringify({ message, rating: rating || null, contact: contact || null, pow }),
+    }, 'Could not send the feedback');
+  }
+
+  adminFeedback(): Promise<{ feedback: FeedbackItem[] }> {
+    return this.request('/api/admin/feedback', {}, 'Could not load the feedback');
+  }
+
+  async deleteFeedback(id: number): Promise<void> {
+    await this.request(`/api/admin/feedback/${id}`, { method: 'DELETE' }, 'Could not delete the feedback');
   }
 
   async signInWithRecoveryCode(code: string): Promise<SignInResult> {
