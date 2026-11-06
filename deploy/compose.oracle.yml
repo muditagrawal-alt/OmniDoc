@@ -1,0 +1,36 @@
+# OmniDoc on an Oracle Cloud Always Free Arm VM: the slim image from GitHub's registry (built by CI
+# for arm64 and amd64) behind Caddy, which gets and renews the HTTPS certificate.
+#
+#   docker compose --env-file .env -f deploy/compose.oracle.yml up -d      (deploy/oracle-setup.sh does this)
+#
+# Settings come from .env in the repository folder. Data lives in the omnidoc_omnidoc-data volume.
+name: omnidoc
+
+services:
+  omnidoc:
+    image: ghcr.io/muditagrawal-alt/omnidoc:${OMNIDOC_IMAGE_TAG:-slim}
+    restart: unless-stopped
+    env_file: ../.env
+    volumes:
+      - omnidoc-data:/data
+
+  caddy:
+    image: caddy:2
+    restart: unless-stopped
+    environment:
+      OMNIDOC_DOMAIN: ${OMNIDOC_DOMAIN}
+    ports:
+      - "80:80"
+      - "443:443"
+      - "443:443/udp"
+    volumes:
+      - ./Caddyfile:/etc/caddy/Caddyfile:ro
+      - caddy-data:/data
+      - caddy-config:/config
+    depends_on:
+      - omnidoc
+
+volumes:
+  omnidoc-data:
+  caddy-data:
+  caddy-config:
