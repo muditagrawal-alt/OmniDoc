@@ -273,3 +273,14 @@
     flex-direction: column;
   }
 }
+
+.form {
+  display: grid;
+  gap: var(--space-3);
+  max-width: 360px;
+  margin-top: var(--space-2);
+}
+
+.form .meta {
+  margin-top: 6px;
+}
