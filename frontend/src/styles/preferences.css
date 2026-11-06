@@ -1,0 +1,118 @@
+/*
+ * Personal preferences from Settings (lib/settings.ts), set as data attributes on <html>.
+ * Accent colours are IBM Carbon's 60-grade hues in light, 40/30 in dark, so each keeps the
+ * contrast of the default blue: accent-ink stays readable as text on the page background.
+ */
+
+/* ---------------------------------------------------------------- accent */
+:root[data-accent='teal'] {
+  --ink: #007d79;
+  --ink-hover: #006b68;
+  --accent: #007d79;
+  --accent-ink: #005d5d;
+  --accent-soft: rgba(0, 125, 121, 0.12);
+  --accent-softer: rgba(0, 125, 121, 0.06);
+  --accent-line: rgba(0, 125, 121, 0.45);
+}
+
+:root[data-theme='dark'][data-accent='teal'] {
+  --ink: #007d79;
+  --ink-hover: #009d9a;
+  --accent: #08bdba;
+  --accent-ink: #3ddbd9;
+  --accent-soft: rgba(8, 189, 186, 0.16);
+  --accent-softer: rgba(8, 189, 186, 0.08);
+  --accent-line: rgba(8, 189, 186, 0.5);
+}
+
+:root[data-accent='violet'] {
+  --ink: #8a3ffc;
+  --ink-hover: #7a2fef;
+  --accent: #8a3ffc;
+  --accent-ink: #6929c4;
+  --accent-soft: rgba(138, 63, 252, 0.12);
+  --accent-softer: rgba(138, 63, 252, 0.06);
+  --accent-line: rgba(138, 63, 252, 0.45);
+}
+
+:root[data-theme='dark'][data-accent='violet'] {
+  --ink: #8a3ffc;
+  --ink-hover: #a56eff;
+  --accent: #a56eff;
+  --accent-ink: #be95ff;
+  --accent-soft: rgba(165, 110, 255, 0.16);
+  --accent-softer: rgba(165, 110, 255, 0.08);
+  --accent-line: rgba(165, 110, 255, 0.5);
+}
+
+:root[data-accent='magenta'] {
+  --ink: #d02670;
+  --ink-hover: #b0185c;
+  --accent: #d02670;
+  --accent-ink: #9f1853;
+  --accent-soft: rgba(208, 38, 112, 0.12);
+  --accent-softer: rgba(208, 38, 112, 0.06);
+  --accent-line: rgba(208, 38, 112, 0.45);
+}
+
+:root[data-theme='dark'][data-accent='magenta'] {
+  --ink: #d02670;
+  --ink-hover: #ee5396;
+  --accent: #ee5396;
+  --accent-ink: #ff7eb6;
+  --accent-soft: rgba(238, 83, 150, 0.16);
+  --accent-softer: rgba(238, 83, 150, 0.08);
+  --accent-line: rgba(238, 83, 150, 0.5);
+}
+
+:root[data-accent='orange'] {
+  --ink: #ba4e00;
+  --ink-hover: #a34400;
+  --accent: #ba4e00;
+  --accent-ink: #8a3800;
+  --accent-soft: rgba(186, 78, 0, 0.12);
+  --accent-softer: rgba(186, 78, 0, 0.06);
+  --accent-line: rgba(186, 78, 0, 0.45);
+}
+
+:root[data-theme='dark'][data-accent='orange'] {
+  --ink: #ba4e00;
+  --ink-hover: #eb6200;
+  --accent: #ff832b;
+  --accent-ink: #ffb784;
+  --accent-soft: rgba(255, 131, 43, 0.16);
+  --accent-softer: rgba(255, 131, 43, 0.08);
+  --accent-line: rgba(255, 131, 43, 0.5);
+}
+
+/* ---------------------------------------------------------------- text size: the type scale is in rem */
+:root[data-text-size='small'] {
+  font-size: 93.75%;
+}
+
+:root[data-text-size='large'] {
+  font-size: 112.5%;
+}
+
+/* ---------------------------------------------------------------- density */
+:root[data-density='compact'] {
+  --space-2: 6px;
+  --space-3: 9px;
+  --space-4: 12px;
+  --space-5: 16px;
+  --space-6: 20px;
+  --space-8: 26px;
+  --space-10: 32px;
+  --space-12: 40px;
+  --header-h: 46px;
+}
+
+/* ---------------------------------------------------------------- motion */
+:root[data-motion='reduce'] *,
+:root[data-motion='reduce'] *::before,
+:root[data-motion='reduce'] *::after {
+  animation-duration: 0.01ms !important;
+  animation-iteration-count: 1 !important;
+  transition-duration: 0.01ms !important;
+  scroll-behavior: auto !important;
+}
