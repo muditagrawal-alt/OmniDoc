@@ -346,6 +346,8 @@ class QueryRequest(BaseModel):
     language: Optional[str] = "en"
     # "auto": search the web when the question needs it or the documents do not answer it
     web: Optional[str] = Field("auto", pattern="^(auto|on|off)$")
+    # How much evidence to read: "quick", "balanced" (the benchmarked pipeline) or "thorough"
+    effort: Optional[str] = Field("balanced", pattern="^(quick|balanced|thorough)$")
 
 
 class ModelRequest(BaseModel):
@@ -1479,6 +1481,7 @@ def execute_chat_query(chat_id: str, req: QueryRequest, request: Request, user_i
         for kind, data in get_pipeline().query_stream(
             user_query=query_text, document_ids=doc_ids, session_id=chat_id, conversation_history=history,
             web_mode=req.web or "auto", owner_id=library_owner(user_id) if accounts_on() else None,
+            effort=req.effort or "balanced",
         ):
             if kind == "step":
                 steps.append(data)
@@ -1513,6 +1516,7 @@ def stream_chat_query(chat_id: str, req: QueryRequest, request: Request, user_id
             for kind, data in get_pipeline().query_stream(
                 user_query=query_text, document_ids=doc_ids, session_id=chat_id, conversation_history=history,
                 web_mode=req.web or "auto", owner_id=library_owner(user_id) if accounts_on() else None,
+                effort=req.effort or "balanced",
             ):
                 if kind == "step":
                     steps.append(data)
@@ -1554,6 +1558,7 @@ def standalone_query(req: QueryRequest, request: Request, user_id: str = Depends
         user_query=req.query, document_ids=doc_ids,
         session_id=req.session_id or f"session_{uuid.uuid4().hex[:8]}",
         web_mode=req.web or "auto", owner_id=library_owner(user_id) if accounts_on() else None,
+        effort=req.effort or "balanced",
     ):
         if kind == "step":
             steps.append(data)
