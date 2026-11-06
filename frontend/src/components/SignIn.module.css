@@ -280,3 +280,46 @@
     align-items: stretch;
   }
 }
+
+/* Stacked fields (username, password, ...) with even spacing. */
+.fields {
+  display: grid;
+  gap: var(--space-4);
+}
+
+.fields .submit {
+  margin-top: var(--space-1);
+}
+
+.labelRow {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: var(--space-3);
+}
+
+.labelRow .link {
+  margin-bottom: 6px;
+  font-size: var(--text-xs);
+}
+
+.optional {
+  margin-left: var(--space-1);
+  color: var(--text-3);
+  font-weight: 400;
+}
+
+.fieldHint {
+  margin-top: 6px;
+  color: var(--text-3);
+  font-size: var(--text-xs);
+  text-wrap: pretty;
+}
+
+.fieldHint[data-ok] {
+  color: var(--text-2);
+}
+
+.choice {
+  margin-bottom: var(--space-5);
+}
