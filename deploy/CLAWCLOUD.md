@@ -38,7 +38,6 @@ GitHub publishes new images as private. Open
    OMNIDOC_ACCOUNTS=1
    OMNIDOC_DEMO=1
    OMNIDOC_PUBLIC_URL=https://<your app address>
-   OMNIDOC_ADMIN_EMAILS=<the e-mail address on your GitHub account>
    OMNIDOC_MODEL=nvidia:nvidia/nemotron-3-ultra-550b-a55b
    OMNIDOC_LLM_PROVIDERS=nvidia,groq,gemini,openrouter
    OMNIDOC_VISION_MODEL=gemini:gemini-3.5-flash-lite
@@ -63,10 +62,17 @@ Passkey sign-up and the demo work without it. To add "Continue with GitHub":
 2. **Generate a new client secret**, then add to the app's environment:
    `OMNIDOC_GITHUB_CLIENT_ID=<id>` and `OMNIDOC_GITHUB_CLIENT_SECRET=<secret>`, and update the app.
 
-Sign in with GitHub once with the address in `OMNIDOC_ADMIN_EMAILS`, then add a passkey or an
-authenticator app under *Account → Sign-in and security*: administrator settings need one.
+## 4. Become the administrator
 
-## 4. Updates and backups
+Until someone claims the role, the server prints a setup code to its log at every start:
+*No administrator has claimed this server yet … enter: 1a2b3c-4d5e6f-7a8b9c*. Open the app's **Logs** in
+App Launchpad and copy it. Then create your account (a passkey is enough), open **Settings → Administer
+this server**, and enter the code. The **Admin** tab appears in the sidebar: usage, memory against the
+1 GB limit, the default model for everyone, and announcements to every account. To choose the code
+yourself, set `OMNIDOC_ADMIN_CODE`; to make a GitHub or Google account an administrator by its address,
+list it in `OMNIDOC_ADMIN_EMAILS`.
+
+## 5. Updates and backups
 
 - **Updates:** every push to `main` that passes CI publishes a new `:slim` image. In App Launchpad,
   open the app and **Restart** (or **Update** to pin `:slim-<commit>` for a fixed version).
