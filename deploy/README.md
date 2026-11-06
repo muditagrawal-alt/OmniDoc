@@ -65,19 +65,20 @@ address people open. On the VM, set `OMNIDOC_PUBLIC_URL=https://<project>.vercel
 and run `bash deploy/oracle-setup.sh` again.
 
 **5. Feedback by e-mail (optional).** To get an e-mail for every piece of feedback sent from the
-product page, create a Gmail app password (Google Account → Security → 2-Step Verification → App
-passwords) and add to the VM's `.env`:
+product page, the simplest free way is [Resend](https://resend.com) (3,000 e-mails a month, no card):
+sign up with the address that should receive them, create an API key with sending access, and add
+to the VM's `.env`:
 
 ```bash
-OMNIDOC_SMTP_HOST=smtp.gmail.com
-OMNIDOC_SMTP_PORT=587
-OMNIDOC_SMTP_USER=you@gmail.com
-OMNIDOC_SMTP_PASSWORD=<the 16-letter app password>
-OMNIDOC_FEEDBACK_EMAIL=you@gmail.com
+RESEND_API_KEY=re_...
+OMNIDOC_FEEDBACK_EMAIL=you@gmail.com     # the address your Resend account was made with
 ```
 
-then run `bash deploy/oracle-setup.sh` again. `OMNIDOC_EMAIL_SIGNIN=0` (set by the script) keeps
-this SMTP account for your own notices: visitors cannot have codes mailed from it.
+then run `bash deploy/oracle-setup.sh` again. Without a domain of your own, Resend sends from
+`onboarding@resend.dev`, and only to that account's address, which is all this needs. Gmail works
+too: set `OMNIDOC_SMTP_HOST=smtp.gmail.com`, `OMNIDOC_SMTP_PORT=587`, `OMNIDOC_SMTP_USER` and
+`OMNIDOC_SMTP_PASSWORD` (an app password) instead. `OMNIDOC_EMAIL_SIGNIN=0` (set by the script)
+keeps either one for your own notices: visitors cannot have codes mailed from it.
 
 **6. Become the administrator.** `docker compose --env-file .env -f deploy/compose.oracle.yml logs omnidoc | grep -i "administer this server"`
 prints the setup code. Sign in (a passkey account, or a password account with an authenticator
