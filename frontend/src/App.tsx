@@ -7,7 +7,9 @@ import type { View } from './components/Sidebar';
 import { AppRail } from './components/AppRail';
 import { SettingsPanel } from './components/SettingsPanel';
 import { ProvidersDialog } from './components/ProvidersDialog';
-import { setSetting, useSettings } from './lib/settings';
+import { prefersStill, setSetting, useSettings } from './lib/settings';
+import { useTheme } from './lib/theme';
+import { CloudField } from './components/backgrounds/CloudField';
 import { ChatView } from './components/chat/ChatView';
 import { LibraryView } from './components/library/LibraryView';
 import type { UploadItem } from './components/library/LibraryView';
@@ -99,6 +101,7 @@ function Shell() {
   const [selectedDocIds, setSelectedDocIds] = useState<string[]>([]);
   // Answer language, web search and effort are preferences kept in this browser (Settings).
   const settings = useSettings();
+  const { resolved } = useTheme();
   const { language, webMode, effort } = settings;
   const setLanguage = (code: string) => setSetting('language', code);
   const setWebMode = (mode: WebMode) => setSetting('webMode', mode);
@@ -670,6 +673,11 @@ function Shell() {
         />
       )}
       <div className={styles.main}>
+        {/* Clouds behind every tab but Chat (which has its own rings); the pointer pushes them like wind. */}
+        {view !== 'chat' && settings.tabsBackdrop !== 'off' && (
+          <CloudField className={styles.clouds} dark={resolved === 'dark'} accent={settings.accent}
+            still={settings.tabsBackdrop === 'still' || prefersStill(settings)} />
+        )}
         {view === 'chat' && (
           <ChatView
             chat={activeChat}
