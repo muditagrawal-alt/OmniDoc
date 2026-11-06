@@ -17,6 +17,8 @@ export interface User {
   avatar_url?: string;
   kind?: 'user' | 'guest';
   totp_enabled?: boolean;
+  /** An administrator of this server (always true on a local install). */
+  admin?: boolean;
 }
 
 export interface AuthMethods {
@@ -524,6 +526,63 @@ export interface ModelInfo {
 }
 
 export type WebMode = 'auto' | 'on' | 'off';
+
+/** A passage found by the library search (no model call). */
+export interface SearchHit {
+  doc_id: string;
+  title: string;
+  chunk_id: string;
+  page: number | null;
+  section?: string | null;
+  score: number;
+  text: string;
+}
+
+export interface LibraryTable {
+  doc_id: string;
+  document: string;
+  table: string;
+  table_id: string;
+  title: string;
+  page: number | null;
+  n_rows: number;
+  columns: string[];
+}
+
+export interface LibraryRecord {
+  doc_id: string;
+  document: string;
+  doc_type: string;
+  label: string;
+  fields: Array<{ name: string; label: string; type?: string; value: unknown; status: string; page?: number | null; chunk_id?: string | null; quote?: string | null }>;
+  /** Consistency checks of the record ("Subtotal + tax = total"): pass, fail, or skip when fields are missing. */
+  checks: Array<{ rule: string; status: 'pass' | 'fail' | 'skip' | string; message?: string; fields?: string[] }>;
+  extracted: boolean;
+}
+
+export interface TimelineEvent {
+  date: string;
+  written: string;
+  text: string;
+  chunk_id: string;
+  doc_id: string;
+  document: string;
+  page: number | null;
+}
+
+export interface AdminOverview {
+  health: {
+    status: string; version: string; model: string; ollama: boolean; providers: string[];
+    stores: Record<string, string>; memory_mb: number; memory_limit_mb: number | null;
+  };
+  stats: {
+    accounts: number; guests: number; documents: number; chats: number; questions_today: number; questions_7d: number;
+    questions_30d: number; uploads_30d: number; active_30d: number; by_day: Array<{ day: string; questions: number; uploads: number }>;
+  };
+  admins: Array<{ id: string; name: string; email: string | null }>;
+  admin_emails: string[];
+  settings: { accounts: boolean; demo: boolean; trial_answers: number; default_model: string; version: string };
+}
 /** How much evidence an answer reads: fewer passages and sooner, or more passages and later. */
 export type Effort = 'quick' | 'balanced' | 'thorough';
 
@@ -949,7 +1008,7 @@ class OmniDocApiClient {
     return this.request<Health>('/api/health');
   }
 
-  async getModels(): Promise<{ models: ModelInfo[]; current: string }> {
+  async getModels(): Promise<{ models: ModelInfo[]; current: string; can_set_default?: boolean }> {
     return this.request('/api/models');
   }
 
@@ -990,7 +1049,7 @@ class OmniDocApiClient {
    */
   async streamQuery(
     chatId: string,
-    body: { query: string; document_ids?: string[]; language?: string; web?: WebMode; effort?: Effort },
+    body: { query: string; document_ids?: string[]; language?: string; web?: WebMode; effort?: Effort; model?: string },
     handlers: StreamHandlers = {},
   ): Promise<QueryResponse> {
     let res: Response;
@@ -1080,8 +1139,43 @@ class OmniDocApiClient {
     return this.request(`/api/documents/${encodeURIComponent(docId)}/text`, {}, 'Could not load the document text');
   }
 
-  getDocumentTable(docId: string, table: string): Promise<TableData> {
-    return this.request(`/api/documents/${encodeURIComponent(docId)}/tables/${encodeURIComponent(table)}`, {}, 'Could not load the table');
+  getDocumentTable(docId: string, table: string, limit?: number): Promise<TableData> {
+    const q = limit ? `?limit=${limit}` : '';
+    return this.request(`/api/documents/${encodeURIComponent(docId)}/tables/${encodeURIComponent(table)}${q}`, {}, 'Could not load the table');
+  }
+
+  /** Passages that match, found by meaning and by exact words, with no model call. */
+  search(query: string, documentIds?: string[], topK = 20): Promise<{ candidates: number; results: SearchHit[] }> {
+    return this.request('/api/search', { method: 'POST', body: JSON.stringify({ query, document_ids: documentIds?.length ? documentIds : null, top_k: topK }) }, 'Search failed');
+  }
+
+  libraryTables(): Promise<{ tables: LibraryTable[] }> {
+    return this.request('/api/tables', {}, 'Could not list the tables');
+  }
+
+  libraryRecords(): Promise<{ records: LibraryRecord[] }> {
+    return this.request('/api/records', {}, 'Could not list the records');
+  }
+
+  timeline(documentIds?: string[]): Promise<{ events: TimelineEvent[]; total: number }> {
+    const q = documentIds?.length ? `?doc_ids=${encodeURIComponent(documentIds.join(','))}` : '';
+    return this.request(`/api/timeline${q}`, {}, 'Could not build the timeline');
+  }
+
+  createToken(name: string): Promise<{ token: string; name: string; expires_in_days: number }> {
+    return this.request('/api/account/tokens', { method: 'POST', body: JSON.stringify({ name }) }, 'Could not create the token');
+  }
+
+  adminOverview(): Promise<AdminOverview> {
+    return this.request('/api/admin/overview', {}, 'Could not load the server overview');
+  }
+
+  claimAdmin(code: string): Promise<{ admin: boolean }> {
+    return this.request('/api/admin/claim', { method: 'POST', body: JSON.stringify({ code }) }, 'Could not claim the role');
+  }
+
+  announce(title: string, body: string, url?: string): Promise<{ id: number }> {
+    return this.request('/api/admin/announce', { method: 'POST', body: JSON.stringify({ title, body, url: url || null }) }, 'Could not post the announcement');
   }
 
   getDocumentSummary(docId: string): Promise<{ status: 'ready' | 'pending' | 'missing'; summary: DocumentSummary | null; progress?: { processed: number; total: number } | null }> {
