@@ -4,7 +4,11 @@ import { ArrowLeft, ArrowRight, Check, Copy, Download, KeyRound, LifeBuoy, Mail 
 import { api } from '../api';
 import type { AuthMethods, SignInResult, User } from '../api';
 import { passkeysSupported } from '../lib/webauthn';
+import { prefersStill, useSettings } from '../lib/settings';
+import { useTheme } from '../lib/theme';
 import { BrandMark } from './BrandMark';
+import { ThemeSwitch } from './ThemeSwitch';
+import { RingField } from './backgrounds/RingField';
 import styles from './SignIn.module.css';
 
 interface SignInProps {
@@ -101,6 +105,8 @@ export function SignIn({ methods, initialError, initialTicket, initialStep, onBa
   const [wait, setWait] = useState(0);
   const inputRef = useRef<HTMLInputElement>(null);
   const passkeys = !!methods.passkey && passkeysSupported();
+  const settings = useSettings();
+  const { resolved } = useTheme();
 
   useEffect(() => {
     if (wait <= 0) return;
@@ -181,18 +187,26 @@ export function SignIn({ methods, initialError, initialTicket, initialStep, onBa
 
   return (
     <main className={styles.page}>
-      <section className={styles.card} aria-labelledby="signin-title">
+      {settings.backdrop !== 'off' && (
+        <RingField className={styles.backdrop} dark={resolved === 'dark'} accent={settings.accent}
+          still={settings.backdrop === 'still' || prefersStill(settings)} />
+      )}
+      <header className={styles.topbar}>
         {onBack ? (
           <button type="button" className={`${styles.brand} ${styles.brandLink}`} onClick={onBack} aria-label="Back to the OmniDoc home page">
-            <BrandMark size={28} />
+            <ArrowLeft size={16} strokeWidth={1.75} className={styles.backArrow} />
+            <BrandMark size={24} />
             <span>OmniDoc</span>
           </button>
         ) : (
           <div className={styles.brand}>
-            <BrandMark size={28} />
+            <BrandMark size={24} />
             <span>OmniDoc</span>
           </div>
         )}
+        <ThemeSwitch />
+      </header>
+      <section className={styles.card} aria-labelledby="signin-title">
 
         {step === 'start' && (
           <>
@@ -205,15 +219,19 @@ export function SignIn({ methods, initialError, initialTicket, initialStep, onBa
                   {spinner('passkey') || <KeyRound size={16} strokeWidth={1.75} />} Sign in with a passkey
                 </button>
               )}
-              {methods.github && (
-                <a className={`btn btn-secondary ${styles.provider}`} href={api.oauthUrl('github')}>
-                  <GitHubLogo /> Continue with GitHub
-                </a>
-              )}
-              {methods.google && (
-                <a className={`btn btn-secondary ${styles.provider}`} href={api.oauthUrl('google')}>
-                  <GoogleLogo /> Continue with Google
-                </a>
+              {oauth && (
+                <div className={styles.providerRow} data-pair={(methods.github && methods.google) || undefined}>
+                  {methods.github && (
+                    <a className={`btn btn-secondary ${styles.provider}`} href={api.oauthUrl('github')}>
+                      <GitHubLogo /> {methods.google ? 'GitHub' : 'Continue with GitHub'}
+                    </a>
+                  )}
+                  {methods.google && (
+                    <a className={`btn btn-secondary ${styles.provider}`} href={api.oauthUrl('google')}>
+                      <GoogleLogo /> {methods.github ? 'Google' : 'Continue with Google'}
+                    </a>
+                  )}
+                </div>
               )}
             </div>
             {(passkeys || oauth) && methods.email && <div className={styles.divider}><span>or</span></div>}
