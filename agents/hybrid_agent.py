@@ -9,6 +9,7 @@ import time
 import logging
 from typing import Dict, Any, List, Optional, Tuple
 
+from core import effort
 from core.state import AgentWorkflowState, RetrievedChunk
 from retrieval.embeddings import EmbeddingService
 from retrieval.lancedb_store import LanceDBStore, rrf_fuse
@@ -164,7 +165,10 @@ class HybridRetrievalAgent:
         doc_ids = [d for d in (state.get("document_ids") or []) if d]
         queries = self._queries(state)
         logger.info(f"HybridRetrievalAgent searching {len(queries)} queries across docs: {doc_ids or 'ALL'}")
-        top, pool_size = self.search(queries, doc_ids or None)
+        # Quick reads fewer passages, thorough more (core/effort.py); balanced is the benchmarked count.
+        top, pool_size = self.search(queries, doc_ids or None,
+                                     top_k=effort.scaled(state, FINAL_TOP_K, quick=min(6, FINAL_TOP_K),
+                                                         thorough=max(18, FINAL_TOP_K)))
         semantic_q = state.get("semantic_query")
         subs = [q for q in (getattr(semantic_q, "sub_questions", None) or []) if isinstance(q, str) and q.strip()]
         second = 0
