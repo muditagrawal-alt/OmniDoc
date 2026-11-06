@@ -29,6 +29,11 @@ or bring-your-own-key), never "upgrade".
 | Product page (React Bits) before sign-in; fictional sample library for the demo | Done (code), not yet live |
 | Slim image for 1 GB hosts (ONNX, no PyTorch), CI with tests, a memory budget and GHCR publishing | Done |
 | One-command deployment, HTTPS, nightly backups, security headers | Done (code), not yet live |
+| App shell: icon rail with flyouts (or full sidebar), floating navbar, settings panel, system/light/dark themes, accent, text size, density | Done |
+| Per-user model choice and effort (Quick, Balanced, Thorough) for each question | Done |
+| Library tools: Search (no model call), Tables, Records, Timeline, Privacy scan | Done |
+| Connect: MCP setup page and personal API tokens (revocable, a year) | Done |
+| Admin console, first part: claim with a setup code, usage, health and memory, default model, announcements | Done; users list, suspend and limits still to do |
 | Everything in the phases below | Planned |
 
 ## Free stack
