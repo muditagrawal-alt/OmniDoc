@@ -13,6 +13,7 @@ import CountUp from '../components/reactbits/CountUp';
 import LogoLoop from '../components/reactbits/LogoLoop';
 import AnswerStory from './AnswerStory';
 import FeatureTour from './FeatureTour';
+import Feedback from './Feedback';
 import { MaskedWords, Reveal, RiseHeading, ScrollProgress, ScrollWords, StackCards } from './scroll';
 import { EASE, group, rise, usePageScroll, wordRise } from './motion';
 import styles from './Landing.module.css';
@@ -46,8 +47,9 @@ const NAV = [
   { id: 'features', label: 'Features' },
   { id: 'benchmarks', label: 'Benchmarks' },
   { id: 'privacy', label: 'Privacy' },
+  { id: 'feedback', label: 'Feedback' },
 ];
-const WATCHED = ['top', 'how', 'features', 'more', 'benchmarks', 'privacy', 'free'];
+const WATCHED = ['top', 'how', 'features', 'more', 'benchmarks', 'privacy', 'free', 'feedback'];
 
 const STATEMENT =
   'Every answer cites its sources. Click a citation and the document opens at that *page,* with the *sentence* highlighted.';
@@ -362,7 +364,7 @@ function Final({ demo, primary, secondary, dark }: { demo: boolean; primary: Rea
 export default function Landing({ methods, onSignIn, onTryDemo, demoBusy, demoError }: LandingProps) {
   const { resolved } = useTheme();
   const dark = resolved === 'dark';
-  const canSignUp = !!methods.passkey;
+  const canSignUp = !!methods.passkey || !!methods.password;
   usePageScroll();
 
   useEffect(() => {
@@ -410,6 +412,7 @@ export default function Landing({ methods, onSignIn, onTryDemo, demoBusy, demoEr
           <Privacy />
           <Free dark={dark} />
           <Final demo={!!methods.demo} primary={primary} secondary={secondary} dark={dark} />
+          <Feedback />
         </main>
 
         <footer className={styles.footer}>
