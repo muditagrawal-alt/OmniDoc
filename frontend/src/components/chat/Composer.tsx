@@ -3,6 +3,7 @@ import type { DragEvent, FormEvent, KeyboardEvent } from 'react';
 import { ArrowUp, Check, FileText, Globe2, Languages, Library, Mic, Paperclip, Square } from 'lucide-react';
 import type { DocumentItem, WebMode } from '../../api';
 import { SUPPORTED_LANGUAGES, voiceController } from '../../utils/voice';
+import { isMac, useSettings } from '../../lib/settings';
 import { Menu } from '../ui/Menu';
 import styles from './chat.module.css';
 
@@ -103,8 +104,12 @@ export function Composer(props: ComposerProps) {
     setText('');
   };
 
+  // Enter sends and Shift+Enter adds a line, or (Settings, Chat) Cmd/Ctrl+Enter sends and Enter adds a line.
+  const { sendKey } = useSettings();
   const onKeyDown = (e: KeyboardEvent<HTMLTextAreaElement>) => {
-    if (e.key === 'Enter' && !e.shiftKey && !e.nativeEvent.isComposing) {
+    if (e.key !== 'Enter' || e.nativeEvent.isComposing) return;
+    const mod = e.metaKey || e.ctrlKey;
+    if (sendKey === 'enter' ? !e.shiftKey && !mod : mod) {
       e.preventDefault();
       submit();
     }
@@ -331,7 +336,7 @@ export function Composer(props: ComposerProps) {
               <Square size={12} strokeWidth={0} fill="currentColor" />
             </button>
           ) : (
-            <button type="submit" className={styles.send} disabled={!canSend} aria-label="Send" title="Send (Enter)">
+            <button type="submit" className={styles.send} disabled={!canSend} aria-label="Send" title={sendKey === 'enter' ? 'Send (Enter)' : `Send (${isMac ? '⌘' : 'Ctrl'} + Enter)`}>
               <ArrowUp size={17} strokeWidth={2.2} />
             </button>
           )}
