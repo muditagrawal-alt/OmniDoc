@@ -574,8 +574,47 @@ button.row:hover {
 /* ---------------------------------------------------------------- admin */
 .tiles {
   display: grid;
-  grid-template-columns: repeat(4, minmax(0, 1fr));
+  grid-template-columns: repeat(5, minmax(0, 1fr));
   gap: var(--space-3);
+}
+
+@media (max-width: 1180px) {
+  .tiles {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+  }
+}
+
+/* feedback from the product page: a header line, then the message in full */
+.feedback {
+  display: grid;
+  gap: var(--space-2);
+  padding: var(--space-3) var(--space-4);
+}
+
+.feedbackHead {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--space-2);
+  color: var(--text-3);
+  font-size: var(--text-xs);
+}
+
+.feedbackHead strong {
+  color: var(--text-2);
+  font-weight: 550;
+}
+
+.feedbackHead :global(.icon-btn) {
+  margin-left: auto;
+}
+
+.feedback p {
+  color: var(--text);
+  font-size: var(--text-base);
+  line-height: 1.55;
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
 }
 
 .tile {
@@ -685,6 +724,10 @@ button.row:hover {
 
   .tiles {
     grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .tile:last-child:nth-child(odd) {
+    grid-column: span 2;
   }
 
   .event {
