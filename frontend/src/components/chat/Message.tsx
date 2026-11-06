@@ -20,6 +20,7 @@ import { normalizeAnswer } from '../../lib/normalize';
 import type { NormalizedAnswer } from '../../lib/normalize';
 import { formatDuration, pluralize } from '../../lib/format';
 import { voiceController } from '../../utils/voice';
+import { useSettings } from '../../lib/settings';
 import { ChartFigure, MathBlock } from '../artifacts';
 import type { Artifact } from '../artifacts';
 import type { ViewerTarget } from '../viewer/SourceViewer';
@@ -106,7 +107,8 @@ function VerificationBadge({ v }: { v: Verification | null }) {
 }
 
 function StepTrace({ steps, live, elapsedMs, usage }: { steps: AgentStep[]; live: boolean; elapsedMs?: number; usage?: Usage }) {
-  const [open, setOpen] = useState(false);
+  const { showSteps } = useSettings();
+  const [open, setOpen] = useState(showSteps);
   const total = elapsedMs ?? steps.reduce((acc, s) => acc + (s.duration_ms || 0), 0);
   if (!steps.length && !live) return null;
   const current = steps[steps.length - 1];
@@ -243,7 +245,8 @@ function AssistantMessageInner({ message, liveSteps, onRetry, onOpenArtifact, on
   const [highlight, setHighlight] = useState<number | null>(null);
   const [copied, setCopied] = useState(false);
   const [speaking, setSpeaking] = useState(false);
-  const [checksOpen, setChecksOpen] = useState(false);
+  const { showChecks } = useSettings();
+  const [checksOpen, setChecksOpen] = useState(showChecks);
   const sourcesRef = useRef<HTMLDivElement>(null);
   const idPrefix = `src-${message.id ?? 'live'}`;
 
