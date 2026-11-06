@@ -550,6 +550,7 @@ class OmniDocWorkflow:
         web_mode: str = "auto",
         owner_id: Optional[str] = None,
         effort_level: str = effort.DEFAULT,
+        answer_model: Optional[Tuple[str, str]] = None,
     ) -> Iterator[Tuple[str, Dict[str, Any]]]:
         """
         Runs the workflow in a worker thread and yields events as they happen:
@@ -565,6 +566,9 @@ class OmniDocWorkflow:
         self.execution_guard.start(run_id)
 
         def work() -> None:
+            # A user's own model choice applies to this question's thread only.
+            if answer_model:
+                llm_providers.prefer_answer_model(*answer_model)
             final_state: Dict[str, Any] = dict(initial_state)
             last = time.perf_counter()
             try:
