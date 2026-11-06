@@ -95,6 +95,15 @@ class Doc:
                 x += cols[c]
             self.page.draw_line((x0, self.y + row_h), (W - MARGIN, self.y + row_h), color=(0.85, 0.87, 0.9), width=0.5)
             self.y += row_h
+        # A ruled grid (outer box and column lines), the way most financial tables are printed,
+        # so table detection reads it as a table and not as aligned text.
+        top = self.y - row_h * (len(rows) + 1)
+        grid = (0.78, 0.8, 0.85)
+        self.page.draw_rect(fitz.Rect(x0, top, W - MARGIN, self.y), color=grid, width=0.6)
+        x = x0
+        for w in cols[:-1]:
+            x += w
+            self.page.draw_line((x, top), (x, self.y), color=grid, width=0.5)
         self.y += 14
 
     def bar_chart(self, title: str, labels: list, values: list, unit: str) -> None:
