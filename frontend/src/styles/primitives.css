@@ -225,3 +225,28 @@ button.chip:hover {
 .muted {
   color: var(--text-3);
 }
+
+/* The OmniDoc mark (components/BrandMark.tsx): inside a button or link it answers hover and press. */
+.brand-mark {
+  flex-shrink: 0;
+  overflow: visible;
+}
+
+.brand-mark-orb {
+  transition: transform var(--dur-3) var(--ease-out);
+}
+
+:is(button, a):hover > .brand-mark .brand-mark-orb,
+:is(button, a):focus-visible > .brand-mark .brand-mark-orb {
+  transform: translateX(1.4px);
+}
+
+:is(button, a):active > .brand-mark {
+  transform: scale(0.94);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .brand-mark-orb {
+    transition: none;
+  }
+}
