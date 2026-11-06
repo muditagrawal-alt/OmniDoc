@@ -22,6 +22,8 @@ export interface Settings {
   motion: MotionPreference;
   /** The drifting rings behind the chat. */
   backdrop: Backdrop;
+  /** The clouds behind every other tab (Search, Library, Tables and the rest). */
+  tabsBackdrop: Backdrop;
   effort: Effort;
   /** The answer model for this user's questions ("provider:model"); empty: the server's default. */
   model: string;
@@ -43,6 +45,7 @@ export const DEFAULTS: Settings = {
   density: 'comfortable',
   motion: 'system',
   backdrop: 'animated',
+  tabsBackdrop: 'animated',
   effort: 'balanced',
   model: '',
   webMode: 'auto',
@@ -60,6 +63,7 @@ const OPTIONS: { [K in keyof Settings]?: readonly Settings[K][] } = {
   density: ['comfortable', 'compact'],
   motion: ['system', 'reduce', 'full'],
   backdrop: ['animated', 'still', 'off'],
+  tabsBackdrop: ['animated', 'still', 'off'],
   effort: ['quick', 'balanced', 'thorough'],
   webMode: ['auto', 'on', 'off'],
   sendKey: ['enter', 'mod-enter'],
