@@ -273,7 +273,12 @@ def methods() -> Dict[str, Any]:
     return {"accounts": enabled(), "email": enabled() and email_configured(),
             "google": enabled() and bool(oauth_credentials("google")),
             "github": enabled() and bool(oauth_credentials("github")),
-            "passkey": passkeys.enabled(), "demo": demo_enabled()}
+            "passkey": passkeys.enabled(), "password": passwords_enabled(), "demo": demo_enabled()}
+
+
+def passwords_enabled() -> bool:
+    """Username and password accounts (off with an e-mail allow-list, which they could not satisfy)."""
+    return enabled() and os.getenv("OMNIDOC_PASSWORDS", "1") != "0" and not os.getenv("OMNIDOC_ALLOWED_EMAILS", "").strip()
 
 
 def authorize_url(db: Any, data_dir: Path, provider: str, link_user_id: Optional[str] = None) -> str:
