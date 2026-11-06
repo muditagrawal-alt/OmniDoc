@@ -1,13 +1,16 @@
 import { useEffect, useRef, useState } from 'react';
 import type { FormEvent } from 'react';
-import { ArrowLeft, ArrowRight, Check, Copy, Download, KeyRound, LifeBuoy, Mail } from 'lucide-react';
+import { ArrowLeft, ArrowRight, Check, Copy, Download, KeyRound, LifeBuoy, LockKeyhole, Mail } from 'lucide-react';
 import { api } from '../api';
 import type { AuthMethods, SignInResult, User } from '../api';
 import { passkeysSupported } from '../lib/webauthn';
+import { MIN_PASSWORD, USERNAME, passwordHint } from '../lib/passwords';
 import { prefersStill, useSettings } from '../lib/settings';
 import { useTheme } from '../lib/theme';
 import { BrandMark } from './BrandMark';
+import { PasswordInput } from './PasswordInput';
 import { ThemeSwitch } from './ThemeSwitch';
+import { Segmented } from './ui/Controls';
 import { RingField } from './backgrounds/RingField';
 import styles from './SignIn.module.css';
 
@@ -23,7 +26,7 @@ interface SignInProps {
   onSignedIn: (user: User) => void;
 }
 
-type Step = 'start' | 'code' | 'mfa' | 'signup' | 'recovery' | 'codes';
+type Step = 'start' | 'code' | 'mfa' | 'signup' | 'recovery' | 'codes' | 'reset';
 
 const RESEND_AFTER_S = 60;
 
@@ -87,12 +90,18 @@ export function RecoveryCodes({ codes }: { codes: string[] }) {
 }
 
 /**
- * The sign-in page of a hosted OmniDoc: a passkey, GitHub, Google or an e-mailed code; creating an
- * account with a passkey (no e-mail); recovery codes; the authenticator-app step; and the demo.
+ * The sign-in page of a hosted OmniDoc: a username and password, a passkey, GitHub, Google or an
+ * e-mailed code; creating an account with a password or a passkey (no e-mail); "forgot password"
+ * with a recovery code; the authenticator-app step; and the demo.
  */
 export function SignIn({ methods, initialError, initialTicket, initialStep, onBack, onSignedIn }: SignInProps) {
-  const [step, setStep] = useState<Step>(initialTicket ? 'mfa' : initialStep === 'signup' && methods.passkey ? 'signup' : 'start');
+  const passkeys = !!methods.passkey && passkeysSupported();
+  const canSignUp = passkeys || !!methods.password;
+  const [step, setStep] = useState<Step>(initialTicket ? 'mfa' : initialStep === 'signup' && canSignUp ? 'signup' : 'start');
+  const [signupWith, setSignupWith] = useState<'password' | 'passkey'>(methods.password ? 'password' : 'passkey');
   const [email, setEmail] = useState('');
+  const [username, setUsername] = useState('');
+  const [password, setPassword] = useState('');
   const [name, setName] = useState('');
   const [code, setCode] = useState('');
   const [ticket, setTicket] = useState<string | null>(initialTicket ?? null);
@@ -104,7 +113,6 @@ export function SignIn({ methods, initialError, initialTicket, initialStep, onBa
   const [busy, setBusy] = useState<string | null>(null);
   const [wait, setWait] = useState(0);
   const inputRef = useRef<HTMLInputElement>(null);
-  const passkeys = !!methods.passkey && passkeysSupported();
   const settings = useSettings();
   const { resolved } = useTheme();
 
@@ -121,6 +129,7 @@ export function SignIn({ methods, initialError, initialTicket, initialStep, onBa
   const go = (next: Step) => {
     setError(null);
     setCode('');
+    setPassword('');
     setUseRecovery(false);
     setStep(next);
   };
@@ -174,6 +183,46 @@ export function SignIn({ methods, initialError, initialTicket, initialStep, onBa
     if (digits.length === 6 && !busy) submit(digits);
   };
 
+  const cleanName = username.trim().toLowerCase();
+  /** An onChange that also clears an error about the previous value. */
+  const edit = (set: (value: string) => void) => (value: string) => {
+    set(value);
+    setError(null);
+  };
+
+  const signInPassword = (e: FormEvent) => {
+    e.preventDefault();
+    if (!cleanName || !password) return;
+    void run('password', () => api.signInWithPassword(cleanName, password));
+  };
+
+  /** Checks what can be checked here, so a typo does not cost a round trip (and a proof of work). */
+  const newPasswordProblem = () => {
+    if (!USERNAME.test(cleanName)) return 'Usernames are 3 to 32 letters, digits, dots, dashes or underscores, starting with a letter or digit.';
+    if (password.length < MIN_PASSWORD) return `Use at least ${MIN_PASSWORD} characters for the password.`;
+    return null;
+  };
+
+  const signUpPassword = (e: FormEvent) => {
+    e.preventDefault();
+    const problem = newPasswordProblem();
+    if (problem) {
+      setError(problem);
+      return;
+    }
+    void run('signup', () => api.signUpWithPassword(cleanName, password, name.trim() || undefined));
+  };
+
+  const resetWithCode = (e: FormEvent) => {
+    e.preventDefault();
+    const problem = !code.trim() ? 'Enter one of your recovery codes.' : newPasswordProblem();
+    if (problem) {
+      setError(problem);
+      return;
+    }
+    void run('reset', () => api.resetPassword(cleanName, code.trim(), password));
+  };
+
   const verifyEmail = (value: string) => run('verify', () => api.verifyCode(email.trim(), value));
   const verifyTwoStep = (value: string) => run('verify', () => api.finishTwoStep(ticket || '', value));
   const oauth = methods.google || methods.github;
@@ -212,9 +261,29 @@ export function SignIn({ methods, initialError, initialTicket, initialStep, onBa
           <>
             <h1 id="signin-title" className={styles.title}>Sign in</h1>
             <p className={styles.sub}>Your documents and conversations are private to your account.</p>
+            {methods.password && (
+              <form className={styles.fields} onSubmit={signInPassword} noValidate>
+                <div>
+                  <label className="field-label" htmlFor="signin-username">Username</label>
+                  <input id="signin-username" className="field" autoComplete="username" autoCapitalize="none" spellCheck={false}
+                    maxLength={64} value={username} onChange={(e) => edit(setUsername)(e.target.value)} />
+                </div>
+                <div>
+                  <div className={styles.labelRow}>
+                    <label className="field-label" htmlFor="signin-password">Password</label>
+                    <button type="button" className={styles.link} onClick={() => go('reset')}>Forgot password?</button>
+                  </div>
+                  <PasswordInput id="signin-password" autoComplete="current-password" value={password} onChange={edit(setPassword)} />
+                </div>
+                <button type="submit" className={`btn btn-primary ${styles.submit}`} disabled={!!busy || !cleanName || !password}>
+                  {spinner('password') || <LockKeyhole size={16} strokeWidth={1.75} />} Sign in
+                </button>
+              </form>
+            )}
+            {methods.password && (passkeys || oauth) && <div className={styles.divider}><span>or</span></div>}
             <div className={styles.providers}>
               {passkeys && (
-                <button type="button" className={`btn btn-primary ${styles.provider}`} disabled={!!busy}
+                <button type="button" className={`btn ${methods.password ? 'btn-secondary' : 'btn-primary'} ${styles.provider}`} disabled={!!busy}
                   onClick={() => run('passkey', () => api.signInWithPasskey())}>
                   {spinner('passkey') || <KeyRound size={16} strokeWidth={1.75} />} Sign in with a passkey
                 </button>
@@ -234,7 +303,7 @@ export function SignIn({ methods, initialError, initialTicket, initialStep, onBa
                 </div>
               )}
             </div>
-            {(passkeys || oauth) && methods.email && <div className={styles.divider}><span>or</span></div>}
+            {(passkeys || oauth || methods.password) && methods.email && <div className={styles.divider}><span>or</span></div>}
             {methods.email && (
               <form onSubmit={sendCode} noValidate>
                 <label className="field-label" htmlFor="signin-email">E-mail</label>
@@ -246,9 +315,9 @@ export function SignIn({ methods, initialError, initialTicket, initialStep, onBa
                 </button>
               </form>
             )}
-            {(passkeys || oauth) && (
+            {(passkeys || oauth || methods.password) && (
               <div className={styles.row}>
-                {passkeys ? (
+                {canSignUp ? (
                   <button type="button" className={styles.link} onClick={() => go('signup')}>Create an account</button>
                 ) : <span />}
                 <button type="button" className={styles.link} onClick={() => go('recovery')}>
@@ -256,7 +325,7 @@ export function SignIn({ methods, initialError, initialTicket, initialStep, onBa
                 </button>
               </div>
             )}
-            {!passkeys && !oauth && !methods.email && (
+            {!passkeys && !oauth && !methods.email && !methods.password && (
               <p className={styles.sub}>No sign-in method is available here yet. Ask the server's administrator.</p>
             )}
             {methods.demo && (
@@ -277,16 +346,53 @@ export function SignIn({ methods, initialError, initialTicket, initialStep, onBa
           <>
             <h1 id="signin-title" className={styles.title}>Create your account</h1>
             <p className={styles.sub}>
-              No password and no e-mail. A passkey on this device (Face ID, Touch ID, Windows Hello or your phone) is how you sign in.
+              {signupWith === 'password'
+                ? 'No e-mail needed. Choose a username and a password. You also get recovery codes, in case you forget the password.'
+                : 'No password and no e-mail. A passkey on this device (Face ID, Touch ID, Windows Hello or your phone) is how you sign in.'}
             </p>
-            <form onSubmit={(e) => { e.preventDefault(); if (name.trim()) void run('signup', () => api.signUpWithPasskey(name.trim())); }} noValidate>
-              <label className="field-label" htmlFor="signup-name">Your name</label>
-              <input id="signup-name" ref={inputRef} className="field" autoComplete="name" maxLength={80} value={name}
-                onChange={(e) => setName(e.target.value)} placeholder="Shown on your account only" />
-              <button type="submit" className={`btn btn-primary ${styles.submit}`} disabled={!!busy || !name.trim()}>
-                {spinner('signup') || <KeyRound size={16} strokeWidth={1.75} />} Create a passkey
-              </button>
-            </form>
+            {methods.password && passkeys && (
+              <div className={styles.choice}>
+                <Segmented label="How you sign in" stretch value={signupWith}
+                  onChange={(v) => { setSignupWith(v); setError(null); }}
+                  options={[
+                    { value: 'password', label: 'Password', icon: LockKeyhole },
+                    { value: 'passkey', label: 'Passkey', icon: KeyRound },
+                  ]} />
+              </div>
+            )}
+            {signupWith === 'password' && methods.password ? (
+              <form className={styles.fields} onSubmit={signUpPassword} noValidate>
+                <div>
+                  <label className="field-label" htmlFor="signup-name">Your name <span className={styles.optional}>optional</span></label>
+                  <input id="signup-name" ref={inputRef} className="field" autoComplete="name" maxLength={80} value={name}
+                    onChange={(e) => setName(e.target.value)} placeholder="Shown on your account only" />
+                </div>
+                <div>
+                  <label className="field-label" htmlFor="signup-username">Username</label>
+                  <input id="signup-username" className="field" autoComplete="username" autoCapitalize="none" spellCheck={false}
+                    maxLength={32} value={username} onChange={(e) => edit(setUsername)(e.target.value)}
+                    aria-describedby="signup-username-hint" />
+                  <p id="signup-username-hint" className={styles.fieldHint}>Letters, digits, dots, dashes or underscores. You sign in with it.</p>
+                </div>
+                <div>
+                  <label className="field-label" htmlFor="signup-password">Password</label>
+                  <PasswordInput id="signup-password" autoComplete="new-password" value={password} onChange={edit(setPassword)} />
+                  <p className={styles.fieldHint} data-ok={password.length >= MIN_PASSWORD || undefined}>{passwordHint(password)}</p>
+                </div>
+                <button type="submit" className={`btn btn-primary ${styles.submit}`} disabled={!!busy || !cleanName || !password}>
+                  {spinner('signup')} Create account
+                </button>
+              </form>
+            ) : (
+              <form onSubmit={(e) => { e.preventDefault(); if (name.trim()) void run('signup', () => api.signUpWithPasskey(name.trim())); }} noValidate>
+                <label className="field-label" htmlFor="signup-name">Your name</label>
+                <input id="signup-name" ref={inputRef} className="field" autoComplete="name" maxLength={80} value={name}
+                  onChange={(e) => setName(e.target.value)} placeholder="Shown on your account only" />
+                <button type="submit" className={`btn btn-primary ${styles.submit}`} disabled={!!busy || !name.trim()}>
+                  {spinner('signup') || <KeyRound size={16} strokeWidth={1.75} />} Create a passkey
+                </button>
+              </form>
+            )}
             <div className={styles.row}>{back('start', 'I already have an account')}</div>
           </>
         )}
@@ -295,8 +401,10 @@ export function SignIn({ methods, initialError, initialTicket, initialStep, onBa
           <>
             <h1 id="signin-title" className={styles.title}>Save your recovery codes</h1>
             <p className={styles.sub}>
-              If you lose this device, a recovery code is how you get back in. Each code works once. Keep them somewhere safe,
-              like a password manager. They are not shown again.
+              {pendingUser?.has_password
+                ? 'If you forget your password, a recovery code lets you choose a new one.'
+                : 'If you lose this device, a recovery code is how you get back in.'}{' '}
+              Each code works once. Keep them somewhere safe, like a password manager. They are not shown again.
             </p>
             <RecoveryCodes codes={codes} />
             <label className={styles.check}>
@@ -323,6 +431,40 @@ export function SignIn({ methods, initialError, initialTicket, initialStep, onBa
             </form>
             <p className={styles.hint}>After signing in, add a new passkey under Account so you are not left with codes alone.</p>
             <div className={styles.row}>{back()}</div>
+          </>
+        )}
+
+        {step === 'reset' && (
+          <>
+            <h1 id="signin-title" className={styles.title}>Reset your password</h1>
+            <p className={styles.sub}>
+              OmniDoc never asks for an e-mail address, so the recovery codes you saved when you made the account are how
+              you reset it. Each code works once.
+            </p>
+            <form className={styles.fields} onSubmit={resetWithCode} noValidate>
+              <div>
+                <label className="field-label" htmlFor="reset-username">Username</label>
+                <input id="reset-username" ref={username ? undefined : inputRef} className="field" autoComplete="username"
+                  autoCapitalize="none" spellCheck={false} maxLength={64} value={username} onChange={(e) => edit(setUsername)(e.target.value)} />
+              </div>
+              <div>
+                <label className="field-label" htmlFor="reset-code">Recovery code</label>
+                <input id="reset-code" ref={username ? inputRef : undefined} className={`field ${styles.mono}`} autoComplete="off"
+                  spellCheck={false} placeholder="xxxx-xxxx-xxxx" maxLength={20} value={code} onChange={(e) => edit(setCode)(e.target.value)} />
+              </div>
+              <div>
+                <label className="field-label" htmlFor="reset-password">New password</label>
+                <PasswordInput id="reset-password" autoComplete="new-password" value={password} onChange={edit(setPassword)} />
+                <p className={styles.fieldHint} data-ok={password.length >= MIN_PASSWORD || undefined}>{passwordHint(password)}</p>
+              </div>
+              <button type="submit" className={`btn btn-primary ${styles.submit}`} disabled={!!busy || !cleanName || !code.trim() || !password}>
+                {spinner('reset')} Reset and sign in
+              </button>
+            </form>
+            <p className={styles.hint}>
+              Your other devices are signed out. No codes left? A passkey, GitHub or Google sign-in still works if you added one.
+            </p>
+            <div className={styles.row}>{back('start', 'Back to sign in')}</div>
           </>
         )}
 
