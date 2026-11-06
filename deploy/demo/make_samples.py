@@ -125,7 +125,7 @@ class Doc:
         self.y = base + 30
 
     def save(self, path: str) -> None:
-        self.pdf.save(path, garbage=3, deflate=True)
+        self.pdf.save(path, garbage=3, deflate=True, no_new_id=True)
 
 
 def annual_report(year: int, figures: dict) -> Doc:
@@ -275,7 +275,7 @@ def invoice_scan(path: str) -> None:
     img.save(buf, format="PNG")
     page.insert_image(page.rect, stream=buf.getvalue())
     out.set_metadata({"title": "Invoice NW-2026-0419 (scan)", "subject": FOOTER})
-    out.save(path, garbage=3, deflate=True)
+    out.save(path, garbage=3, deflate=True, no_new_id=True)
 
 
 def hindi_summary(path: str, font: str) -> bool:
@@ -294,7 +294,7 @@ def hindi_summary(path: str, font: str) -> bool:
     page.insert_textbox(fitz.Rect(MARGIN, MARGIN, W - MARGIN, H - 80), text, fontsize=12, fontname="deva", lineheight=1.6)
     page.insert_text((MARGIN, H - 30), FOOTER, fontsize=7.5, color=MUTED)
     pdf.set_metadata({"title": "Kestrel Analytics Annual Report 2025, summary in Hindi", "subject": FOOTER})
-    pdf.save(path, garbage=3, deflate=True)
+    pdf.save(path, garbage=3, deflate=True, no_new_id=True)
     return True
 
 
