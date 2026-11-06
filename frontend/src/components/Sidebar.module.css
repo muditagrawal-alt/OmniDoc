@@ -322,11 +322,13 @@
   color: var(--text-3);
 }
 
-.avatar {
+.avatarWrap {
   position: relative;
+  display: inline-flex;
+  flex: none;
 }
 
-.avatar[data-unread]::after {
+.avatarWrap[data-unread]::after {
   content: '';
   position: absolute;
   top: -2px;
