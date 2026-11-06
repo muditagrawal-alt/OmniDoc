@@ -4,6 +4,11 @@ import type { AgentStep, ChatMessage, ChatSession, DocumentItem, User } from '..
 import { ArtifactPanel } from '../artifacts';
 import type { Artifact } from '../artifacts';
 import { Menu } from '../ui/Menu';
+import { ModelPicker } from '../ModelPicker';
+import { ThemeSwitch } from '../ThemeSwitch';
+import { RingField } from '../backgrounds/RingField';
+import { prefersStill, useSettings } from '../../lib/settings';
+import { useTheme } from '../../lib/theme';
 import { SourceViewer } from '../viewer/SourceViewer';
 import type { ViewerTarget } from '../viewer/SourceViewer';
 import { AssistantMessage, UserMessage } from './Message';
@@ -28,6 +33,8 @@ interface ChatViewProps extends Omit<ComposerProps, 'variant' | 'autoFocus' | 'd
   /** Free answers left on the server's keys; null when they do not apply (own key, admin, local install). */
   freeAnswers?: { left: number; limit: number } | null;
   onAddKey?: () => void;
+  /** A hosted server with accounts (free answers and own keys apply). */
+  accountsMode?: boolean;
 }
 
 function heading(user: User | null, documents: number): string {
@@ -83,8 +90,13 @@ export function ChatView(props: ChatViewProps) {
     user,
     freeAnswers,
     onAddKey,
+    accountsMode = false,
     ...composer
   } = props;
+  const settings = useSettings();
+  const { resolved } = useTheme();
+  // The navigation bar lifts off the page once the conversation scrolls under it.
+  const [lifted, setLifted] = useState(false);
   // The side panel shows a chart at full size or a cited passage in its document.
   const [panel, setPanel] = useState<{ kind: 'artifact'; artifact: Artifact } | { kind: 'source'; target: ViewerTarget } | null>(null);
   const [draft, setDraft] = useState<{ text: string; nonce: number } | null>(null);
@@ -113,10 +125,11 @@ export function ChatView(props: ChatViewProps) {
     const el = scrollRef.current;
     if (!el) return;
     setAtBottom(el.scrollHeight - el.scrollTop - el.clientHeight < 80);
+    setLifted(el.scrollTop > 4);
   };
 
   const header = (
-    <header className={styles.header}>
+    <header className={styles.header} data-lifted={(lifted && !empty) || undefined}>
       <div className={styles.headerLeft}>
         {!sidebarOpen && (
           <>
@@ -128,9 +141,10 @@ export function ChatView(props: ChatViewProps) {
             </button>
           </>
         )}
-        {!empty && chat && <h1 className={styles.chatTitle}>{chat.title}</h1>}
+        <h1 className={styles.chatTitle}>{!empty && chat ? chat.title : 'New chat'}</h1>
       </div>
       <div className={styles.headerRight}>
+        <ModelPicker accountsMode={accountsMode} freeAnswers={freeAnswers} onAddKey={onAddKey} />
         {!empty && chat && (
           <Menu
             label="Export"
@@ -153,13 +167,18 @@ export function ChatView(props: ChatViewProps) {
             )}
           </Menu>
         )}
+        <span className={styles.themeSwitch}><ThemeSwitch /></span>
       </div>
     </header>
   );
 
   return (
     <div className={styles.chatLayout} data-panel={!!panel}>
-      <div className={styles.conversation}>
+      <div className={styles.conversation} data-empty={empty || undefined}>
+        {settings.backdrop !== 'off' && (
+          <RingField className={styles.backdrop} dark={resolved === 'dark'} accent={settings.accent}
+            still={settings.backdrop === 'still' || prefersStill(settings)} />
+        )}
         {header}
         {empty ? (
           <div className={styles.hero}>
