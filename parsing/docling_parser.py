@@ -34,6 +34,31 @@ logger = logging.getLogger("OmniDoc.DoclingParser")
 Block = Tuple[Any, ...]
 
 
+def _cell_rows(table: Any, words: List[Any]) -> List[List[Optional[str]]]:
+    """
+    A table's cells read from the page's words that fall inside each cell, in reading order.
+    PyMuPDF's own cell text (Table.extract) changed in 2.x: it drops spaces and moves punctuation
+    to a new line ("16.5%" came back as "165%\n."), while the words themselves are still right.
+    Empty when the table has no cell boxes, so the caller can fall back to Table.extract.
+    """
+    out: List[List[Optional[str]]] = []
+    for row in getattr(table, "rows", None) or []:
+        cells: List[Optional[str]] = []
+        for cell in row.cells:
+            if cell is None:
+                cells.append(None)
+                continue
+            x0, y0, x1, y1 = cell
+            inside = [w for w in words if x0 <= (w[0] + w[2]) / 2 <= x1 and y0 <= (w[1] + w[3]) / 2 <= y1]
+            inside.sort(key=lambda w: (w[5], w[6], w[7]))  # block, line, word: reading order
+            lines: Dict[Tuple[int, int], List[str]] = {}
+            for w in inside:
+                lines.setdefault((w[5], w[6]), []).append(w[4])
+            cells.append("\n".join(" ".join(ws) for ws in lines.values()))
+        out.append(cells)
+    return out
+
+
 @dataclass
 class ParsedDocument:
     doc_id: str
@@ -338,9 +363,12 @@ class DoclingParser:
         except Exception:
             return []
         out = []
+        words = None
         for tb in found:
             try:
-                rows = tb.extract()
+                if words is None:
+                    words = page.get_text("words")
+                rows = _cell_rows(tb, words) or tb.extract()
                 header = tb.header
                 names = list(header.names) if header is not None else None
                 if header is not None and not header.external and rows:
