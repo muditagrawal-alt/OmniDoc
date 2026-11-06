@@ -41,3 +41,19 @@ def test_limits_count_the_visitor_not_the_front_end(hosted, monkeypatch):
         assert client.get("/api/auth/methods", headers={"x-vercel-forwarded-for": f"192.0.2.{i}"}).status_code == 200
     assert client.get("/api/auth/methods", headers={"x-vercel-forwarded-for": "192.0.2.99"}).status_code == 429
     abuse.limiter.reset()
+
+
+def test_a_hosted_server_keeps_its_details_to_itself(hosted):
+    body = client.get("/api/health").json()
+    assert body["status"] and "providers" not in body and "memory_mb" not in body and "model" not in body
+
+
+def test_browsers_opening_the_server_directly_go_to_the_front_end(hosted, monkeypatch):
+    import pytest
+    if not any(getattr(r, "path", "") == "/{path:path}" for r in server.app.routes):
+        pytest.skip("no built web app (frontend/dist) in this checkout")
+    monkeypatch.setenv("OMNIDOC_PROXY_KEY", KEY)
+    monkeypatch.setenv("OMNIDOC_PUBLIC_URL", "https://front.example")
+    r = client.get("/library", follow_redirects=False)
+    assert r.status_code == 308 and r.headers["location"] == "https://front.example/library"
+    assert client.get("/api/auth/methods").status_code == 200  # the API itself is still served here
