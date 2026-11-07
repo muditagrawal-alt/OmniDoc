@@ -92,6 +92,10 @@ Notes:
 - Oracle reclaims an Always Free Arm VM whose CPU, network *and* memory use all stay below 20% for
   seven days. A quiet OmniDoc can fall under that; see the instance's metrics in the console.
 - Logs: `docker compose --env-file .env -f deploy/compose.oracle.yml logs -f omnidoc`.
+- Under heavy traffic the CDN keeps the web app and the public sign-in check, answers and uploads are admitted a
+  few at a time (`OMNIDOC_MAX_ANSWERS`, `OMNIDOC_MAX_UPLOADS`), and repeated demo questions are replayed from a
+  cache. The Admin tab shows the load. The real ceiling is the free model quota: more answers per minute than the
+  providers allow are queued and then refused politely, not lost.
 
 ## Accounts: sign-in for everyone you share it with
 
