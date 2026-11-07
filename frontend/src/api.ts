@@ -595,6 +595,12 @@ export interface AdminOverview {
   };
   admins: Array<{ id: string; name: string; email: string | null; username?: string | null }>;
   admin_emails: string[];
+  /** How busy the server is: answers and uploads in progress and waiting, and the demo's answer cache */
+  capacity?: {
+    answers: { active: number; waiting: number; limit: number };
+    uploads: { active: number; waiting: number; limit: number };
+    demo_cache: { answers: number; hits: number; misses: number };
+  };
   settings: { accounts: boolean; demo: boolean; trial_answers: number; default_model: string; version: string };
 }
 /** How much evidence an answer reads: fewer passages and sooner, or more passages and later. */
