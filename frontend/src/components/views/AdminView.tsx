@@ -228,6 +228,17 @@ export function AdminView({ user, accountsMode, sidebarOpen, onOpenSidebar, onBe
               <dd>{Object.entries(h.stores).map(([k, v]) => `${k}: ${v}`).join(', ')}</dd>
               <dt>Model providers</dt>
               <dd>{h.providers.length ? h.providers.join(', ') : 'None with a key'}{h.ollama ? ', Ollama' : ''}</dd>
+              {data.capacity && (
+                <>
+                  <dt>Load</dt>
+                  <dd>
+                    {data.capacity.answers.active} of {data.capacity.answers.limit} answer slots in use
+                    {data.capacity.answers.waiting ? `, ${data.capacity.answers.waiting} waiting` : ''} ·{' '}
+                    {data.capacity.uploads.active} of {data.capacity.uploads.limit} uploads · demo cache: {data.capacity.demo_cache.answers} answers,{' '}
+                    {data.capacity.demo_cache.hits} replayed
+                  </dd>
+                </>
+              )}
               <dt>Version</dt>
               <dd>{data.settings.version}</dd>
               <dt>Accounts and demo</dt>
