@@ -1,6 +1,7 @@
 import { Fragment, useMemo, useState } from 'react';
 import type { ReactNode } from 'react';
 import katex from 'katex';
+import 'katex/dist/katex.min.css';
 import { Check, Copy } from 'lucide-react';
 import type { SentenceVerdict, Source } from '../../api';
 import { Citation } from './Citation';
