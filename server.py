@@ -29,10 +29,11 @@ import logging
 import secrets
 import threading
 import urllib.parse
+import anyio
 import urllib.request
 from contextlib import asynccontextmanager
 from pathlib import Path
-from typing import List, Dict, Any, Optional, Iterator
+from typing import List, Dict, Any, Optional, Iterator, Tuple
 
 # Homebrew Cairo / Pango for WeasyPrint on macOS (must be set before WeasyPrint loads)
 os.environ.setdefault("DYLD_FALLBACK_LIBRARY_PATH", "/opt/homebrew/lib")
@@ -48,7 +49,7 @@ from fastapi.responses import StreamingResponse, FileResponse, RedirectResponse,
 from db_store import OmniDocDB, LOCAL_USER_ID, DATA_DIR
 from export.report_compiler import ReportCompiler
 from core.pipeline import AgenticGraphRAGPipeline
-from core import accounts, chat_memory, abuse, memory, notify, passkeys, passwords, proxy, two_factor
+from core import accounts, capacity, chat_memory, abuse, memory, notify, passkeys, passwords, proxy, two_factor
 from agents import llm_providers
 
 logging.basicConfig(level=logging.INFO, format="%(asctime)s [%(levelname)s] %(name)s: %(message)s")
@@ -96,6 +97,9 @@ async def lifespan(_app: FastAPI):
     if accounts.demo_enabled():
         threading.Thread(target=_seed_demo_library, name="demo-library", daemon=True).start()
     announce_setup_code()
+    # Each answer being streamed holds a worker thread while it waits on a model; a larger pool keeps
+    # quick requests (sign-in checks, page images) from queueing behind them.
+    anyio.to_thread.current_default_thread_limiter().total_tokens = int(os.environ.get("OMNIDOC_THREADS", "200"))
     yield
 
 
@@ -220,35 +224,73 @@ def _stored_keys(user_id: Optional[str]) -> Dict[str, str]:
     return out
 
 
-@app.middleware("http")
-async def require_session(request, call_next):
-    path = request.url.path
-    if request.method == "OPTIONS" or not path.startswith("/api/"):
-        return await call_next(request)
-    if not accounts_on():
-        # A local install answers with the server's keys, or the ones the browser brings.
-        llm_providers.use_keys(_header_keys(request))
-        return await call_next(request)
-    ip = _client_ip(request)
-    request.state.client_ip = ip
-    wait = abuse.limiter.hit(f"api:{ip}", API_PER_MINUTE, 60)
-    if wait:
-        return JSONResponse({"detail": "Too many requests. Wait a moment and try again."}, status_code=429,
-                            headers={"Retry-After": str(int(wait))})
-    if path.startswith(_OPEN_API):
-        llm_providers.use_keys(None)
-        return await call_next(request)
-    token = _bearer(request.headers.get("authorization"), request.headers.get("x-omnidoc-token")) or _media_token(request)
+def _session_and_keys(token: str, header_keys: Optional[Dict[str, str]]) -> Tuple[Optional[str], Dict[str, str]]:
+    """The signed-in user and the model keys that answer for them (SQLite: run on a worker thread)."""
     user_id = db.get_session_user_id(token, touch=True) if token else None
     if not user_id:
-        return JSONResponse({"detail": "Sign in to continue."}, status_code=401)
-    if is_guest(user_id) and not _guest_may(request.method, path):
-        return JSONResponse({"detail": "The demo is read-only. Sign in to add documents and keep your own library."},
-                            status_code=403)
-    # The user's own keys (kept on the server if they chose, overridden by the browser's) answer for them.
-    keys = {**_stored_keys(user_id), **(_header_keys(request) or {})}
-    llm_providers.use_keys(keys or None)
-    return await call_next(request)
+        return None, {}
+    return user_id, {**_stored_keys(user_id), **(header_keys or {})}
+
+
+class SessionGate:
+    """
+    Every /api request: the per-address limit, then the session, then what a guest may do. Plain ASGI
+    (no per-request task and stream copying), and the session lookup runs on a worker thread, so a
+    busy database never holds up the event loop and every other request with it.
+    """
+
+    def __init__(self, app):
+        self.app = app
+
+    async def __call__(self, scope, receive, send):
+        path, method = scope.get("path", ""), scope.get("method", "GET")
+        if scope["type"] != "http" or method == "OPTIONS" or not path.startswith("/api/"):
+            await self.app(scope, receive, send)
+            return
+        request = Request(scope)
+        if not accounts_on():
+            # A local install answers with the server's keys, or the ones the browser brings.
+            llm_providers.use_keys(_header_keys(request))
+            await self.app(scope, receive, send)
+            return
+        ip = _client_ip(request)
+        scope.setdefault("state", {})["client_ip"] = ip
+        wait = abuse.limiter.hit(f"api:{ip}", API_PER_MINUTE, 60)
+        if wait:
+            await JSONResponse({"detail": "Too many requests. Wait a moment and try again."}, status_code=429,
+                               headers={"Retry-After": str(int(wait))})(scope, receive, send)
+            return
+        if path.startswith(_OPEN_API):
+            llm_providers.use_keys(None)
+            await self.app(scope, receive, send)
+            return
+        token = _bearer(request.headers.get("authorization"), request.headers.get("x-omnidoc-token")) or _media_token(request)
+        user_id, keys = await anyio.to_thread.run_sync(_session_and_keys, token, _header_keys(request))
+        if not user_id:
+            await JSONResponse({"detail": "Sign in to continue."}, status_code=401)(scope, receive, send)
+            return
+        if is_guest(user_id) and not _guest_may(method, path):
+            await JSONResponse({"detail": "The demo is read-only. Sign in to add documents and keep your own library."},
+                               status_code=403)(scope, receive, send)
+            return
+        # The user's own keys (kept on the server if they chose, overridden by the browser's) answer for them.
+        llm_providers.use_keys(keys or None)
+        await self.app(scope, receive, send)
+
+
+app.add_middleware(SessionGate)
+
+
+_BUSY = {
+    "answers": "OmniDoc is answering a lot of questions right now. Please try again in a minute.",
+    "uploads": "Several documents are being read right now. Please try again in a minute.",
+}
+
+
+@app.exception_handler(capacity.Busy)
+async def _busy(_request, exc: capacity.Busy):
+    return JSONResponse({"detail": _BUSY.get(exc.kind, "OmniDoc is busy. Please try again in a minute.")},
+                        status_code=503, headers={"Retry-After": str(exc.retry_after)})
 
 
 # Outermost: a front end on another host (Vercel) forwards /api here under a secret prefix; the
@@ -628,9 +670,13 @@ def _require_proof(solution: Optional[Dict[str, Any]]) -> None:
 
 
 @app.get("/api/auth/methods")
-def auth_methods():
-    """Which ways of signing in this server offers (accounts: false means a local single-user install)."""
-    return accounts.methods()
+async def auth_methods():
+    """
+    Which ways of signing in this server offers (accounts: false means a local single-user install).
+    The same for every visitor, so the CDN in front keeps it for a few minutes: the product page's
+    visitors do not reach the server for it.
+    """
+    return JSONResponse(accounts.methods(), headers={"Cache-Control": "public, max-age=60, s-maxage=300, stale-while-revalidate=600"})
 
 
 @app.post("/api/auth/code/request")
@@ -710,7 +756,7 @@ def oauth_callback(request: Request, provider: str, code: str = "", state: str =
 
 
 @app.get("/api/auth/challenge")
-def proof_of_work_challenge(request: Request):
+async def proof_of_work_challenge(request: Request):
     """A small puzzle the browser solves before creating an account or a guest session (see core/abuse.py)."""
     _limit(request, "challenge", 30, 60)
     return abuse.new_challenge(accounts.derived_key(DATA_DIR, "pow"))
@@ -1370,10 +1416,16 @@ def delete_account(user_id: str = Depends(current_user_id)):
 def health_endpoint():
     """For uptime checks. A hosted server says only whether it is healthy; the model, providers,
     memory and store details are for its administrator (the Admin tab) or a local install."""
-    full = health_check()
     if not accounts_on():
-        return full
-    return {"status": full["status"], "service": full["service"], "version": full["version"], "timestamp": full["timestamp"]}
+        return health_check()
+    try:
+        db.conn.execute("SELECT 1").fetchone()
+        status = "healthy"
+    except Exception as e:
+        logger.error(f"Health check: SQLite failed: {e}")
+        status = "degraded"
+    return JSONResponse({"status": status, "service": "OmniDoc", "version": VERSION, "timestamp": time.time()},
+                        headers={"Cache-Control": "no-store"})
 
 
 def health_check():
@@ -1699,15 +1751,16 @@ def execute_chat_query(chat_id: str, req: QueryRequest, request: Request, user_i
     steps: List[Dict[str, Any]] = []
     state: Dict[str, Any] = {}
     try:
-        for kind, data in get_pipeline().query_stream(
-            user_query=query_text, document_ids=doc_ids, session_id=chat_id, conversation_history=history,
-            web_mode=req.web or "auto", owner_id=library_owner(user_id) if accounts_on() else None,
-            effort=req.effort or "balanced", model=model,
-        ):
-            if kind == "step":
-                steps.append(data)
-            elif kind == "result":
-                state = data
+        with capacity.ANSWERS.slot():
+            for kind, data in get_pipeline().query_stream(
+                user_query=query_text, document_ids=doc_ids, session_id=chat_id, conversation_history=history,
+                web_mode=req.web or "auto", owner_id=library_owner(user_id) if accounts_on() else None,
+                effort=req.effort or "balanced", model=model,
+            ):
+                if kind == "step":
+                    steps.append(data)
+                elif kind == "result":
+                    state = data
     except Exception as e:
         logger.error(f"Pipeline failed for chat {chat_id}: {e}", exc_info=True)
         raise HTTPException(status_code=500, detail="The agent pipeline failed. Check that Ollama is running and try again.")
@@ -1721,19 +1774,56 @@ def _sse(event: str, data: Any) -> str:
     return f"event: {event}\ndata: {json.dumps(data, default=str, ensure_ascii=False)}\n\n"
 
 
+def _replay(chat: Dict[str, Any], query: str, user_id: str, first_turn: bool,
+            events: List[Tuple[str, Any]], payload: Dict[str, Any]) -> Iterator[str]:
+    """A demo answer someone already asked for, streamed again at reading pace, with no model call."""
+    for kind, data in events:
+        time.sleep(0.012 if kind == "delta" else 0.035)
+        yield _sse(kind, data)
+    msg_id = _persist_turn(chat, query, payload, first_turn=first_turn)
+    db.count_usage(user_id, "questions")  # the daily count, not a free answer: no model wrote it
+    yield _sse("result", {"status": "success", "message_id": msg_id, **payload})
+
+
 @app.post("/api/chats/{chat_id}/query/stream")
 def stream_chat_query(chat_id: str, req: QueryRequest, request: Request, user_id: str = Depends(current_user_id)):
     """Runs the agent pipeline, streaming one `step` event per agent and a final `result`."""
     chat = owned_chat(chat_id, user_id)
-    _answer_gate(user_id, request)
     model = chosen_model(req)
     history, doc_ids, query_text, selected = _query_inputs(chat, req, user_id)
     first_turn = not chat.get("memory_upto") and not db.get_messages(chat_id)
+    headers = {"Cache-Control": "no-cache", "X-Accel-Buffering": "no"}
+
+    # The demo library is the same for everyone: a first question someone already asked is replayed.
+    cache_key = None
+    if accounts_on() and is_guest(user_id) and first_turn and not history:
+        cache_key = capacity.DEMO_ANSWERS.key(query_text, doc_ids, effort=req.effort or "balanced",
+                                              model=model or "", web=req.web or "auto")
+        cached = capacity.DEMO_ANSWERS.get(cache_key)
+        if cached:
+            check_quota(user_id, "questions")
+            return StreamingResponse(_replay(chat, req.query.strip(), user_id, first_turn, *cached),
+                                     media_type="text/event-stream", headers=headers)
+    _answer_gate(user_id, request)
 
     def events() -> Iterator[str]:
         started = time.perf_counter()
         steps: List[Dict[str, Any]] = []
         state: Dict[str, Any] = {}
+        recorded: List[Tuple[str, Any]] = []
+
+        def emit(kind: str, data: Any) -> str:
+            if cache_key is not None:
+                recorded.append((kind, data))
+            return _sse(kind, data)
+
+        # One of the answer slots: wait a little when they are all in use, then say so.
+        if not capacity.ANSWERS.acquire(0):
+            yield _sse("step", {"node": "queue", "label": "Waiting for a free moment",
+                                "detail": f"{capacity.ANSWERS.waiting + 1} question(s) ahead", "duration_ms": 0})
+            if not capacity.ANSWERS.acquire(capacity.queue_seconds()):
+                yield _sse("error", {"message": _BUSY["answers"]})
+                return
         try:
             for kind, data in get_pipeline().query_stream(
                 user_query=query_text, document_ids=doc_ids, session_id=chat_id, conversation_history=history,
@@ -1743,29 +1833,29 @@ def stream_chat_query(chat_id: str, req: QueryRequest, request: Request, user_id
                 if kind == "step":
                     steps.append(data)
                     if not data.get("skipped"):
-                        yield _sse("step", {k: data[k] for k in ("node", "label", "detail", "duration_ms")})
+                        yield emit("step", {k: data[k] for k in ("node", "label", "detail", "duration_ms")})
                     continue
                 if kind in ("sources", "reset"):
-                    yield _sse(kind, _with_titles(to_jsonable(data or [])))
+                    yield emit(kind, _with_titles(to_jsonable(data or [])))
                     continue
                 if kind == "delta":
-                    yield _sse("delta", {"text": data})
+                    yield emit("delta", {"text": data})
                     continue
                 if kind == "result":
                     state = data
             payload = build_answer(state, steps, selected, int((time.perf_counter() - started) * 1000))
             msg_id = _persist_turn(chat, req.query.strip(), payload, first_turn=first_turn)
             _after_turn(chat_id, user_id)
+            if cache_key is not None and (payload.get("answer") or "").strip():
+                capacity.DEMO_ANSWERS.put(cache_key, recorded, payload)
             yield _sse("result", {"status": "success", "message_id": msg_id, **payload})
         except Exception as e:
             logger.error(f"Streaming pipeline failed for chat {chat_id}: {e}", exc_info=True)
             yield _sse("error", {"message": "The agent pipeline failed. Check that a model is available (an API key in .env, or Ollama running) and try again."})
+        finally:
+            capacity.ANSWERS.release()
 
-    return StreamingResponse(
-        events(),
-        media_type="text/event-stream",
-        headers={"Cache-Control": "no-cache", "X-Accel-Buffering": "no"},
-    )
+    return StreamingResponse(events(), media_type="text/event-stream", headers=headers)
 
 
 @app.post("/api/query")
@@ -1777,16 +1867,17 @@ def standalone_query(req: QueryRequest, request: Request, user_id: str = Depends
     doc_ids = scoped_ids(req.document_ids, user_id)
     steps: List[Dict[str, Any]] = []
     state: Dict[str, Any] = {}
-    for kind, data in get_pipeline().query_stream(
-        user_query=req.query, document_ids=doc_ids,
-        session_id=req.session_id or f"session_{uuid.uuid4().hex[:8]}",
-        web_mode=req.web or "auto", owner_id=library_owner(user_id) if accounts_on() else None,
-        effort=req.effort or "balanced", model=model,
-    ):
-        if kind == "step":
-            steps.append(data)
-        elif kind == "result":
-            state = data
+    with capacity.ANSWERS.slot():
+        for kind, data in get_pipeline().query_stream(
+            user_query=req.query, document_ids=doc_ids,
+            session_id=req.session_id or f"session_{uuid.uuid4().hex[:8]}",
+            web_mode=req.web or "auto", owner_id=library_owner(user_id) if accounts_on() else None,
+            effort=req.effort or "balanced", model=model,
+        ):
+            if kind == "step":
+                steps.append(data)
+            elif kind == "result":
+                state = data
     _charge(user_id)
     return {"status": "success", **build_answer(state, steps, doc_ids, int((time.perf_counter() - started) * 1000))}
 
@@ -1846,6 +1937,12 @@ def list_documents(user_id: str = Depends(current_user_id)):
         d["viewer"] = "pages" if (d.get("file_type") or "").lower() in PAGED_TYPES else "text"
         docs.append(d)
     return {"documents": docs}
+
+
+def _ingest_limited(contents: bytes, original_name: str, ext: str, user_id: str) -> Dict[str, Any]:
+    """A document from a person (not the demo seeding): it waits for one of the upload slots."""
+    with capacity.UPLOADS.slot(timeout=max(60.0, capacity.queue_seconds())):
+        return _ingest_bytes(contents, original_name, ext, user_id)
 
 
 def _ingest_bytes(contents: bytes, original_name: str, ext: str, user_id: str = LOCAL_USER_ID) -> Dict[str, Any]:
@@ -1914,7 +2011,7 @@ def upload_document(file: UploadFile = File(...), user_id: str = Depends(current
     contents = file.file.read(MAX_UPLOAD_BYTES + 1)
     if len(contents) > MAX_UPLOAD_BYTES:
         raise HTTPException(status_code=413, detail=f"File is larger than {MAX_UPLOAD_BYTES // (1024 * 1024)} MB")
-    return _ingest_bytes(contents, original_name, ext, user_id)
+    return _ingest_limited(contents, original_name, ext, user_id)
 
 
 class ImportUrlRequest(BaseModel):
@@ -1935,12 +2032,12 @@ def import_url(req: ImportUrlRequest, user_id: str = Depends(current_user_id)):
     path_name = Path(urllib.parse.urlparse(final_url).path).name
     if ctype == "application/pdf" or body[:5] == b"%PDF-":
         name = path_name if path_name.lower().endswith(".pdf") else (path_name or "document") + ".pdf"
-        return {**_ingest_bytes(body, name, "pdf", user_id), "url": final_url}
+        return {**_ingest_limited(body, name, "pdf", user_id), "url": final_url}
     if ctype.startswith("text/plain"):
-        return {**_ingest_bytes(body, (path_name or "page") + ".txt", "txt", user_id), "url": final_url}
+        return {**_ingest_limited(body, (path_name or "page") + ".txt", "txt", user_id), "url": final_url}
     title = readable(body.decode("utf-8", errors="replace"), final_url).get("title") or final_url
     safe_title = re.sub(r"[\\/:*?\"<>|]+", " ", title).strip()[:90] or "Web page"
-    return {**_ingest_bytes(body, f"{safe_title}.html", "html", user_id), "url": final_url}
+    return {**_ingest_limited(body, f"{safe_title}.html", "html", user_id), "url": final_url}
 
 
 DEMO_DIR = Path(os.environ.get("OMNIDOC_DEMO_DIR") or DATA_DIR / "demo")
@@ -2728,6 +2825,7 @@ def admin_overview(user_id: str = Depends(current_user_id)):
         "health": {**health, "memory_limit_mb": _memory_limit_mb()},
         "stats": db.admin_stats(),
         "admins": db.list_admins(),
+        "capacity": capacity.stats(),
         "admin_emails": sorted(accounts._env_list("OMNIDOC_ADMIN_EMAILS")),
         "settings": {
             "accounts": accounts_on(), "demo": accounts.demo_enabled(), "trial_answers": accounts.trial_answers(),
@@ -2812,4 +2910,7 @@ if __name__ == "__main__":
     host = os.environ.get("OMNIDOC_HOST", "127.0.0.1")
     port = int(os.environ.get("OMNIDOC_PORT", "8000"))
     logger.info(f"Starting OmniDoc API on http://{host}:{port}")
-    uvicorn.run(app, host=host, port=port)
+    # Beyond this many connections at once the server answers 503 straight away rather than slowing
+    # down for everyone (Caddy and the CDN in front absorb the rest).
+    uvicorn.run(app, host=host, port=port, limit_concurrency=int(os.environ.get("OMNIDOC_MAX_CONNECTIONS", "2000")),
+                timeout_keep_alive=int(os.environ.get("OMNIDOC_KEEP_ALIVE", "20")))
