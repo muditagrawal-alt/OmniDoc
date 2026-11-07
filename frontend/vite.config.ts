@@ -14,7 +14,8 @@ export default defineConfig({
       output: {
         manualChunks(id) {
           if (id.includes('node_modules/three')) return 'three';
-          if (id.includes('node_modules/katex')) return 'katex';
+          // The library only: its stylesheet travels with the components that render maths.
+          if (id.includes('node_modules/katex') && !id.endsWith('.css')) return 'katex';
         },
       },
     },
