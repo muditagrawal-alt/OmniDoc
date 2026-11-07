@@ -12,7 +12,7 @@ Every claim cites the page it came from, and every sentence is checked against i
 
 [![Live demo](https://img.shields.io/badge/live%20demo-omnidoc--silk.vercel.app-0f62fe?logo=vercel&logoColor=white)](https://omnidoc-silk.vercel.app)
 [![CI](https://github.com/muditagrawal-alt/OmniDoc/actions/workflows/ci.yml/badge.svg)](https://github.com/muditagrawal-alt/OmniDoc/actions/workflows/ci.yml)
-[![Tests](https://img.shields.io/badge/tests-207%20passing-198038)](#development)
+[![Tests](https://img.shields.io/badge/tests-211%20passing-198038)](#development)
 [![License: MIT](https://img.shields.io/badge/license-MIT-0f62fe)](LICENSE)
 <br>
 [![Python](https://img.shields.io/badge/python-3.9%2B-3776ab?logo=python&logoColor=white)](requirements.txt)
@@ -282,6 +282,28 @@ flowchart LR
     F -->|feedback| R[Resend e-mail]
 ```
 
+**Built for traffic.** The parts that see the most traffic never reach the server, and the server protects
+itself when a crowd arrives:
+
+- **At the edge.** Vercel's CDN serves the web app, its hashed assets (cached for a year), the product page's
+  images and the public sign-in check, so a wave of visitors to the product page costs the server almost nothing.
+  Visitors to the product page download only its code (about 570 KB of JavaScript); the workspace loads after
+  sign-in.
+- **Answers are admitted, not piled up.** At most `OMNIDOC_MAX_ANSWERS` answers (6) and `OMNIDOC_MAX_UPLOADS`
+  uploads (2) run at once; the rest wait briefly ("Waiting for a free moment") and are then told to try again in a
+  minute, so the CPU, memory and free model quotas are never overrun and everyone else stays fast.
+- **The demo's questions are answered once.** The sample library is the same for every visitor, so the first
+  answer to a question is recorded and replayed instantly for the next visitors, with no model call.
+- **Quick requests never wait behind slow ones.** Sessions are checked off the event loop, 200 worker threads
+  (`OMNIDOC_THREADS`) keep long answer streams from starving quick requests, and beyond `OMNIDOC_MAX_CONNECTIONS`
+  the server sheds load with a 503 instead of slowing down for everyone.
+
+| Measured on one process (6,000 requests, 50 at a time) | Before | After |
+|---|---|---|
+| Public sign-in check | 3,748 req/s, p99 57 ms | **7,341 req/s, p99 7 ms** (and cached at the CDN) |
+| Health check | 1,034 req/s, p99 97 ms | **4,707 req/s, p99 36 ms** |
+| Signed-in reads (documents, chats) | ~2,300 req/s, p99 66 ms | ~2,200 req/s, p99 66 ms, without blocking other requests |
+
 | Layer | Technology |
 |---|---|
 | API and orchestration | FastAPI, LangGraph |
@@ -389,6 +411,9 @@ Model and search keys are listed in [`.env.example`](.env.example). Other settin
 | `OMNIDOC_PUBLIC_URL` | `http://127.0.0.1:8000` | The address people open (passkeys, sign-in redirects, links in e-mails) |
 | `OMNIDOC_PROXY_KEY` | none | Secret path prefix a front end on another host (Vercel) forwards `/api` under |
 | `OMNIDOC_API_DOCS` | `1` locally, `0` with accounts | Publish the interactive API docs at `/docs` |
+| `OMNIDOC_MAX_ANSWERS` / `OMNIDOC_MAX_UPLOADS` / `OMNIDOC_QUEUE_SECONDS` | `6` / `2` / `25` | Answers and uploads worked on at once, and how long a request waits for a free slot before "try again" |
+| `OMNIDOC_DEMO_CACHE_HOURS` | `12` | How long a demo answer is replayed for the next visitors who ask the same first question |
+| `OMNIDOC_THREADS` / `OMNIDOC_MAX_CONNECTIONS` | `200` / `2000` | Worker threads for requests, and connections at once before the server answers 503 |
 | `OMNIDOC_AUTH` | none | `user:password` required from every visitor (a private deployment without accounts; use HTTPS) |
 | `OMNIDOC_SUMMARIES` | `1` | Summarize documents after upload |
 | `OMNIDOC_OCR_LANGS` / `OMNIDOC_OCR_DPI` / `OMNIDOC_OCR_MIN_CONF` | detected / `200` / `55` | OCR languages, resolution and word confidence |
@@ -425,7 +450,7 @@ measures below are covered by the test suite. See [`SECURITY.md`](SECURITY.md) t
 ## Development
 
 ```bash
-pytest                                                                  # 207 tests, against a throwaway data folder
+pytest                                                                  # 211 tests, against a throwaway data folder
 cd frontend && npx tsc -b && npx oxlint src && npm run build            # types, lint, production build
 ```
 
