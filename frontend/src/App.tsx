@@ -5,28 +5,10 @@ import { payloadToMetadata } from './lib/normalize';
 import { Sidebar } from './components/Sidebar';
 import type { View } from './components/Sidebar';
 import { AppRail } from './components/AppRail';
-import { SettingsPanel } from './components/SettingsPanel';
-import { ProvidersDialog } from './components/ProvidersDialog';
 import { prefersStill, setSetting, useSettings } from './lib/settings';
 import { useTheme } from './lib/theme';
 import { CloudField } from './components/backgrounds/CloudField';
-import { ChatView } from './components/chat/ChatView';
-import { LibraryView } from './components/library/LibraryView';
 import type { UploadItem } from './components/library/LibraryView';
-import { ExtractView } from './components/extract/ExtractView';
-import { CompareView } from './components/compare/CompareView';
-import { SearchView } from './components/views/SearchView';
-import { TablesView } from './components/views/TablesView';
-import { RecordsView } from './components/views/RecordsView';
-import { TimelineView } from './components/views/TimelineView';
-import { PrivacyView } from './components/views/PrivacyView';
-import { ConnectView } from './components/views/ConnectView';
-import { AdminView } from './components/views/AdminView';
-import { ProfileDialog } from './components/ProfileDialog';
-import { SignIn } from './components/SignIn';
-import { AccountDialog } from './components/AccountDialog';
-import { NoticesDialog } from './components/NoticesDialog';
-import { KeysDialog } from './components/KeysDialog';
 import { Tour } from './components/Tour';
 import { ToastProvider, useToast } from './components/ui/Toast';
 import styles from './App.module.css';
@@ -37,6 +19,25 @@ const MOBILE_QUERY = '(max-width: 900px)';
 const KnowledgeView = lazy(() => import('./components/knowledge/KnowledgeView').then((m) => ({ default: m.KnowledgeView })));
 // The product page is its own chunk: people using the app never download it.
 const Landing = lazy(() => import('./landing/Landing'));
+// The workspace loads after sign-in, so visitors to the product page download only what it needs.
+const SettingsPanel = lazy(() => import('./components/SettingsPanel').then((m) => ({ default: m.SettingsPanel })));
+const ProvidersDialog = lazy(() => import('./components/ProvidersDialog').then((m) => ({ default: m.ProvidersDialog })));
+const ChatView = lazy(() => import('./components/chat/ChatView').then((m) => ({ default: m.ChatView })));
+const LibraryView = lazy(() => import('./components/library/LibraryView').then((m) => ({ default: m.LibraryView })));
+const ExtractView = lazy(() => import('./components/extract/ExtractView').then((m) => ({ default: m.ExtractView })));
+const CompareView = lazy(() => import('./components/compare/CompareView').then((m) => ({ default: m.CompareView })));
+const SearchView = lazy(() => import('./components/views/SearchView').then((m) => ({ default: m.SearchView })));
+const TablesView = lazy(() => import('./components/views/TablesView').then((m) => ({ default: m.TablesView })));
+const RecordsView = lazy(() => import('./components/views/RecordsView').then((m) => ({ default: m.RecordsView })));
+const TimelineView = lazy(() => import('./components/views/TimelineView').then((m) => ({ default: m.TimelineView })));
+const PrivacyView = lazy(() => import('./components/views/PrivacyView').then((m) => ({ default: m.PrivacyView })));
+const ConnectView = lazy(() => import('./components/views/ConnectView').then((m) => ({ default: m.ConnectView })));
+const AdminView = lazy(() => import('./components/views/AdminView').then((m) => ({ default: m.AdminView })));
+const ProfileDialog = lazy(() => import('./components/ProfileDialog').then((m) => ({ default: m.ProfileDialog })));
+const SignIn = lazy(() => import('./components/SignIn').then((m) => ({ default: m.SignIn })));
+const AccountDialog = lazy(() => import('./components/AccountDialog').then((m) => ({ default: m.AccountDialog })));
+const NoticesDialog = lazy(() => import('./components/NoticesDialog').then((m) => ({ default: m.NoticesDialog })));
+const KeysDialog = lazy(() => import('./components/KeysDialog').then((m) => ({ default: m.KeysDialog })));
 const VIEWS: View[] = ['chat', 'search', 'library', 'extract', 'compare', 'tables', 'records', 'timeline', 'privacy', 'knowledge', 'connect', 'admin'];
 
 function viewFromHash(): View {
@@ -579,6 +580,7 @@ function Shell() {
   }
   if (methods.accounts && !user) {
     return (
+      <Suspense fallback={<div className={styles.app} aria-busy="true" />}>
       <SignIn
         methods={methods}
         initialError={authError}
@@ -591,6 +593,7 @@ function Shell() {
         }}
         onSignedIn={enterApp}
       />
+      </Suspense>
     );
   }
 
@@ -622,6 +625,7 @@ function Shell() {
   };
 
   return (
+    <Suspense fallback={<div className={styles.app} aria-busy="true" />}>
     <div className={styles.app}>
       {rail ? (
         <AppRail
@@ -827,6 +831,7 @@ function Shell() {
         }}
       />
     </div>
+    </Suspense>
   );
 }
 
