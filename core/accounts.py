@@ -30,6 +30,7 @@ import secrets
 import hashlib
 import logging
 import smtplib
+import threading
 import urllib.parse
 from email.message import EmailMessage
 from pathlib import Path
@@ -117,18 +118,48 @@ def normalize_email(email: str) -> Optional[str]:
 
 
 # ------------------------------------------------------------------- secrets
+_SECRETS: Dict[str, bytes] = {}
+_SECRET_LOCK = threading.Lock()
+
+
 def _secret(data_dir: Path) -> bytes:
-    """OMNIDOC_SECRET_KEY, else a random key kept in the data folder (readable by the owner only)."""
+    """
+    OMNIDOC_SECRET_KEY, else a random key kept in the data folder (readable by the owner only).
+    Read once and kept in memory. The file is written to a temporary name and linked into place,
+    so concurrent first requests (or two processes) agree on one key and never read a half-written,
+    empty one.
+    """
     explicit = os.getenv("OMNIDOC_SECRET_KEY", "").strip()
     if explicit:
         return explicit.encode("utf-8")
-    path = Path(data_dir) / "secret.key"
-    if not path.exists():
-        path.parent.mkdir(parents=True, exist_ok=True)
-        fd = os.open(str(path), os.O_WRONLY | os.O_CREAT | os.O_EXCL, 0o600)
-        with os.fdopen(fd, "w") as f:
-            f.write(secrets.token_hex(32))
-    return path.read_text().strip().encode("utf-8")
+    cache_key = str(data_dir)
+    cached = _SECRETS.get(cache_key)
+    if cached:
+        return cached
+    with _SECRET_LOCK:
+        cached = _SECRETS.get(cache_key)
+        if cached:
+            return cached
+        path = Path(data_dir) / "secret.key"
+        if not path.exists():
+            path.parent.mkdir(parents=True, exist_ok=True)
+            tmp = path.with_name(f".secret.key.{os.getpid()}.{threading.get_ident()}")
+            fd = os.open(str(tmp), os.O_WRONLY | os.O_CREAT | os.O_EXCL, 0o600)
+            with os.fdopen(fd, "w") as f:
+                f.write(secrets.token_hex(32))
+                f.flush()
+                os.fsync(f.fileno())
+            try:
+                os.link(str(tmp), str(path))  # atomic; fails if another process got there first
+            except FileExistsError:
+                pass
+            finally:
+                os.unlink(str(tmp))
+        value = path.read_text().strip()
+        if not value:
+            raise RuntimeError(f"{path} is empty: delete it to make a new key")
+        _SECRETS[cache_key] = value.encode("utf-8")
+        return _SECRETS[cache_key]
 
 
 def keyed_hash(data_dir: Path, *parts: str) -> str:
