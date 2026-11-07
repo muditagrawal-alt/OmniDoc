@@ -1,6 +1,7 @@
 import { useMemo, useState } from 'react';
 import { Calculator, Check, ChevronRight, Copy } from 'lucide-react';
 import katex from 'katex';
+import 'katex/dist/katex.min.css';
 import type { MathResult } from '../../api';
 import { normalizeMath } from './normalize';
 import styles from './MathBlock.module.css';
