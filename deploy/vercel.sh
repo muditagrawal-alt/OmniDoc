@@ -46,7 +46,18 @@ json.dump(config, open(target, "w"), indent=2)
 PY
 
 cd "$out"
+# Nothing but the built site is uploaded: newer CLIs write a .env.local with a Vercel OIDC token on
+# link, and that must never become a public file.
+printf '.env*\n.vercel\n*.log\n' > .vercelignore
 vercel link --yes --project "$PROJECT" >/dev/null
-url=$(vercel deploy --prod --yes)
+rm -f .env .env.local .env.*.local
+# The Vercel API is occasionally unreachable for a moment: try the upload up to three times.
+url=""
+for attempt in 1 2 3; do
+  if url=$(vercel deploy --prod --yes); then break; fi
+  echo "Deploy attempt $attempt failed; retrying..." >&2
+  sleep 10
+done
+[ -n "$url" ] || { echo "Could not deploy to Vercel" >&2; exit 1; }
 echo "Deployed: $url"
 echo "The production address (https://$PROJECT....vercel.app) is listed under Domains: vercel project inspect $PROJECT"
