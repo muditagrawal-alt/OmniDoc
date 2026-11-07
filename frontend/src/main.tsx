@@ -6,7 +6,6 @@ import '@fontsource-variable/ibm-plex-sans';
 import '@fontsource-variable/ibm-plex-sans/standard-italic.css';
 import '@fontsource/ibm-plex-mono/400.css';
 import '@fontsource/ibm-plex-mono/500.css';
-import 'katex/dist/katex.min.css';
 
 import './styles/tokens.css';
 import './styles/preferences.css';
